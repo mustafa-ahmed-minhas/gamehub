@@ -1,0 +1,27 @@
+@model PaymentTransaction
+@{
+    ViewData["Title"] = "Booking Confirmed";
+    Layout = "_CustomerLayout";
+}
+<section class="payment-result success">
+    <div class="container result-panel">
+        <i class="bi bi-patch-check-fill"></i>
+        <h1>Your Court Is Booked</h1>
+        <p>A reminder will appear in your account before your booking.</p>
+        <div class="result-grid">
+            <span>Booking</span><strong>@Model.Booking?.BookingNumber</strong>
+            <span>Transaction</span><strong>@Model.TransactionNumber</strong>
+            <span>Receipt</span><strong>@ViewBag.ReceiptNumber</strong>
+            <span>Amount Paid</span><strong>@Model.CurrencySymbol @Model.Amount.ToString("N0")</strong>
+            <span>Payment Method</span><strong>@Model.PaymentMethod.GetDisplayName()</strong>
+            <span>Status</span><strong>Confirmed / Paid</strong>
+        </div>
+        <div class="result-actions">
+            <a class="btn-premium" asp-controller="MyBookings" asp-action="Details" asp-route-id="@Model.BookingId">View Booking</a>
+            <a class="btn-ghost-light" asp-controller="MyBookings" asp-action="Receipt" asp-route-bookingId="@Model.BookingId">Print Receipt</a>
+            <a class="btn-ghost-light" asp-controller="MyBookings" asp-action="Invoice" asp-route-bookingId="@Model.BookingId">View Invoice</a>
+            <a class="btn-ghost-light" asp-controller="MyBookings" asp-action="Index">My Bookings</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

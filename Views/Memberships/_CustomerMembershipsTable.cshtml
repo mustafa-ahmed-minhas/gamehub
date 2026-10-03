@@ -1,0 +1,33 @@
+@model MembershipIndexViewModel
+@using GameHub.Helpers
+@if (!Model.CustomerMemberships.Any())
+{
+    <div class="membership-empty-state"><span><i class="bi bi-person-badge"></i></span><h2>No customer memberships found</h2><p>Assign a membership to an eligible customer and track their access lifecycle here.</p></div>
+}
+else
+{
+    <div class="users-table-wrap membership-table-wrap">
+        <table class="users-table memberships-table">
+            <thead><tr><th>Customer</th><th>Number</th><th>Plan</th><th>Start</th><th>Expiry</th><th>Remaining</th><th>Hours</th><th>Discount</th><th>Status</th><th>Auto Renew</th><th>Actions</th></tr></thead>
+            <tbody>
+                @foreach (var item in Model.CustomerMemberships)
+                {
+                    <tr>
+                        <td data-label="Customer"><div class="user-cell membership-name-cell"><span class="user-avatar membership-table-avatar">@item.CustomerInitials</span><div><strong>@item.CustomerName</strong><small>@item.CustomerPhone</small></div></div></td>
+                        <td data-label="Number"><span class="membership-code">@item.MembershipNumber</span></td>
+                        <td data-label="Plan">@item.PlanName</td>
+                        <td data-label="Start">@item.StartDate.ToString("dd MMM yyyy")</td>
+                        <td data-label="Expiry">@item.ExpiryDate.ToString("dd MMM yyyy")</td>
+                        <td data-label="Remaining"><span class="membership-status-badge @(item.RemainingDays < 0 ? "expired" : item.RemainingDays <= 30 ? "pending" : "active")">@(item.RemainingDays < 0 ? "Expired" : $"{item.RemainingDays} days")</span></td>
+                        <td data-label="Hours"><div class="usage-mini membership-usage"><span style="width:@(item.IncludedBookingHours == 0 ? 0 : Math.Min(100, item.UsedBookingHours * 100 / item.IncludedBookingHours))%"></span></div><small>@item.UsedBookingHours / @item.IncludedBookingHours</small></td>
+                        <td data-label="Discount">@item.DiscountPercentage.ToString("N0")%</td>
+                        <td data-label="Status"><span class="membership-status-badge @item.Status.ToString().ToLowerInvariant()"><i></i>@item.Status.GetDisplayName()</span></td>
+                        <td data-label="Auto"><span class="membership-mini-switch @(item.AutoRenew ? "on" : "")"></span></td>
+                        <td data-label="Actions"><div class="membership-action-menu"><a class="membership-icon-button" asp-action="MembershipDetails" asp-route-id="@item.Id" data-tooltip="View"><i class="bi bi-eye"></i></a>@if (Model.CanManage) { <a class="membership-icon-button" asp-action="EditMembership" asp-route-id="@item.Id" data-tooltip="Edit"><i class="bi bi-pencil"></i></a><button class="membership-icon-button" data-membership-action data-url="@Url.Action("Renew", new { id = item.Id })" data-message="Renew this membership?" type="button" data-tooltip="Renew"><i class="bi bi-arrow-clockwise"></i></button> }</div></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="membership-pagination"><span>Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1)-@Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords) of @Model.TotalRecords memberships</span><div><a class="@(Model.CurrentPage <= 1 ? "disabled" : "")" asp-action="Index" asp-route-tab="customers" asp-route-search="@Model.Search" asp-route-planId="@Model.PlanId" asp-route-membershipStatus="@Model.MembershipStatus" asp-route-expiryState="@Model.ExpiryState" asp-route-statusFilter="@Model.StatusFilter" asp-route-sortBy="@Model.SortBy" asp-route-page="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a><strong>@Model.CurrentPage / @Model.TotalPages</strong><a class="@(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" asp-action="Index" asp-route-tab="customers" asp-route-search="@Model.Search" asp-route-planId="@Model.PlanId" asp-route-membershipStatus="@Model.MembershipStatus" asp-route-expiryState="@Model.ExpiryState" asp-route-statusFilter="@Model.StatusFilter" asp-route-sortBy="@Model.SortBy" asp-route-page="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a></div></div>
+}

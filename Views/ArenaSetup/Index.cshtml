@@ -1,0 +1,134 @@
+@model ArenaSetupViewModel
+@using Microsoft.AspNetCore.Html
+@{
+    ViewData["Title"] = "Arena Setup";
+    Layout = "_AdminLayout";
+    var tabs = new[] { ("sports", "Sports", "bi-trophy"), ("facilities", "Facilities", "bi-building"), ("courts", "Courts", "bi-grid-3x3-gap"), ("pricing", "Pricing", "bi-cash-stack"), ("schedules", "Schedules", "bi-clock-history") };
+    string TabUrl(string tab) => Url.Action("Index", "ArenaSetup", new { tab }) ?? "#";
+    string PageUrl(int page) => Url.Action("Index", "ArenaSetup", new { tab = Model.ActiveTab, search = Model.Search, statusFilter = Model.StatusFilter, sortBy = Model.SortBy, page, pageSize = Model.PageSize, sportId = Model.SportId, facilityId = Model.FacilityId, courtId = Model.CourtId, day = Model.Day, type = Model.Type, operationalStatus = Model.OperationalStatus }) ?? "#";
+    var start = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+}
+
+<form id="arenaStatusToken">@Html.AntiForgeryToken()</form>
+
+<section class="arena-page" data-arena-page>
+    <div class="arena-header admin-reveal">
+        <div>
+            <span class="admin-label">Operations Configuration</span>
+            <h1>Arena Setup</h1>
+            <p>Configure sports, facilities, courts, pricing, and weekly operating schedules.</p>
+        </div>
+        @if (Model.CanManage)
+        {
+            <a class="admin-action-button" href="@CreateUrl(Model.ActiveTab)"><i class="bi bi-plus-lg"></i> Add @Singular(Model.ActiveTab)</a>
+        }
+    </div>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-trophy"></i><span>Active Sports</span><strong>@Model.ActiveSports</strong></article>
+        <article><i class="bi bi-building"></i><span>Active Facilities</span><strong>@Model.ActiveFacilities</strong></article>
+        <article><i class="bi bi-grid-3x3-gap"></i><span>Active Courts</span><strong>@Model.ActiveCourts</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Pricing Rules</span><strong>@Model.PricingRules</strong></article>
+        <article><i class="bi bi-calendar2-week"></i><span>Weekly Schedules</span><strong>@Model.WeeklySchedules</strong></article>
+    </div>
+
+    <nav class="arena-tabs" aria-label="Arena setup tabs">
+        @foreach (var tab in tabs)
+        {
+            <a class="@(Model.ActiveTab == tab.Item1 ? "active" : "")" href="@TabUrl(tab.Item1)"><i class="bi @tab.Item3"></i>@tab.Item2</a>
+        }
+    </nav>
+
+    <section class="arena-card">
+        <form class="arena-toolbar" method="get" asp-controller="ArenaSetup" asp-action="Index" data-arena-filter-form>
+            <input type="hidden" name="tab" value="@Model.ActiveTab" />
+            <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search @Model.ActiveTab..." data-arena-search /></div>
+            <select name="statusFilter" data-arena-auto>
+                <option value="">All Status</option>
+                <option value="active" selected="@(Model.StatusFilter == "active")">Active</option>
+                <option value="inactive" selected="@(Model.StatusFilter == "inactive")">Inactive</option>
+            </select>
+            @if (Model.ActiveTab is "courts" or "pricing" or "schedules")
+            {
+                <select name="sportId" data-arena-auto><option value="">All Sports</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value" selected="@(Model.SportId?.ToString() == item.Value)">@item.Text</option> }</select>
+            }
+            @if (Model.ActiveTab == "courts")
+            {
+                <select name="facilityId" data-arena-auto><option value="">All Facilities</option>@foreach (var item in Model.FacilityOptions) { <option value="@item.Value" selected="@(Model.FacilityId?.ToString() == item.Value)">@item.Text</option> }</select>
+                <select name="operationalStatus" data-arena-auto><option value="">All Court Status</option>@foreach (CourtStatus s in Enum.GetValues<CourtStatus>()) { <option value="@s" selected="@(Model.OperationalStatus == s.ToString())">@s</option> }</select>
+            }
+            @if (Model.ActiveTab == "facilities")
+            {
+                <select name="type" data-arena-auto><option value="">All Types</option>@foreach (FacilityType t in Enum.GetValues<FacilityType>()) { <option value="@t" selected="@(Model.Type == t.ToString())">@t</option> }</select>
+            }
+            @if (Model.ActiveTab is "pricing" or "schedules")
+            {
+                <select name="courtId" data-arena-auto><option value="">All Courts</option>@foreach (var item in Model.CourtOptions) { <option value="@item.Value" selected="@(Model.CourtId?.ToString() == item.Value)">@item.Text</option> }</select>
+                <select name="day" data-arena-auto><option value="">All Days</option>@foreach (DayOfWeek d in Enum.GetValues<DayOfWeek>()) { <option value="@d" selected="@(Model.Day == d.ToString())">@d</option> }</select>
+            }
+            @if (Model.ActiveTab == "pricing")
+            {
+                <select name="type" data-arena-auto><option value="">All Rates</option><option value="peak" selected="@(Model.Type == "peak")">Peak</option><option value="standard" selected="@(Model.Type == "standard")">Standard</option></select>
+            }
+            <select name="pageSize" data-arena-auto>@foreach (var size in new[] { 10, 25, 50 }) { <option value="@size" selected="@(Model.PageSize == size)">@size / page</option> }</select>
+            <input type="hidden" name="page" value="1" />
+            <a class="admin-secondary-button" href="@TabUrl(Model.ActiveTab)"><i class="bi bi-x-lg"></i> Clear</a>
+        </form>
+
+        @if (Model.TotalRecords == 0)
+        {
+            <div class="arena-empty"><i class="bi bi-inbox"></i><h2>No records found</h2><p>Try changing filters or create a new @Singular(Model.ActiveTab).</p></div>
+        }
+        else if (Model.ActiveTab == "sports")
+        {
+            <table class="arena-table"><thead><tr><th>Sport</th><th>Code</th><th>Default Duration</th><th>Courts</th><th>Display Order</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @foreach (var item in Model.Sports) { <tr><td data-label="Sport"><span class="arena-identity"><i style="--accent:@(item.AccentColor ?? "#d6a950")" class="bi @(item.IconClass ?? "bi-trophy")"></i><strong>@item.Name</strong></span></td><td data-label="Code">@item.Code</td><td data-label="Duration">@item.DefaultDurationMinutes min</td><td data-label="Courts">@item.CourtCount</td><td data-label="Order">@item.DisplayOrder</td><td data-label="Status">@Badge(item.IsActive)</td><td data-label="Actions">@Actions("Sport", item.Id, item.IsActive)</td></tr> }
+            </tbody></table>
+        }
+        else if (Model.ActiveTab == "facilities")
+        {
+            <table class="arena-table"><thead><tr><th>Facility</th><th>Code</th><th>Type</th><th>Location</th><th>Courts</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @foreach (var item in Model.Facilities) { <tr><td data-label="Facility"><strong>@item.Name</strong></td><td data-label="Code">@item.Code</td><td data-label="Type"><span class="arena-chip">@item.Type</span></td><td data-label="Location">@(item.LocationLabel ?? "-")</td><td data-label="Courts">@item.CourtCount</td><td data-label="Status">@Badge(item.IsActive)</td><td data-label="Actions">@Actions("Facility", item.Id, item.IsActive)</td></tr> }
+            </tbody></table>
+        }
+        else if (Model.ActiveTab == "courts")
+        {
+            <table class="arena-table"><thead><tr><th>Court</th><th>Sport</th><th>Facility</th><th>Capacity</th><th>Operational Status</th><th>Pricing Rules</th><th>Active</th><th>Actions</th></tr></thead><tbody>
+            @foreach (var item in Model.Courts) { <tr><td data-label="Court"><strong>@item.Name</strong><small>@item.Code</small></td><td data-label="Sport">@item.SportName</td><td data-label="Facility">@item.FacilityName</td><td data-label="Capacity">@item.Capacity</td><td data-label="Status"><span class="arena-status @item.Status.ToString().ToLowerInvariant()">@item.Status</span></td><td data-label="Pricing">@item.PricingCount</td><td data-label="Active">@Badge(item.IsActive)</td><td data-label="Actions">@Actions("Court", item.Id, item.IsActive)</td></tr> }
+            </tbody></table>
+        }
+        else if (Model.ActiveTab == "pricing")
+        {
+            <table class="arena-table"><thead><tr><th>Pricing Rule</th><th>Court</th><th>Sport</th><th>Day</th><th>Time</th><th>Duration</th><th>Price</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @foreach (var item in Model.Pricings) { <tr><td data-label="Rule"><strong>@item.Name</strong></td><td data-label="Court">@item.CourtName</td><td data-label="Sport">@item.SportName</td><td data-label="Day">@(item.DayOfWeek?.ToString() ?? "All Days")</td><td data-label="Time">@item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")</td><td data-label="Duration">@item.DurationMinutes min</td><td data-label="Price">PKR @item.Price.ToString("N0")</td><td data-label="Type"><span class="arena-chip @(item.IsPeakRate ? "peak" : "")">@(item.IsPeakRate ? "Peak" : "Standard")</span></td><td data-label="Status">@Badge(item.IsActive)</td><td data-label="Actions">@Actions("Pricing", item.Id, item.IsActive)</td></tr> }
+            </tbody></table>
+        }
+        else
+        {
+            <table class="arena-table"><thead><tr><th>Court</th><th>Sport</th><th>Day</th><th>Operating Hours</th><th>Slot Duration</th><th>Buffer</th><th>Open/Closed</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+            @foreach (var item in Model.Schedules) { <tr><td data-label="Court">@item.CourtName</td><td data-label="Sport">@item.SportName</td><td data-label="Day">@item.DayOfWeek</td><td data-label="Hours">@(item.IsClosed ? "-" : $"{item.OpeningTime:HH:mm} - {item.ClosingTime:HH:mm}")</td><td data-label="Slot">@item.SlotDurationMinutes min</td><td data-label="Buffer">@item.BufferMinutes min</td><td data-label="State"><span class="arena-chip @(item.IsClosed ? "closed" : "")">@(item.IsClosed ? "Closed" : "Open")</span></td><td data-label="Status">@Badge(item.IsActive)</td><td data-label="Actions">@Actions("Schedule", item.Id, item.IsActive)</td></tr> }
+            </tbody></table>
+        }
+
+        <div class="arena-pagination"><span>Showing @start-@end of @Model.TotalRecords records</span><nav><a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : PageUrl(Model.CurrentPage - 1))">Previous</a>@for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++) { <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@PageUrl(pageNumber)">@pageNumber</a> }<a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : PageUrl(Model.CurrentPage + 1))">Next</a></nav></div>
+    </section>
+</section>
+
+<div class="modal fade arena-modal" id="arenaConfirmModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title">Confirm Status Change</h2><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><p data-arena-confirm-message>This record status will be changed.</p></div><div class="modal-footer"><button class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button><button class="admin-action-button" data-arena-confirm>Confirm</button></div></div></div></div>
+
+@functions {
+    private string Singular(string tab) => tab switch { "sports" => "Sport", "facilities" => "Facility", "courts" => "Court", "pricing" => "Pricing Rule", "schedules" => "Schedule", _ => "Record" };
+    private string CreateUrl(string tab) => Url.Action(tab switch { "sports" => "CreateSport", "facilities" => "CreateFacility", "courts" => "CreateCourt", "pricing" => "CreatePricing", "schedules" => "CreateSchedule", _ => "CreateSport" }, "ArenaSetup") ?? "#";
+    private IHtmlContent Badge(bool active) => new HtmlString($"<span class=\"arena-active {(active ? "active" : "inactive")}\"><i></i>{(active ? "Active" : "Inactive")}</span>");
+    private IHtmlContent Actions(string entity, int id, bool active)
+    {
+        var details = Url.Action($"{entity}Details", "ArenaSetup", new { id });
+        var edit = Url.Action($"Edit{entity}", "ArenaSetup", new { id });
+        var toggle = Url.Action($"Toggle{entity}Status", "ArenaSetup", new { id });
+        var html = $"<div class=\"arena-actions\"><a class=\"icon-button\" href=\"{details}\" aria-label=\"View\"><i class=\"bi bi-eye\"></i></a>";
+        if (Model.CanManage) html += $"<a class=\"icon-button\" href=\"{edit}\" aria-label=\"Edit\"><i class=\"bi bi-pencil\"></i></a><button type=\"button\" class=\"icon-button\" data-arena-toggle data-url=\"{toggle}\" data-active=\"{active.ToString().ToLowerInvariant()}\" aria-label=\"Toggle status\"><i class=\"bi {(active ? "bi-pause-circle" : "bi-play-circle")}\"></i></button>";
+        html += "</div>";
+        return new HtmlString(html);
+    }
+}

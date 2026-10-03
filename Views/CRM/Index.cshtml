@@ -1,0 +1,178 @@
+@model CrmIndexViewModel
+@using GameHub.Helpers
+@using System.Net
+@{
+    ViewData["Title"] = Model.ActiveTab == "leads" ? "Lead Management" : Model.ActiveTab == "opportunities" ? "Opportunity Pipeline" : "CRM Overview";
+    Layout = "_AdminLayout";
+
+    var isLeads = Model.ActiveTab == "leads";
+    var isOpportunities = Model.ActiveTab == "opportunities";
+    var headerTitle = isLeads ? "Lead Management" : isOpportunities ? "Opportunity Pipeline" : "CRM Overview";
+    var headerDescription = isLeads
+        ? "Capture, qualify and nurture customer inquiries through a structured sales pipeline."
+        : isOpportunities
+            ? "Track commercial opportunities from qualification to close with clear value and probability."
+            : "Monitor inquiry demand, follow-up health and active sales pipeline performance.";
+    var health = Model.OverdueFollowUps > 5 ? "Needs Attention" : "Healthy";
+    var healthClass = Model.OverdueFollowUps > 5 ? "risk" : "healthy";
+    var closingThisMonth = Model.Opportunities.Count(x => x.ExpectedCloseDate.Month == DateTime.UtcNow.Month && x.ExpectedCloseDate.Year == DateTime.UtcNow.Year);
+    var wonOpportunities = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Won);
+    var lostOpportunities = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Lost);
+    ViewData["CrmGuidance"] = isLeads ? "leads" : isOpportunities ? "opportunities" : "overview";
+    ViewData["CrmGuidanceRail"] = false;
+    ViewData["OpenLeads"] = Model.TotalOpenLeads;
+    ViewData["OpenOpportunities"] = Model.OpportunityCount;
+    ViewData["OverdueFollowUps"] = Model.OverdueFollowUps;
+    ViewData["UnassignedLeads"] = Model.Leads.Count(x => string.IsNullOrWhiteSpace(x.AssignedTo));
+    ViewData["NoFollowUpLeads"] = Model.Leads.Count(x => x.NextFollowUpAt == null);
+    ViewData["UnassignedOpportunities"] = Model.Opportunities.Count(x => string.IsNullOrWhiteSpace(x.AssignedTo));
+    ViewData["OverdueOpportunities"] = Model.Opportunities.Count(x => x.IsOverdue);
+    ViewData["NegotiationValue"] = $"{Model.CurrencySymbol} {Model.Opportunities.Where(x => x.Stage == OpportunityStage.Negotiation).Sum(x => x.ExpectedValue):N0}";
+}
+
+<section class="crm-page crm-page-pro @(isLeads ? "leads-page" : isOpportunities ? "opportunities-page" : "overview-page")">
+    <div class="arena-header">
+        <div>
+            <span class="admin-label">Customer Relationship Management</span>
+            <h1>@headerTitle</h1>
+            <p>@headerDescription</p>
+            <div class="crm-filter-summary">
+                <span class="crm-health-pill @healthClass"><i class="bi bi-activity"></i> Pipeline Health: @health</span>
+                <span><i class="bi bi-database-check"></i> @Model.TotalRecords records in current view</span>
+                @if (!string.IsNullOrWhiteSpace(Model.Search))
+                {
+                    <a asp-action="Index" asp-route-tab="@Model.ActiveTab" class="crm-filter-chip"><i class="bi bi-x"></i> Search: @Model.Search</a>
+                }
+            </div>
+        </div>
+        <div class="crm-command-actions">
+            @if (Model.CanManageLeads)
+            {
+                <a class="admin-action-button crm-premium-button" asp-action="CreateLead"><i class="bi bi-plus-lg"></i> Add Lead</a>
+            }
+            <button class="crm-guide-link" type="button" data-crm-guide-open><i class="bi bi-question-circle"></i> Help</button>
+            <div class="crm-view-toggle" aria-label="CRM view mode">
+                <a class="@(Model.ViewMode == "list" ? "active" : "")" asp-action="Index" asp-route-tab="@(isOpportunities ? "opportunities" : "leads")" asp-route-viewMode="list"><i class="bi bi-list-ul"></i> List</a>
+                <a class="@(Model.ViewMode == "kanban" ? "active" : "")" asp-action="Index" asp-route-tab="@(isOpportunities ? "opportunities" : "leads")" asp-route-viewMode="kanban"><i class="bi bi-kanban"></i> Pipeline</a>
+            </div>
+        </div>
+    </div>
+
+    @if (isLeads)
+    {
+        <div class="arena-summary-grid">
+            <article><i class="bi bi-inbox"></i><span>Total Leads</span><strong>@Model.TotalOpenLeads</strong></article>
+            <article><i class="bi bi-stars"></i><span>New Leads</span><strong>@Model.NewLeads</strong></article>
+            <article><i class="bi bi-patch-check"></i><span>Qualified</span><strong>@Model.QualifiedLeads</strong></article>
+            <article><i class="bi bi-arrow-repeat"></i><span>Converted</span><strong>@Model.Leads.Count(x => x.IsConverted)</strong></article>
+            <article><i class="bi bi-exclamation-triangle"></i><span>Overdue</span><strong>@Model.OverdueFollowUps</strong></article>
+            <article><i class="bi bi-percent"></i><span>Conversion Rate</span><strong>@Model.ConversionRate.ToString("N1")%</strong></article>
+        </div>
+    }
+    else if (isOpportunities)
+    {
+        <div class="arena-summary-grid">
+            <article><i class="bi bi-briefcase"></i><span>Open Opportunities</span><strong>@Model.OpportunityCount</strong></article>
+            <article><i class="bi bi-cash-coin"></i><span>Total Pipeline</span><strong>@Model.CurrencySymbol @Model.PipelineValue.ToString("N0")</strong></article>
+            <article><i class="bi bi-graph-up"></i><span>Weighted Pipeline</span><strong>@Model.CurrencySymbol @Model.WeightedPipeline.ToString("N0")</strong></article>
+            <article><i class="bi bi-calendar2-check"></i><span>Closing This Month</span><strong>@closingThisMonth</strong></article>
+            <article><i class="bi bi-trophy"></i><span>Won</span><strong>@wonOpportunities</strong></article>
+            <article><i class="bi bi-slash-circle"></i><span>Lost</span><strong>@lostOpportunities</strong></article>
+        </div>
+    }
+
+    <nav class="arena-tabs" aria-label="CRM sections">
+        <a class="@(Model.ActiveTab == "overview" ? "active" : "")" asp-action="Index" asp-route-tab="overview"><i class="bi bi-grid-1x2"></i> Overview</a>
+        <a class="@(Model.ActiveTab == "leads" ? "active" : "")" asp-action="Index" asp-route-tab="leads"><i class="bi bi-person-lines-fill"></i> Leads</a>
+        <a class="@(Model.ActiveTab == "opportunities" ? "active" : "")" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-graph-up-arrow"></i> Opportunities</a>
+        <a asp-action="FollowUps"><i class="bi bi-alarm"></i> Follow-up Center</a>
+    </nav>
+
+    <main class="crm-workspace-main">
+        @if (Model.ActiveTab == "overview")
+            {
+                <div class="crm-kpi-grid crm-kpi-grid-pro">
+                    <article class="crm-kpi"><i class="bi bi-inbox"></i><span>Total Leads</span><strong>@Model.TotalOpenLeads</strong><small>Active CRM demand</small><em style="width:@Math.Min(100, Model.TotalOpenLeads * 8)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-stars"></i><span>New Leads</span><strong>@Model.NewLeads</strong><small>Fresh inquiries</small><em style="width:@Math.Min(100, Model.NewLeads * 12)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-check2-circle"></i><span>Qualified</span><strong>@Model.QualifiedLeads</strong><small>Ready to convert</small><em style="width:@Math.Min(100, Model.QualifiedLeads * 14)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-arrow-up-right-circle"></i><span>Conversion Rate</span><strong>@Model.ConversionRate.ToString("N1")%</strong><small>Lead to opportunity</small><em style="width:@Math.Min(100, (int)Model.ConversionRate)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-gem"></i><span>Open Opportunities</span><strong>@Model.OpportunityCount</strong><small>Active pipeline</small><em style="width:@Math.Min(100, Model.OpportunityCount * 14)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-cash-stack"></i><span>Total Pipeline</span><strong>@Model.CurrencySymbol @Model.PipelineValue.ToString("N0")</strong><small>Expected value</small><em style="width:82%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-graph-up"></i><span>Weighted Pipeline</span><strong>@Model.CurrencySymbol @Model.WeightedPipeline.ToString("N0")</strong><small>Probability adjusted</small><em style="width:@(Model.PipelineValue <= 0 ? 0 : Math.Min(100, (int)(Model.WeightedPipeline / Model.PipelineValue * 100)))%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-alarm"></i><span>Overdue Follow-ups</span><strong>@Model.OverdueFollowUps</strong><small>Needs attention</small><em style="width:@Math.Min(100, Model.OverdueFollowUps * 18)%"></em></article>
+                </div>
+
+                <div class="crm-dashboard-grid crm-dashboard-grid-pro">
+                    <article class="crm-card crm-insight-card">
+                        <header><div><h2>Lead Funnel</h2><span>Stage movement</span></div><i class="bi bi-funnel"></i></header>
+                        <div class="crm-funnel">
+                            @foreach (var status in new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Converted, LeadStatus.Lost, LeadStatus.Disqualified })
+                            {
+                                var count = Model.LeadFunnel.TryGetValue(status, out var value) ? value : 0;
+                                <div><span>@status.GetDisplayName()</span><strong>@count</strong><em style="width:@Math.Min(100, count * 16)%"></em></div>
+                            }
+                        </div>
+                    </article>
+                    <article class="crm-card crm-insight-card">
+                        <header><div><h2>Opportunity Value</h2><span>Expected value by stage</span></div><i class="bi bi-bar-chart"></i></header>
+                        <div class="crm-funnel">
+                            @foreach (OpportunityStage stage in Enum.GetValues<OpportunityStage>())
+                            {
+                                var value = Model.PipelineByStage.TryGetValue(stage, out var amount) ? amount : 0;
+                                <div><span>@stage.GetDisplayName()</span><strong>@Model.CurrencySymbol @value.ToString("N0")</strong><em style="width:@(Model.PipelineValue <= 0 ? 0 : Math.Min(100, (int)(value / Model.PipelineValue * 100)))%"></em></div>
+                            }
+                        </div>
+                    </article>
+                    <article class="crm-card crm-insight-card">
+                        <header><div><h2>Lead Sources</h2><span>Demand origin</span></div><i class="bi bi-signpost-split"></i></header>
+                        <div class="crm-source-grid">
+                            @foreach (LeadSource source in Enum.GetValues<LeadSource>())
+                            {
+                                <span><i class="bi bi-record-circle"></i>@source.GetDisplayName() <strong>@(Model.LeadsBySource.TryGetValue(source, out var c) ? c : 0)</strong></span>
+                            }
+                        </div>
+                    </article>
+                    <article class="crm-card crm-insight-card">
+                        <header><div><h2>Upcoming Follow-ups</h2><span>Next actions</span></div><a asp-action="FollowUps">View all</a></header>
+                        <div class="crm-timeline">
+                            @foreach (var item in Model.FollowUps.Take(6))
+                            {
+                                <a asp-action="@(item.RecordType == "Lead" ? "LeadDetails" : "OpportunityDetails")" asp-route-id="@item.ParentId"><i class="bi bi-alarm"></i><strong>@item.Number</strong><span>@item.Subject - @item.DueAt.ToString("MMM dd, hh:mm tt")</span></a>
+                            }
+                            @if (!Model.FollowUps.Any()) { <div class="crm-empty-state compact"><i class="bi bi-calendar-check"></i><strong>No follow-ups scheduled</strong><span>Upcoming CRM actions will appear here.</span></div> }
+                        </div>
+                    </article>
+                </div>
+            }
+            else if (Model.ActiveTab == "leads")
+            {
+                @await Html.PartialAsync("_LeadWorkspace", Model)
+            }
+            else
+            {
+                @await Html.PartialAsync("_OpportunityWorkspace", Model)
+            }
+        </main>
+    <partial name="_GuidancePanel" />
+</section>
+
+@functions {
+    string Q(string key) => Context.Request.Query[key].ToString();
+    string PageUrl(int page)
+    {
+        var pairs = new List<string>();
+        foreach (var item in Context.Request.Query)
+        {
+            if (item.Key.Equals("page", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var value in item.Value)
+            {
+                if (!string.IsNullOrWhiteSpace(value)) pairs.Add($"{WebUtility.UrlEncode(item.Key)}={WebUtility.UrlEncode(value)}");
+            }
+        }
+        pairs.Add($"page={page}");
+        return $"{Context.Request.Path}?{string.Join("&", pairs)}";
+    }
+}
+
+@section Styles { <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/crm.js" asp-append-version="true"></script> }

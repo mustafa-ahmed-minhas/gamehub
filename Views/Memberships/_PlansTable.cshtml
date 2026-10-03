@@ -1,0 +1,34 @@
+@model MembershipIndexViewModel
+@using GameHub.Helpers
+@if (!Model.Plans.Any())
+{
+    <div class="membership-empty-state"><span><i class="bi bi-card-list"></i></span><h2>No plans found</h2><p>Create a polished membership plan to begin building your customer retention program.</p></div>
+}
+else
+{
+    <div class="users-table-wrap membership-table-wrap">
+        <table class="users-table memberships-table">
+            <thead><tr><th>Plan</th><th>Code</th><th>Type</th><th>Duration</th><th>Joining Fee</th><th>Renewal Fee</th><th>Discount</th><th>Hours</th><th>Sports</th><th>Members</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                @foreach (var plan in Model.Plans)
+                {
+                    <tr>
+                        <td data-label="Plan"><div class="user-cell membership-name-cell"><span class="user-avatar membership-table-avatar">@plan.Name[0]</span><div><strong>@plan.Name</strong><small>Benefit plan</small></div></div></td>
+                        <td data-label="Code"><span class="membership-code">@plan.Code</span></td>
+                        <td data-label="Type"><span class="role-badge membership-role-badge">@plan.PlanType.GetDisplayName()</span></td>
+                        <td data-label="Duration">@plan.DurationMonths months</td>
+                        <td data-label="Joining">@Model.CurrencySymbol @plan.JoiningFee.ToString("N0")</td>
+                        <td data-label="Renewal">@Model.CurrencySymbol @plan.RenewalFee.ToString("N0")</td>
+                        <td data-label="Discount">@plan.DiscountPercentage.ToString("N0")%</td>
+                        <td data-label="Hours">@plan.IncludedBookingHours</td>
+                        <td data-label="Sports">@(plan.AllowedSportCodes == "ALL" ? "All Sports" : plan.AllowedSportCodes)</td>
+                        <td data-label="Members"><strong>@plan.MemberCount</strong></td>
+                        <td data-label="Status"><span class="membership-status-badge @(plan.IsActive ? "active" : "inactive")"><i></i>@(plan.IsActive ? "Active" : "Inactive")</span></td>
+                        <td data-label="Actions"><div class="membership-action-menu"><a class="membership-icon-button" asp-action="PlanDetails" asp-route-id="@plan.Id" data-tooltip="View"><i class="bi bi-eye"></i></a>@if (Model.CanManage) { <a class="membership-icon-button" asp-action="EditPlan" asp-route-id="@plan.Id" data-tooltip="Edit"><i class="bi bi-pencil"></i></a><button class="membership-icon-button" type="button" data-membership-action data-url="@Url.Action("TogglePlanStatus", new { id = plan.Id })" data-message="Toggle plan status?" data-tooltip="Toggle"><i class="bi bi-power"></i></button> }</div></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="membership-pagination"><span>Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1)-@Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords) of @Model.TotalRecords plans</span><div><a class="@(Model.CurrentPage <= 1 ? "disabled" : "")" asp-action="Index" asp-route-tab="plans" asp-route-search="@Model.Search" asp-route-planType="@Model.PlanType" asp-route-sportCode="@Model.SportCode" asp-route-statusFilter="@Model.StatusFilter" asp-route-sortBy="@Model.SortBy" asp-route-page="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a><strong>@Model.CurrentPage / @Model.TotalPages</strong><a class="@(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" asp-action="Index" asp-route-tab="plans" asp-route-search="@Model.Search" asp-route-planType="@Model.PlanType" asp-route-sportCode="@Model.SportCode" asp-route-statusFilter="@Model.StatusFilter" asp-route-sortBy="@Model.SortBy" asp-route-page="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a></div></div>
+}

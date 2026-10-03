@@ -1,0 +1,205 @@
+@{
+    ViewData["Title"] = "Activity History";
+    Layout = "_CustomerLayout";
+    var tab = (string?)ViewBag.Tab ?? "all";
+    var currency = (string?)ViewBag.CurrencySymbol ?? "Rs";
+    var bookings = ViewBag.Bookings as IReadOnlyList<Booking> ?? Array.Empty<Booking>();
+    var memberships = ViewBag.Memberships as IReadOnlyList<CustomerMembership> ?? Array.Empty<CustomerMembership>();
+    var payments = ViewBag.Payments as IReadOnlyList<PaymentTransaction> ?? Array.Empty<PaymentTransaction>();
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var showBookings = tab is "all" or "bookings";
+    var showMemberships = tab is "all" or "memberships";
+    var showPayments = tab is "all" or "payments";
+
+    string BookingTone(BookingStatus status) => status switch
+    {
+        BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed => "tone-success",
+        BookingStatus.Pending or BookingStatus.InProgress => "tone-warn",
+        BookingStatus.Cancelled or BookingStatus.NoShow => "tone-danger",
+        BookingStatus.Rescheduled => "tone-info",
+        _ => "tone-muted"
+    };
+
+    string PaymentTone(PaymentTransactionStatus status) => status switch
+    {
+        PaymentTransactionStatus.Succeeded => "tone-success",
+        PaymentTransactionStatus.Processing => "tone-warn",
+        PaymentTransactionStatus.Initiated => "tone-info",
+        PaymentTransactionStatus.Failed or PaymentTransactionStatus.Cancelled => "tone-danger",
+        PaymentTransactionStatus.Refunded => "tone-info",
+        _ => "tone-muted"
+    };
+
+    string MembershipTone(string? status) => status switch
+    {
+        "Active" => "tone-success",
+        "Expired" => "tone-muted",
+        "Cancelled" => "tone-danger",
+        "Pending" => "tone-warn",
+        "Suspended" or "Frozen" => "tone-info",
+        _ => "tone-muted"
+    };
+}
+<section class="my-bookings-page portal-page">
+    <div class="container">
+
+        <header class="portal-head">
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-clock-history"></i> Account</span>
+                <h1>Activity History</h1>
+                <p class="portal-head__lead">Every booking, membership and payment on your account.</p>
+            </div>
+        </header>
+
+        <div class="portal-stats">
+            <article class="portal-stat tone-gold">
+                <span class="portal-stat__icon"><i class="bi bi-wallet2"></i></span>
+                <span class="portal-stat__value">@currency @(((decimal)ViewBag.TotalSpend).ToString("N0"))</span>
+                <span class="portal-stat__label">Total Spend</span>
+            </article>
+            <article class="portal-stat tone-info">
+                <span class="portal-stat__icon"><i class="bi bi-calendar2-check"></i></span>
+                <span class="portal-stat__value">@currency @(((decimal)ViewBag.BookingSpend).ToString("N0"))</span>
+                <span class="portal-stat__label">Bookings</span>
+            </article>
+            <article class="portal-stat tone-success">
+                <span class="portal-stat__icon"><i class="bi bi-stars"></i></span>
+                <span class="portal-stat__value">@currency @(((decimal)ViewBag.MembershipSpend).ToString("N0"))</span>
+                <span class="portal-stat__label">Memberships</span>
+            </article>
+            <article class="portal-stat tone-danger">
+                <span class="portal-stat__icon"><i class="bi bi-x-circle"></i></span>
+                <span class="portal-stat__value">@currency @(((decimal)ViewBag.CancelledAmount).ToString("N0"))</span>
+                <span class="portal-stat__label">Cancelled Amount</span>
+            </article>
+        </div>
+
+        <div class="portal-tabs">
+            <a class="@(tab == "all" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="all">All <span class="portal-tab-count">@(((int)ViewBag.BookingCount) + ((int)ViewBag.MembershipCount) + ((int)ViewBag.PaymentCount))</span></a>
+            <a class="@(tab == "bookings" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="bookings">Bookings <span class="portal-tab-count">@ViewBag.BookingCount</span></a>
+            <a class="@(tab == "memberships" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="memberships">Memberships <span class="portal-tab-count">@ViewBag.MembershipCount</span></a>
+            <a class="@(tab == "payments" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="payments">Payments <span class="portal-tab-count">@ViewBag.PaymentCount</span></a>
+        </div>
+
+        @if (showBookings)
+        {
+            <div class="portal-subhead">
+                <h2><i class="bi bi-calendar-check"></i> Bookings</h2>
+            </div>
+            <div class="portal-records">
+                @foreach (var booking in bookings)
+                {
+                    <article class="portal-record @BookingTone(booking.Status)">
+                        <div class="portal-record__main">
+                            <span class="portal-record__ref">@booking.BookingNumber</span>
+                            <h2 class="portal-record__title">@booking.Court?.Name</h2>
+                            <p class="portal-record__meta">@booking.Sport?.Name &middot; @booking.BookingDate.ToString("MMM dd, yyyy") &middot; @booking.StartTime.ToString("hh\\:mm tt")</p>
+                        </div>
+                        <div class="portal-record__badges">
+                            <span class="portal-badge @BookingTone(booking.Status)">@booking.Status.GetDisplayName()</span>
+                            <span class="portal-badge tone-muted">@booking.PaymentStatus.GetDisplayName()</span>
+                        </div>
+                        <div class="portal-record__action">
+                            <span class="portal-field__value portal-field__value--amount">@currency @booking.PaidAmount.ToString("N0")</span>
+                            <a class="btn-premium btn-compact" asp-controller="MyBookings" asp-action="Details" asp-route-id="@booking.Id">View</a>
+                        </div>
+                    </article>
+                }
+                @if (!bookings.Any())
+                {
+                    <div class="portal-empty">
+                        <span class="portal-empty__icon"><i class="bi bi-calendar"></i></span>
+                        <h2>No bookings yet</h2>
+                        <p>Your court bookings will appear here.</p>
+                        <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-plus-circle"></i> Book a Court</a>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (showMemberships)
+        {
+            <div class="portal-subhead">
+                <h2><i class="bi bi-stars"></i> Memberships</h2>
+            </div>
+            <div class="portal-records">
+                @foreach (var membership in memberships)
+                {
+                    <article class="portal-record @MembershipTone(membership.Status.ToString())">
+                        <div class="portal-record__main">
+                            <span class="portal-record__ref">@membership.MembershipNumber</span>
+                            <h2 class="portal-record__title">@membership.MembershipPlan?.Name</h2>
+                            <p class="portal-record__meta">@membership.StartDate.ToString("MMM dd, yyyy") - @membership.ExpiryDate.ToString("MMM dd, yyyy")</p>
+                        </div>
+                        <div class="portal-record__badges">
+                            <span class="portal-badge @MembershipTone(membership.Status.ToString())">@membership.Status.GetDisplayName()</span>
+                        </div>
+                        <div class="portal-record__action">
+                            <span class="portal-field__value portal-field__value--amount">@currency @membership.JoiningFee.ToString("N0")</span>
+                            <a class="btn-premium btn-compact" asp-controller="MyInvoices" asp-action="Membership" asp-route-membershipId="@membership.Id">Invoice</a>
+                        </div>
+                    </article>
+                }
+                @if (!memberships.Any())
+                {
+                    <div class="portal-empty">
+                        <span class="portal-empty__icon"><i class="bi bi-stars"></i></span>
+                        <h2>No memberships yet</h2>
+                        <p>Memberships you purchase will appear here.</p>
+                        <a class="btn-premium" asp-controller="MyMemberships" asp-action="Plans">Browse Plans</a>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (showPayments)
+        {
+            <div class="portal-subhead">
+                <h2><i class="bi bi-credit-card"></i> Payments</h2>
+            </div>
+            <div class="portal-records">
+                @foreach (var payment in payments)
+                {
+                    <article class="portal-record @PaymentTone(payment.Status)">
+                        <div class="portal-record__main">
+                            <span class="portal-record__ref">@payment.TransactionNumber</span>
+                            <h2 class="portal-record__title">@(payment.Booking != null ? "Court Booking" : "Membership")</h2>
+                            <p class="portal-record__meta">@payment.CreatedAt.ToString("MMM dd, yyyy hh\\:mm tt") &middot; @payment.PaymentMethod.GetDisplayName()</p>
+                        </div>
+                        <div class="portal-record__badges">
+                            <span class="portal-badge @PaymentTone(payment.Status)">@payment.Status.GetDisplayName()</span>
+                        </div>
+                        <div class="portal-record__action">
+                            <span class="portal-field__value portal-field__value--amount">@currency @payment.Amount.ToString("N0")</span>
+                            @if (payment.BookingId.HasValue)
+                            {
+                                <a class="btn-premium btn-compact" asp-controller="MyBookings" asp-action="Details" asp-route-id="@payment.BookingId">View</a>
+                            }
+                            else if (payment.Status == PaymentTransactionStatus.Succeeded)
+                            {
+                                <a class="btn-premium btn-compact" asp-controller="MyMemberships" asp-action="Index">Membership</a>
+                            }
+                            else
+                            {
+                                <a class="btn-ghost-light btn-compact" asp-action="Index" asp-route-tab="payments">Details</a>
+                            }
+                        </div>
+                    </article>
+                }
+                @if (!payments.Any())
+                {
+                    <div class="portal-empty">
+                        <span class="portal-empty__icon"><i class="bi bi-credit-card"></i></span>
+                        <h2>No payments yet</h2>
+                        <p>Payment attempts will appear here.</p>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}

@@ -1,0 +1,43 @@
+@model CustomerLoginViewModel
+@{
+    ViewData["Title"] = "Customer Sign In";
+    Layout = "_CustomerLayout";
+}
+
+<section class="account-hero compact">
+    <div class="account-bg"></div>
+    <div class="container account-shell login-shell">
+        <div class="account-copy">
+            <span class="eyebrow-pill"><i class="bi bi-shield-check"></i> Secure Customer Login</span>
+            <h1>Welcome back to GameHub</h1>
+            <p>Sign in with your email or phone number to manage your profile and prepare for online bookings.</p>
+        </div>
+        <form asp-action="Login" method="post" class="account-card" data-account-form>
+            @Html.AntiForgeryToken()
+            <input asp-for="ReturnUrl" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+            <div class="form-floating">
+                <input asp-for="EmailOrPhone" class="form-control" placeholder="Email or phone" />
+                <label asp-for="EmailOrPhone">Email or Phone</label>
+                <span asp-validation-for="EmailOrPhone" class="text-danger small"></span>
+            </div>
+            <div class="password-wrap">
+                <div class="form-floating">
+                    <input asp-for="Password" class="form-control" placeholder="Password" />
+                    <label asp-for="Password">Password</label>
+                </div>
+                <button class="password-toggle" type="button" data-password-toggle><i class="bi bi-eye"></i></button>
+                <span asp-validation-for="Password" class="text-danger small"></span>
+            </div>
+            <div class="account-row">
+                <label class="premium-check"><input asp-for="RememberMe" /><span></span> Remember me</label>
+            </div>
+            <button class="btn-premium account-submit" type="submit" data-loading-button><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
+            <p class="account-switch">New to GameHub? <a asp-action="Signup">Create account</a></p>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

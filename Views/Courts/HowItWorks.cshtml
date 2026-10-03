@@ -1,0 +1,80 @@
+@{
+    ViewData["Title"] = "How Booking Works";
+    Layout = "_CustomerLayout";
+}
+
+<section class="how-hero">
+    <div class="container">
+        <span class="eyebrow-pill"><i class="bi bi-signpost-split"></i> Booking Workflow</span>
+        <h1>How online booking works</h1>
+        <p>GameHub takes you from browsing to a confirmed, payment-backed reservation in a few clear steps.</p>
+    </div>
+</section>
+
+<section class="how-content">
+    <div class="container">
+        <div class="workflow-grid">
+            @{
+                var steps = new[]
+                {
+                    ("Browse Courts", "Explore sports, facilities and active courts as a guest."),
+                    ("Sign In or Create Account", "Register securely and verify your email before checkout."),
+                    ("Select Date and Available Slot", "Choose a court, duration and an available time."),
+                    ("Review Membership Benefits", "Eligible discounts and included hours are applied automatically."),
+                    ("Review Total", "Confirm players, policies, tax and the total payable."),
+                    ("Pay 100%", "The booking is only created after a successful full payment."),
+                    ("Receive Confirmation and Reminder", "View your booking, invoice, receipt and reminders from your account.")
+                };
+                var index = 1;
+            }
+            @foreach (var step in steps)
+            {
+                <article>
+                    <span>@index.ToString("00")</span>
+                    <h2>@step.Item1</h2>
+                    <p>@step.Item2</p>
+                </article>
+                index++;
+            }
+        </div>
+
+        <div class="rules-card">
+            <h2>Important booking rules</h2>
+            <p>A booking is not confirmed until your full online payment succeeds. If the slot becomes unavailable during payment, the booking is not created and the test payment is reversed.</p>
+            <p>You can cancel your own booking online while it is still <strong>Confirmed</strong> and before the cancellation cutoff. Cancelling releases the court immediately and records an audit entry. Membership hours used by that booking are returned to your pool.</p>
+            <p>Online cancellation does not issue an automatic refund. Contact GameHub at @ViewBag.SupportPhone or @ViewBag.SupportEmail to discuss refund eligibility for an amount already paid.</p>
+            <div class="court-detail-actions">
+                <a class="btn-premium" asp-controller="Account" asp-action="Signup"><i class="bi bi-person-plus"></i> Sign Up</a>
+                <a class="btn-ghost-light" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
+                <a class="btn-ghost-light" asp-controller="MyMemberships" asp-action="Plans"><i class="bi bi-stars"></i> Membership Plans</a>
+            </div>
+        </div>
+
+        <div class="faq-grid">
+            <article>
+                <h3>Can I book online now?</h3>
+                <p>Yes. Verified customers can book any available court, pay online and manage the booking from their account.</p>
+            </article>
+            <article>
+                <h3>Can guests browse?</h3>
+                <p>Yes. Guests can view active public courts and membership plans before creating an account.</p>
+            </article>
+            <article>
+                <h3>Is payment required?</h3>
+                <p>Yes. A booking is only created after a successful full online payment.</p>
+            </article>
+            <article>
+                <h3>What happens after a session ends?</h3>
+                <p>Sessions you check into are marked <strong>Completed</strong> automatically. A confirmed booking that passes its end time without a check-in is marked <strong>No Show</strong> and the slot is released.</p>
+            </article>
+            <article>
+                <h3>How do memberships work?</h3>
+                <p>Pick a plan, pay the joining or renewal fee online, and your discount, included hours and validity apply automatically at the next checkout.</p>
+            </article>
+            <article>
+                <h3>Where do I find my documents?</h3>
+                <p>Invoices and receipts for bookings and memberships are always available from your account under Invoices and Payment History.</p>
+            </article>
+        </div>
+    </div>
+</section>

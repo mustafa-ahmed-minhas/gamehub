@@ -1,0 +1,18 @@
+@model PaymentTransaction
+@{
+    ViewData["Title"] = "Payment Cancelled";
+    Layout = "_CustomerLayout";
+}
+<section class="payment-result cancelled">
+    <div class="container result-panel">
+        <i class="bi bi-slash-circle-fill"></i>
+        <h1>Payment cancelled</h1>
+        <p>No booking was created. Your checkout may still be available until it expires.</p>
+        <div class="result-actions">
+            <a class="btn-premium" asp-action="Retry">Continue Checkout</a>
+            <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index">Choose Another Court</a>
+            <a class="btn-ghost-light" asp-controller="Home" asp-action="Index">Return Home</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

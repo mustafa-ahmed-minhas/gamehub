@@ -1,0 +1,39 @@
+@model OnlineBookingCheckoutViewModel
+@{
+    ViewData["Title"] = "Review Booking";
+    Layout = "_CustomerLayout";
+}
+
+<section class="checkout-page">
+    <div class="container checkout-grid">
+        <main class="checkout-card">
+            <span class="eyebrow-pill"><i class="bi bi-calendar2-check"></i> Booking Review</span>
+            <h1>Review before checkout</h1>
+            <p>Your slot is not secured until full payment is completed.</p>
+            <div class="review-list premium-review-list">
+                <div><i class="bi bi-person"></i><strong>Customer</strong><span>@Model.CustomerName (@Model.CustomerCode)</span></div>
+                <div><i class="bi bi-geo-alt"></i><strong>Court</strong><span>@Model.CourtName · @Model.SportName</span></div>
+                <div><i class="bi bi-calendar3"></i><strong>Date & Time</strong><span>@Model.BookingDate.ToString("dddd, MMM dd yyyy") · @Model.StartTime.ToString("hh:mm tt") - @Model.EndTime.ToString("hh:mm tt")</span></div>
+                <div><i class="bi bi-people"></i><strong>Players</strong><span>@Model.PlayerCount</span></div>
+                <div><i class="bi bi-stars"></i><strong>Membership</strong><span>@(Model.MembershipSummary ?? "No membership benefit applied")</span></div>
+            </div>
+            <div class="checkout-actions">
+                <a class="btn-ghost-light" asp-action="Start" asp-route-id="@Model.CourtId"><i class="bi bi-arrow-left"></i> Change Selection</a>
+                <a class="btn-premium" asp-action="Checkout"><i class="bi bi-lock"></i> Continue to Checkout</a>
+            </div>
+        </main>
+        <aside class="payment-summary-card premium-price-card">
+            <span class="eyebrow-pill"><i class="bi bi-receipt"></i> Price Breakdown</span>
+            <h2>Total Payable</h2>
+            <div><span><i class="bi bi-receipt-cutoff"></i> Base amount</span><strong>@Model.CurrencySymbol @Model.BaseAmount.ToString("N0")</strong></div>
+            <div><span><i class="bi bi-stars"></i> Membership discount</span><strong>- @Model.CurrencySymbol @Model.MembershipDiscountAmount.ToString("N0")</strong></div>
+            <div><span><i class="bi bi-percent"></i> Tax</span><strong>@Model.CurrencySymbol @Model.TaxAmount.ToString("N0")</strong></div>
+            <div class="total"><span>Total payable</span><strong>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</strong></div>
+            <p><i class="bi bi-shield-check"></i> Amount required now: 100%</p>
+        </aside>
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/online-booking.css" asp-append-version="true" />
+}

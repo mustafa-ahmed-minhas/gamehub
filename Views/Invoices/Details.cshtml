@@ -1,0 +1,357 @@
+@model InvoiceDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var invoice = Model.Invoice;
+    ViewData["Title"] = invoice.InvoiceNumber;
+    Layout = "_AdminLayout";
+
+    var approvalLabel = invoice.Status switch { InvoiceStatus.Draft => "Draft", InvoiceStatus.SubmittedForApproval => "Pending Approval", InvoiceStatus.Rejected => "Rejected", _ => "Approved" };
+    var isOverdue = invoice.Status == InvoiceStatus.Overdue;
+    var isEditable = invoice.Status is InvoiceStatus.Draft or InvoiceStatus.Rejected;
+    var initials = string.Join("", (invoice.Customer.FullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    var lineCount = invoice.Items.Count;
+    var subject = string.IsNullOrWhiteSpace(invoice.Subject) ? "Commercial Invoice" : invoice.Subject;
+    var documentCompleteness = Math.Clamp((int)Math.Round(new[] { lineCount > 0, invoice.Subtotal > 0, !string.IsNullOrWhiteSpace(invoice.PaymentTerms), !string.IsNullOrWhiteSpace(invoice.BillingAddress) }
+        .Count(x => x) / 4.0 * 100), 0, 100);
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+
+    var lifecycleStages = new (string Label, DateTime? At, string Icon)[]
+    {
+        ("Created", invoice.CreatedAt == default ? null : invoice.CreatedAt, "bi-plus-circle"),
+        ("Submitted for Approval", invoice.SubmittedAt, "bi-send-check"),
+        ("Approved", invoice.ApprovedAt, "bi-check2-circle"),
+        ("Issued", invoice.IssuedAt, "bi-send"),
+        ("Cancelled", invoice.CancelledAt, "bi-slash-circle"),
+        ("Voided", invoice.VoidedAt, "bi-dash-circle")
+    }.Where(x => x.At.HasValue).ToList();
+}
+
+<section class="users-page customer-details-page customer-profile-page sales-cycle-page sales-document-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Invoices</a>
+            <span class="admin-label">Invoice Details</span>
+            <h1>@invoice.InvoiceNumber</h1>
+            <p>@subject</p>
+        </div>
+        <div class="customer-detail-actions">
+            <a class="admin-secondary-button" asp-action="Preview" asp-route-id="@invoice.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a>
+            @if (Model.CanEdit)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@invoice.Id"><i class="bi bi-pencil"></i> Edit</a>
+            }
+            @if (isEditable)
+            {
+                <form asp-action="SubmitForApproval" asp-route-id="@invoice.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="admin-action-button" type="submit"><i class="bi bi-send-check"></i> @(invoice.Status == InvoiceStatus.Rejected ? "Resubmit" : "Submit for Approval")</button>
+                </form>
+            }
+            @if (invoice.Status == InvoiceStatus.SubmittedForApproval && Model.CanApprove)
+            {
+                <form asp-action="Approve" asp-route-id="@invoice.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Approve</button>
+                </form>
+            }
+            @if (invoice.Status == InvoiceStatus.Approved && Model.CanApprove)
+            {
+                <form asp-action="Issue" asp-route-id="@invoice.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="admin-action-button" type="submit"><i class="bi bi-send"></i> Issue Invoice</button>
+                </form>
+            }
+            <div class="membership-action-menu">
+                <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More invoice actions"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to list</a></li>
+                    <li><a class="dropdown-item" asp-action="Preview" asp-route-id="@invoice.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a></li>
+                    @if (Model.CanEdit)
+                    {
+                        <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@invoice.Id"><i class="bi bi-pencil"></i> Edit</a></li>
+                    }
+                    @if (invoice.Status == InvoiceStatus.SubmittedForApproval && Model.CanApprove)
+                    {
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form asp-action="Reject" asp-route-id="@invoice.Id" method="post" class="sales-cycle-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input name="rejectionReason" placeholder="Rejection reason" required aria-label="Rejection reason" />
+                                <button class="dropdown-item is-danger" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                            </form>
+                        </li>
+                    }
+                    @if (invoice.Status == InvoiceStatus.Issued)
+                    {
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <form asp-action="Void" asp-route-id="@invoice.Id" method="post" class="sales-cycle-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input name="reason" placeholder="Void reason" required aria-label="Void reason" />
+                                <button class="dropdown-item is-danger" type="submit"><i class="bi bi-slash-circle"></i> Void Invoice</button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    @if (invoice.Status == InvoiceStatus.SubmittedForApproval && Model.CanApprove)
+    {
+        <article class="customer-info-card sales-cycle-review admin-reveal">
+            <header><i class="bi bi-clipboard2-check"></i><div><h2>Approval Decision</h2><p>Approve this invoice or return it with a clear reason.</p></div></header>
+            <div class="customer-detail-actions">
+                <form asp-action="Approve" asp-route-id="@invoice.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Approve</button>
+                </form>
+                <form asp-action="Reject" asp-route-id="@invoice.Id" method="post" class="sales-cycle-inline-form">
+                    @Html.AntiForgeryToken()
+                    <input name="rejectionReason" placeholder="Rejection reason" required aria-label="Rejection reason" />
+                    <button class="admin-secondary-button is-danger" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                </form>
+            </div>
+        </article>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(invoice.RejectionReason))
+    {
+        <article class="customer-alert-card admin-reveal">
+            <i class="bi bi-exclamation-octagon"></i>
+            <div><h2>Invoice returned for revision</h2><p>@invoice.RejectionReason</p><small>Update the editable fields and resubmit this invoice for approval.</small></div>
+        </article>
+    }
+    @if (isOverdue)
+    {
+        <article class="customer-alert-card is-overdue admin-reveal">
+            <i class="bi bi-clock-history"></i>
+            <div><h2>This invoice is overdue</h2><p>The due date passed with an outstanding balance of @invoice.CurrencySymbol @invoice.OutstandingAmount.ToString("N2").</p></div>
+        </article>
+    }
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@(initials.Length == 0 ? "I" : initials)</div>
+            <div>
+                <h2>@subject</h2>
+                <p>@invoice.Customer.FullName</p>
+                <strong class="membership-code">@invoice.InvoiceNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="@invoice.Status.Badge()"><i></i>@invoice.Status.GetDisplayName()</span>
+                    <span class="membership-status-badge @StatusBadgeHelper.Modifier(invoice.Status == InvoiceStatus.Rejected ? "rejected" : invoice.Status is InvoiceStatus.Draft or InvoiceStatus.SubmittedForApproval ? "pending" : "approved")"><i></i>@approvalLabel</span>
+                    <span class="role-badge">Revision @invoice.RevisionNumber</span>
+                    @if (isOverdue)
+                    {
+                        <span class="membership-status-badge expired"><i></i>Overdue</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-receipt"></i><span>Invoice Date</span><strong>@invoice.InvoiceDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-calendar2-check"></i><span>Due Date</span><strong>@invoice.DueDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-person"></i><span>Customer</span><strong>@invoice.Customer.FullName</strong></div>
+            <div><i class="bi bi-telephone"></i><span>Phone</span><strong>@invoice.Customer.PrimaryPhone</strong></div>
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@TextOrFallback(invoice.Customer.Email)</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@documentCompleteness%">
+                <strong>@documentCompleteness%</strong>
+                <span>Complete</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Grand Total</span><strong>@invoice.CurrencySymbol @invoice.GrandTotal.ToString("N0")</strong></div>
+                <div><span>Paid</span><strong>@invoice.CurrencySymbol @invoice.PaidAmount.ToString("N0")</strong></div>
+                <div><span>Outstanding</span><strong>@invoice.CurrencySymbol @invoice.OutstandingAmount.ToString("N0")</strong></div>
+                <div><span>Line Items</span><strong>@lineCount</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    <div class="kpi-grid customer-detail-kpis">
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-list-check"></i></span><span class="trend-pill neutral">Lines</span></div><h2>@lineCount</h2><p>Line Items</p><div class="kpi-bottom"><span>Billed service lines</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-receipt"></i></span><span class="trend-pill neutral">@invoice.CurrencySymbol</span></div><h2>@invoice.Subtotal.ToString("N0")</h2><p>Subtotal</p><div class="kpi-bottom"><span>Before discounts</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-percent"></i></span><span class="trend-pill warn">Discount</span></div><h2>@invoice.DiscountTotal.ToString("N0")</h2><p>Discount</p><div class="kpi-bottom"><span>Line discount total</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-bank"></i></span><span class="trend-pill neutral">Tax</span></div><h2>@invoice.TaxTotal.ToString("N0")</h2><p>Tax</p><div class="kpi-bottom"><span>Applied tax total</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="trend-pill up">@invoice.CurrencySymbol</span></div><h2>@invoice.GrandTotal.ToString("N0")</h2><p>Grand Total</p><div class="kpi-bottom"><span>Payable document value</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-wallet2"></i></span><span class="trend-pill @(invoice.OutstandingAmount > 0 ? "warn" : "up")">Outstanding</span></div><h2>@invoice.OutstandingAmount.ToString("N0")</h2><p>Balance Due</p><div class="kpi-bottom"><span>Paid @invoice.CurrencySymbol @invoice.PaidAmount.ToString("N0")</span></div></article>
+    </div>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Customer &amp; Billing</h2><p>Billing account linked to this invoice.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Name</dt><dd>@invoice.Customer.FullName</dd></div>
+                    <div><dt>Code</dt><dd>@invoice.Customer.CustomerCode</dd></div>
+                    <div><dt>Email</dt><dd>@TextOrFallback(invoice.Customer.Email)</dd></div>
+                    <div><dt>Phone</dt><dd>@TextOrFallback(invoice.Customer.PrimaryPhone)</dd></div>
+                    <div><dt>Billing Address</dt><dd>@TextOrFallback(invoice.BillingAddress ?? invoice.Customer.AddressLine1)</dd></div>
+                    <div><dt>Customer PO Number</dt><dd>@TextOrFallback(invoice.CustomerPurchaseOrderNumber)</dd></div>
+                    <div><dt>Customer Reference</dt><dd>@TextOrFallback(invoice.CustomerReference)</dd></div>
+                    <div><dt>Payment Terms</dt><dd>@TextOrFallback(invoice.PaymentTerms)</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="Customers" asp-action="Details" asp-route-id="@invoice.Customer.Id"><i class="bi bi-person"></i> Open Customer</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-link-45deg"></i><div><h2>Source Document</h2><p>Where this invoice came from.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Source Type</dt><dd>@invoice.SourceType.GetDisplayName()</dd></div>
+                    <div><dt>Sales Order</dt><dd>@TextOrFallback(invoice.SalesOrder?.SalesOrderNumber)</dd></div>
+                    <div><dt>Quotation</dt><dd>@TextOrFallback(invoice.SalesQuotation?.QuotationNumber)</dd></div>
+                    <div><dt>Opportunity</dt><dd>@TextOrFallback(invoice.Opportunity?.Name)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-list-check"></i><div><h2>Invoice Line Items</h2><p>Billed service lines captured on this document.</p></div></header>
+                <div class="sales-cycle-lines">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Unit</th>
+                                <th scope="col">Rate</th>
+                                <th scope="col">Discount</th>
+                                <th scope="col">Tax</th>
+                                <th scope="col">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in invoice.Items.OrderBy(x => x.LineNumber))
+                            {
+                                <tr>
+                                    <td>@item.LineNumber</td>
+                                    <td>@item.Description<small>@item.ItemType.GetDisplayName()@(item.ServiceDate.HasValue ? $" · {item.ServiceDate.Value:dd MMM yyyy}" : "")</small></td>
+                                    <td>@item.Quantity @item.UnitOfMeasure</td>
+                                    <td>@invoice.CurrencySymbol @item.UnitPrice.ToString("N2")</td>
+                                    <td>@item.DiscountPercentage.ToString("N0")%</td>
+                                    <td>@item.TaxPercentage.ToString("N0")%</td>
+                                    <td>@invoice.CurrencySymbol @item.LineTotal.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-calculator"></i><div><h2>Pricing Summary</h2><p>Server calculated document totals.</p></div></header>
+                <div class="sales-cycle-totals">
+                    <span>Subtotal <strong>@invoice.CurrencySymbol @invoice.Subtotal.ToString("N2")</strong></span>
+                    <span>Discount <strong>@invoice.CurrencySymbol @invoice.DiscountTotal.ToString("N2")</strong></span>
+                    <span>Tax <strong>@invoice.CurrencySymbol @invoice.TaxTotal.ToString("N2")</strong></span>
+                    <span>Adjustment <strong>@invoice.CurrencySymbol @invoice.AdjustmentAmount.ToString("N2")</strong></span>
+                    <span class="grand">Grand Total <strong>@invoice.CurrencySymbol @invoice.GrandTotal.ToString("N2")</strong></span>
+                    <span>Paid <strong>@invoice.CurrencySymbol @invoice.PaidAmount.ToString("N2")</strong></span>
+                    <span class="grand">Outstanding <strong>@invoice.CurrencySymbol @invoice.OutstandingAmount.ToString("N2")</strong></span>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-journal-richtext"></i><div><h2>Terms and Notes</h2><p>Commercial terms recorded on this invoice.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Terms and Conditions</dt><dd>@TextOrFallback(invoice.TermsAndConditions)</dd></div>
+                    <div><dt>Customer Notes</dt><dd>@TextOrFallback(invoice.CustomerNotes)</dd></div>
+                    <div><dt>Internal Notes</dt><dd>@TextOrFallback(invoice.InternalNotes)</dd></div>
+                    @if (invoice.Status == InvoiceStatus.Cancelled && !string.IsNullOrWhiteSpace(invoice.CancellationReason))
+                    {
+                        <div><dt>Cancellation Reason</dt><dd>@invoice.CancellationReason</dd></div>
+                    }
+                    @if (invoice.Status == InvoiceStatus.Void && !string.IsNullOrWhiteSpace(invoice.VoidReason))
+                    {
+                        <div><dt>Void Reason</dt><dd>@invoice.VoidReason</dd></div>
+                    }
+                    <div><dt>Rejection Reason</dt><dd>@TextOrFallback(invoice.RejectionReason)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><div><h2>Approval &amp; Revision Timeline</h2><p>Complete audit trail for this document.</p></div></header>
+                <div class="sales-cycle-timeline">
+                    @foreach (var entry in Model.ApprovalHistory)
+                    {
+                        <span>
+                            <i class="bi bi-dot"></i><strong>@entry.Action.GetDisplayName()</strong> · Revision @entry.RevisionNumber · @(entry.ActionByUser?.FullName ?? "System") · @entry.ActionAt.ToString("dd MMM yyyy hh:mm tt")
+                            @if (!string.IsNullOrWhiteSpace(entry.RejectionReason))
+                            {
+                                <em>Reason: @entry.RejectionReason</em>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(entry.Comments))
+                            {
+                                <em>@entry.Comments</em>
+                            }
+                        </span>
+                    }
+                    @foreach (var revision in Model.RevisionHistory)
+                    {
+                        <span><i class="bi bi-dot"></i><strong>Revision @revision.RevisionNumber archived</strong> · @revision.CreatedAt.ToString("dd MMM yyyy hh:mm tt") · @revision.RevisionReason</span>
+                    }
+                    @if (!Model.ApprovalHistory.Any() && !Model.RevisionHistory.Any())
+                    {
+                        <span><i class="bi bi-dot"></i><strong>No approval activity recorded yet.</strong></span>
+                    }
+                </div>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card membership-card admin-reveal">
+                <header><i class="bi bi-arrow-repeat"></i><h2>Lifecycle</h2></header>
+                <strong>@invoice.Status.GetDisplayName()</strong>
+                <p>Revision @invoice.RevisionNumber</p>
+                <dl>
+                    <div><dt>Created</dt><dd>@invoice.CreatedAt.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Invoice Date</dt><dd>@invoice.InvoiceDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Due Date</dt><dd>@invoice.DueDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Sales Order</dt><dd>@(invoice.SalesOrder?.SalesOrderNumber ?? "Direct invoice")</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><h2>Lifecycle Timeline</h2></header>
+                <div class="sales-cycle-timeline">
+                    @foreach (var stage in lifecycleStages)
+                    {
+                        <span><i class="bi @stage.Icon"></i><strong>@stage.Label</strong> @stage.At!.Value.ToString("dd MMM yyyy hh:mm tt")</span>
+                    }
+                </div>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-credit-card"></i><h2>Payment Summary</h2></header>
+                <p>Payment receiving is intentionally disabled in this phase.</p>
+                <dl>
+                    <div><dt>Grand Total</dt><dd>@invoice.CurrencySymbol @invoice.GrandTotal.ToString("N2")</dd></div>
+                    <div><dt>Paid</dt><dd>@invoice.CurrencySymbol @invoice.PaidAmount.ToString("N2")</dd></div>
+                    <div><dt>Outstanding</dt><dd>@invoice.CurrencySymbol @invoice.OutstandingAmount.ToString("N2")</dd></div>
+                </dl>
+                <button class="admin-secondary-button" type="button" disabled><i class="bi bi-lock"></i> Record Payment</button>
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-shield-check"></i><div><h2>Document Information</h2><p>Audit metadata and document state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Invoice ID</span><strong>@invoice.Id</strong></div>
+            <div><span>Invoice Number</span><strong>@invoice.InvoiceNumber</strong></div>
+            <div><span>Revision</span><strong>@invoice.RevisionNumber</strong></div>
+            <div><span>Currency</span><strong>@invoice.Currency @invoice.CurrencySymbol</strong></div>
+            <div><span>Created At</span><strong>@invoice.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Source</span><strong>@invoice.SourceType.GetDisplayName()</strong></div>
+            <div><span>Invoice Status</span><strong>@invoice.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }

@@ -1,0 +1,148 @@
+@model Booking
+@{
+    ViewData["Title"] = Model.BookingNumber;
+    Layout = "_CustomerLayout";
+    var invoice = ViewBag.Invoice as BookingInvoice;
+    var receipt = ViewBag.Receipt as PaymentReceipt;
+    var reminders = ViewBag.Reminders as IReadOnlyList<BookingReminder> ?? Array.Empty<BookingReminder>();
+    var requests = ViewBag.Requests as IReadOnlyList<CustomerBookingRequest> ?? Array.Empty<CustomerBookingRequest>();
+    var settings = ViewBag.Settings as SystemSettings;
+    var currency = (string?)ViewBag.CurrencySymbol ?? "Rs";
+    var canCancel = ViewBag.CanCancel is true;
+    var canReschedule = ViewBag.CanReschedule is true;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var maxDate = today.AddDays(Math.Max(0, settings?.AdvanceBookingDays ?? 14));
+}
+<section class="my-bookings-page">
+    <div class="container booking-detail-grid">
+        <main class="booking-detail-card">
+            <span class="eyebrow-pill"><i class="bi bi-ticket-perforated"></i> Booking</span>
+            <h1>@Model.BookingNumber</h1>
+            <p>@Model.Court?.Name · @Model.Sport?.Name · @Model.Facility?.Name</p>
+
+            <div class="d-flex gap-2 flex-wrap mb-3">
+                <span class="status-pill">@Model.Status.GetDisplayName()</span>
+                <span class="status-pill paid">@Model.PaymentStatus.GetDisplayName()</span>
+            </div>
+
+            <div class="review-list">
+                <div><strong>Date</strong><span>@Model.BookingDate.ToString("dddd, MMM dd yyyy")</span></div>
+                <div><strong>Time</strong><span>@Model.StartTime.ToString("hh\\:mm tt") - @Model.EndTime.ToString("hh\\:mm tt")</span></div>
+                <div><strong>Duration</strong><span>@Model.DurationMinutes min</span></div>
+                <div><strong>Players</strong><span>@Model.PlayerCount</span></div>
+                <div><strong>Total</strong><span>@currency @Model.TotalAmount.ToString("N0")</span></div>
+                <div><strong>Paid</strong><span>@currency @Model.PaidAmount.ToString("N0")</span></div>
+                @if (Model.MembershipDiscountAmount > 0)
+                {
+                    <div><strong>Membership Discount</strong><span>- @currency @Model.MembershipDiscountAmount.ToString("N0")</span></div>
+                }
+                <div><strong>Source</strong><span>@Model.Source.GetDisplayName()</span></div>
+                <div><strong>Booked On</strong><span>@Model.CreatedAt.ToString("MMM dd, yyyy hh\\:mm tt")</span></div>
+                @if (Model.CancelledAt.HasValue)
+                {
+                    <div><strong>Cancelled On</strong><span>@Model.CancelledAt.Value.ToString("MMM dd, yyyy hh\\:mm tt")</span></div>
+                }
+                @if (Model.CustomerMembership?.MembershipPlan != null)
+                {
+                    <div><strong>Membership</strong><span>@Model.CustomerMembership.MembershipPlan.Name</span></div>
+                }
+                <div><strong>Notes</strong><span>@(Model.CustomerNotes ?? "No notes")</span></div>
+                @if (!string.IsNullOrWhiteSpace(Model.CancellationReason))
+                {
+                    <div><strong>Cancellation Reason</strong><span>@Model.CancellationReason</span></div>
+                }
+            </div>
+
+            <div class="result-actions">
+                <a class="btn-ghost-light" asp-action="Invoice" asp-route-bookingId="@Model.Id"><i class="bi bi-receipt"></i> Invoice</a>
+                @if (Model.PaidAmount > 0)
+                {
+                    <a class="btn-ghost-light" asp-action="Receipt" asp-route-bookingId="@Model.Id"><i class="bi bi-check2-square"></i> Receipt</a>
+                }
+                <a class="btn-ghost-light" asp-action="Index" asp-route-tab="all"><i class="bi bi-list-ul"></i> All Bookings</a>
+            </div>
+        </main>
+
+        <aside class="booking-detail-card">
+            @if (Model.Status == BookingStatus.Cancelled)
+            {
+                <h2>Cancellation</h2>
+                <p>This booking was cancelled. The slot has been released.</p>
+                @if (Model.PaidAmount > 0)
+                {
+                    <p class="text-muted small">Any amount already paid is handled by the arena according to its cancellation policy. Contact the arena for refund eligibility.</p>
+                }
+            }
+            else if (Model.Status == BookingStatus.NoShow)
+            {
+                <h2>No Show</h2>
+                <p>This session was not played. The slot was released and any included membership hours were returned.</p>
+            }
+            else if (canCancel || canReschedule)
+            {
+                <h2>Manage Booking</h2>
+                <p class="text-muted small">
+                    Changes are allowed until @((settings?.CancellationCutoffHours ?? 6)) hour(s) before the start time.
+                </p>
+
+                @if (canCancel)
+                {
+                    <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="mt-3">
+                        @Html.AntiForgeryToken()
+                        <label class="form-label" for="cancel-reason">Cancellation reason</label>
+                        <textarea id="cancel-reason" name="reason" class="form-control" placeholder="Why are you cancelling?" rows="2" maxlength="500"></textarea>
+                        <button class="btn-premium mt-2 w-100" type="submit"><i class="bi bi-x-circle"></i> Cancel This Booking</button>
+                        <p class="text-muted small mt-2 mb-0">Cancellation is applied immediately. No automatic refund is issued.</p>
+                    </form>
+                }
+
+                @if (canReschedule)
+                {
+                    <form asp-action="Reschedule" asp-route-id="@Model.Id" method="post" class="mt-4">
+                        @Html.AntiForgeryToken()
+                        <h3>Request Reschedule</h3>
+                        <label class="form-label" for="reschedule-date">Preferred date</label>
+                        <input id="reschedule-date" name="requestedDate" type="date" class="form-control" min="@today.ToString("yyyy-MM-dd")" max="@maxDate.ToString("yyyy-MM-dd")" required />
+                        <label class="form-label mt-2" for="reschedule-time">Preferred start time</label>
+                        <input id="reschedule-time" name="requestedStartTime" type="time" class="form-control" required />
+                        <label class="form-label mt-2" for="reschedule-reason">Reason (min 10 characters)</label>
+                        <textarea id="reschedule-reason" name="reason" class="form-control" rows="2" maxlength="500" required></textarea>
+                        <button class="btn-ghost-light mt-2 w-100" type="submit"><i class="bi bi-calendar2-week"></i> Request Reschedule</button>
+                        <p class="text-muted small mt-2 mb-0">Reschedules are reviewed by the arena before they take effect.</p>
+                    </form>
+                }
+            }
+            else
+            {
+                <h2>Manage Booking</h2>
+                <p class="text-muted">
+                    @(Model.Status == BookingStatus.Confirmed && Model.BookingDate <= today
+                        ? "This booking has already started, so online changes are no longer available. Please contact the arena."
+                        : "Online changes are no longer available for this booking. Please contact the arena for assistance.")
+                </p>
+            }
+
+            @if (reminders.Count > 0)
+            {
+                <h2 class="mt-4">Reminders</h2>
+                @foreach (var reminder in reminders)
+                {
+                    <p>@reminder.ReminderType.GetDisplayName(): @reminder.ScheduledFor.ToString("MMM dd, hh\\:mm tt")</p>
+                }
+            }
+
+            @if (requests.Count > 0)
+            {
+                <h2 class="mt-4">Request History</h2>
+                @foreach (var request in requests)
+                {
+                    <p>
+                        @request.RequestType.GetDisplayName() - <strong>@request.Status.GetDisplayName()</strong><br />
+                        <small class="text-muted">@request.RequestedAt.ToString("MMM dd, yyyy hh\\:mm tt") · @request.Reason</small>
+                    </p>
+                }
+            }
+        </aside>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" /> }

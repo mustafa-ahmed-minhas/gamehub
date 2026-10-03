@@ -1,0 +1,133 @@
+@model CustomerMembershipDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Customer Membership Details";
+    Layout = "_AdminLayout";
+    var canManage = Model.CanManage;
+}
+
+<div class="admin-page membership-page">
+    <div class="page-hero membership-hero membership-profile-hero">
+        <div>
+            <span class="section-label">CUSTOMER MEMBERSHIP</span>
+            <h1>@Model.CustomerName</h1>
+            <p>Membership number @Model.MembershipNumber with @Model.PlanName access.</p>
+        </div>
+        <div class="hero-actions">
+            <a asp-action="Index" asp-route-tab="customers" class="membership-btn membership-btn-secondary"><i class="bi bi-arrow-left"></i> <span>Back</span></a>
+            @if (canManage)
+            {
+                <a asp-action="EditMembership" asp-route-id="@Model.Id" class="membership-btn membership-btn-primary"><i class="bi bi-pencil-square"></i> <span>Edit Membership</span></a>
+            }
+        </div>
+    </div>
+
+    <section class="premium-membership-card reveal-up">
+        <div class="premium-card-glow"></div>
+        <div class="premium-card-top">
+            <div>
+                <span>@Model.ArenaName</span>
+                <h2>@Model.CustomerName</h2>
+            </div>
+            <span class="membership-status-badge @Model.Status.ToString().ToLowerInvariant()"><i></i>@Model.Status.GetDisplayName()</span>
+        </div>
+        <div class="premium-card-body">
+            <div>
+                <small>Membership</small>
+                <strong>@Model.PlanName</strong>
+                <em>@Model.MembershipNumber</em>
+            </div>
+            <div>
+                <small>Validity</small>
+                <strong>@Model.StartDate.ToString("dd MMM yyyy") - @Model.ExpiryDate.ToString("dd MMM yyyy")</strong>
+                <em>@(Model.RemainingDays > 0 ? $"{Model.RemainingDays} days remaining" : "Expired")</em>
+            </div>
+            <div class="membership-qr-placeholder" aria-label="QR placeholder"><i class="bi bi-qr-code"></i></div>
+        </div>
+    </section>
+
+    <div class="membership-details-grid">
+        <section class="users-card membership-profile-card reveal-up">
+            <div class="user-avatar membership-customer-avatar">@Model.CustomerInitials</div>
+            <h2>@Model.CustomerName</h2>
+            <div class="membership-muted">@Model.CustomerCode</div>
+            <div class="membership-badge-row">
+                <span class="role-badge">@Model.PlanType.GetDisplayName()</span>
+                <span class="status-badge @Model.Status.ToString().ToLowerInvariant()">@Model.Status.GetDisplayName()</span>
+            </div>
+            <dl class="membership-info-list">
+                <div><dt>Email</dt><dd>@(Model.CustomerEmail ?? "Not provided")</dd></div>
+                <div><dt>Phone</dt><dd>@Model.CustomerPhone</dd></div>
+                <div><dt>Membership No.</dt><dd>@Model.MembershipNumber</dd></div>
+                <div><dt>Active</dt><dd>@(Model.IsActive ? "Yes" : "No")</dd></div>
+            </dl>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-calendar-range"></i> Validity</div>
+            <dl class="membership-info-list compact">
+                <div><dt>Start Date</dt><dd>@Model.StartDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Expiry Date</dt><dd>@Model.ExpiryDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Remaining Days</dt><dd>@(Model.RemainingDays > 0 ? $"{Model.RemainingDays} days" : "Expired")</dd></div>
+                <div><dt>Auto Renew</dt><dd>@(Model.AutoRenew ? "Enabled" : "Disabled")</dd></div>
+            </dl>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-wallet2"></i> Financial Summary</div>
+            <dl class="membership-info-list compact">
+                <div><dt>Joining Fee</dt><dd>@Model.JoiningFee.ToString("N0")</dd></div>
+                <div><dt>Renewal Fee</dt><dd>@Model.RenewalFee.ToString("N0")</dd></div>
+                <div><dt>Discount</dt><dd>@Model.DiscountPercentage.ToString("0.##")%</dd></div>
+                <div><dt>Included Hours</dt><dd>@Model.UsedBookingHours.ToString("0.##") / @Model.IncludedBookingHours.ToString("0.##")</dd></div>
+            </dl>
+            <div class="membership-progress"><span style="width:@Math.Min(100, Model.IncludedBookingHours <= 0 ? 0 : (Model.UsedBookingHours / Model.IncludedBookingHours) * 100)%"></span></div>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-shield-check"></i> Access Summary</div>
+            <p class="membership-note">@(!string.IsNullOrWhiteSpace(Model.Benefits) ? Model.Benefits : "No benefits have been described for this plan.")</p>
+            <div class="membership-chip-row">
+                <span class="membership-chip enabled">@Model.PlanName</span>
+                <span class="membership-chip">@Model.AllowedSportCodes</span>
+            </div>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-pause-circle"></i> Freeze / Cancellation</div>
+            <dl class="membership-info-list compact">
+                <div><dt>Frozen From</dt><dd>@(Model.FrozenFrom?.ToString("MMM dd, yyyy") ?? "Not frozen")</dd></div>
+                <div><dt>Frozen Until</dt><dd>@(Model.FrozenUntil?.ToString("MMM dd, yyyy") ?? "Not frozen")</dd></div>
+                <div><dt>Cancelled At</dt><dd>@(Model.CancelledAt?.ToString("MMM dd, yyyy") ?? "Not cancelled")</dd></div>
+                <div><dt>Reason</dt><dd>@(Model.CancellationReason ?? "Not provided")</dd></div>
+            </dl>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-clock-history"></i> Record Info</div>
+            <dl class="membership-info-list compact">
+                <div><dt>Created</dt><dd>@Model.CreatedAt.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Updated</dt><dd>@(Model.UpdatedAt?.ToString("MMM dd, yyyy") ?? "Not updated")</dd></div>
+                <div><dt>Notes</dt><dd>@(Model.Notes ?? "No notes")</dd></div>
+            </dl>
+        </section>
+    </div>
+
+    @if (canManage)
+    {
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-lightning-charge"></i> Membership Actions</div>
+            <form class="membership-action-strip" method="post">
+                @Html.AntiForgeryToken()
+                <button type="button" class="membership-btn membership-btn-success js-membership-action" data-url="@Url.Action("Renew", new { id = Model.Id })" data-message="Renew this membership for the plan validity period?"><i class="bi bi-arrow-repeat"></i> <span>Renew</span></button>
+                <button type="button" class="membership-btn membership-btn-secondary js-membership-action" data-url="@Url.Action(Model.Status == MembershipStatus.Frozen ? "Unfreeze" : "Freeze", new { id = Model.Id })" data-message="Update freeze status for this membership?"><i class="bi bi-snow"></i> <span>@(Model.Status == MembershipStatus.Frozen ? "Unfreeze" : "Freeze")</span></button>
+                <button type="button" class="membership-btn membership-btn-danger js-membership-action" data-url="@Url.Action(Model.Status == MembershipStatus.Suspended ? "Reactivate" : "Suspend", new { id = Model.Id })" data-message="Update suspension status for this membership?"><i class="bi bi-shield-exclamation"></i> <span>@(Model.Status == MembershipStatus.Suspended ? "Reactivate" : "Suspend")</span></button>
+            </form>
+        </section>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/memberships.js" asp-append-version="true"></script>
+}

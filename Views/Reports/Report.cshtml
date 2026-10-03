@@ -1,0 +1,76 @@
+@model ReportPageViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "_AdminLayout";
+    var chartJson = JsonSerializer.Serialize(Model.Charts).Replace("</", "<\\/");
+    var first = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var last = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+}
+<main class="reports-page reports-page--detail">
+    <header class="reports-hero admin-reveal">
+        <div><a asp-action="Index" class="reports-back"><i class="bi bi-arrow-left"></i> Reports Overview</a><span class="reports-kicker">REPORTS &amp; ANALYTICS</span><h1>@Model.Title</h1><p>@Model.Description</p></div>
+        <div class="reports-header-actions">
+            <a asp-action="Export" asp-route-report="@Model.ReportKey" asp-route-format="csv" asp-route-Preset="@Model.Filter.Preset" asp-route-StartDate="@Model.RangeStart" asp-route-EndDate="@Model.RangeEnd" asp-route-SportId="@Model.Filter.SportId" asp-route-FacilityId="@Model.Filter.FacilityId" asp-route-CourtId="@Model.Filter.CourtId" asp-route-CustomerId="@Model.Filter.CustomerId" asp-route-OwnerId="@Model.Filter.OwnerId" asp-route-Status="@Model.Filter.Status" asp-route-PaymentMethod="@Model.Filter.PaymentMethod" class="gh-btn gh-btn--light"><i class="bi bi-filetype-csv"></i> CSV</a>
+            <a asp-action="Export" asp-route-report="@Model.ReportKey" asp-route-format="excel" asp-route-Preset="@Model.Filter.Preset" asp-route-StartDate="@Model.RangeStart" asp-route-EndDate="@Model.RangeEnd" asp-route-SportId="@Model.Filter.SportId" asp-route-FacilityId="@Model.Filter.FacilityId" asp-route-CourtId="@Model.Filter.CourtId" asp-route-CustomerId="@Model.Filter.CustomerId" asp-route-OwnerId="@Model.Filter.OwnerId" asp-route-Status="@Model.Filter.Status" asp-route-PaymentMethod="@Model.Filter.PaymentMethod" class="gh-btn gh-btn--light"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+            <button type="button" class="gh-btn gh-btn--gold" data-report-print><i class="bi bi-printer"></i> Print / PDF</button>
+        </div>
+    </header>
+
+    <partial name="_ReportFilters" model="Model" />
+
+    <section class="reports-kpi-grid reports-kpi-grid--detail">
+        @foreach (var item in Model.Kpis)
+        {
+            <article class="report-kpi @(!string.IsNullOrWhiteSpace(item.Tone) ? $"report-kpi--{item.Tone}" : "") admin-reveal"><span class="report-kpi__icon"><i class="bi @item.Icon"></i></span><div><small>@item.Label</small><strong>@item.Value</strong><span>@item.Helper</span></div></article>
+        }
+    </section>
+
+    @if (Model.Charts.Count > 0)
+    {
+        <section class="report-chart-grid report-chart-grid--detail">
+            @foreach (var chart in Model.Charts)
+            {
+                <article class="report-chart-card admin-reveal"><header><div><span>VISUAL ANALYSIS</span><h2>@chart.Title</h2><p>@chart.Subtitle</p></div></header><div class="report-chart-canvas"><canvas id="@chart.Id" aria-label="@chart.Title"></canvas></div></article>
+            }
+        </section>
+    }
+
+    <section class="report-detail-grid">
+        <div class="report-table-workspace admin-reveal">
+            <header class="report-table-heading"><div><span>DETAILED RECORDS</span><h2>@Model.Title</h2></div><span class="report-record-count">@Model.TotalRecords.ToString("N0") records</span></header>
+            @if (Model.Rows.Count == 0)
+            {
+                <div class="report-empty"><span><i class="bi bi-bar-chart"></i></span><h3>No report data found</h3><p>There are no records matching the selected report filters.</p><a asp-action="@Model.ActionName" class="gh-btn gh-btn--light"><i class="bi bi-arrow-counterclockwise"></i> Clear Filters</a></div>
+            }
+            else
+            {
+                <div class="report-table-desktop">
+                    <table class="report-table"><thead><tr>@foreach(var column in Model.Columns){<th>@column</th>}<th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+                    @foreach(var row in Model.Rows){<tr>@for(var i=0;i<row.Cells.Count;i++){<td data-label="@Model.Columns[i]"><span title="@row.Cells[i]">@row.Cells[i]</span></td>}<td class="report-row-action">@if(!string.IsNullOrWhiteSpace(row.DetailUrl)){<a href="@row.DetailUrl" aria-label="View details" title="View details"><i class="bi bi-arrow-up-right"></i></a>}</td></tr>}
+                    </tbody></table>
+                </div>
+                <div class="report-mobile-list">
+                    @foreach(var row in Model.Rows){<article class="report-mobile-card"><header><div><small>@Model.Columns[0]</small><strong>@row.Cells[0]</strong></div>@if(!string.IsNullOrWhiteSpace(row.Status)){<span class="report-status">@row.Status</span>}</header><dl>@for(var i=1;i<row.Cells.Count;i++){<div><dt>@Model.Columns[i]</dt><dd>@row.Cells[i]</dd></div>}</dl>@if(!string.IsNullOrWhiteSpace(row.DetailUrl)){<a href="@row.DetailUrl" class="gh-btn gh-btn--light"><i class="bi bi-eye"></i> View record</a>}</article>}
+                </div>
+                <footer class="report-pagination"><p>Showing <strong>@first-@last</strong> of <strong>@Model.TotalRecords.ToString("N0")</strong></p><nav aria-label="Report pages">
+                    <a class="@(Model.CurrentPage<=1?"disabled":null)" asp-action="@Model.ActionName" asp-all-route-data="@ReportRoutes(Model, Math.Max(1,Model.CurrentPage-1))"><i class="bi bi-chevron-left"></i><span>Previous</span></a>
+                    <span>Page @Model.CurrentPage of @Model.TotalPages</span>
+                    <a class="@(Model.CurrentPage>=Model.TotalPages?"disabled":null)" asp-action="@Model.ActionName" asp-all-route-data="@ReportRoutes(Model, Math.Min(Model.TotalPages,Model.CurrentPage+1))"><span>Next</span><i class="bi bi-chevron-right"></i></a>
+                </nav></footer>
+            }
+        </div>
+        <aside class="report-insights report-insights--sticky admin-reveal">
+            <div class="report-insights__heading"><span><i class="bi bi-lightbulb"></i></span><div><small>DECISION SUPPORT</small><h2>Insights Panel</h2></div></div>
+            @foreach(var insight in Model.Insights){<article class="report-insight @(!string.IsNullOrWhiteSpace(insight.Tone)?$"report-insight--{insight.Tone}":"")"><i class="bi @insight.Icon"></i><div><small>@insight.Label</small><strong>@insight.Value</strong><p>@insight.Detail</p></div></article>}
+            <div class="report-scope"><h3>Data Scope</h3><p>@Model.FilterSummary</p><dl><div><dt>Currency</dt><dd>@Model.Currency</dd></div><div><dt>Timezone</dt><dd>@Model.TimeZoneLabel</dd></div><div><dt>Last refreshed</dt><dd>@Model.RefreshedAt.ToString("dd MMM yyyy, HH:mm")</dd></div></dl></div>
+        </aside>
+    </section>
+</main>
+<script type="application/json" id="reportChartData">@Html.Raw(chartJson)</script>
+@functions {
+    Dictionary<string,string?> ReportRoutes(ReportPageViewModel m,int page) => new(){["Preset"]=m.Filter.Preset,["StartDate"]=m.RangeStart.ToString("yyyy-MM-dd"),["EndDate"]=m.RangeEnd.ToString("yyyy-MM-dd"),["SportId"]=m.Filter.SportId?.ToString(),["FacilityId"]=m.Filter.FacilityId?.ToString(),["CourtId"]=m.Filter.CourtId?.ToString(),["CustomerId"]=m.Filter.CustomerId?.ToString(),["OwnerId"]=m.Filter.OwnerId?.ToString(),["Status"]=m.Filter.Status,["PaymentMethod"]=m.Filter.PaymentMethod,["SortBy"]=m.Filter.SortBy,["PageSize"]=m.PageSize.ToString(),["Page"]=page.ToString()};
+}
+@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script> }
+

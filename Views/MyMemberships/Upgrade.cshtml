@@ -1,0 +1,121 @@
+@model MembershipJoinViewModel
+@{
+    ViewData["Title"] = "Upgrade Membership";
+    Layout = "_CustomerLayout";
+    var selected = Model.Plans.FirstOrDefault(p => p.Id == Model.MembershipPlanId) ?? Model.Plans.FirstOrDefault();
+}
+<section class="membership-page">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-arrow-up-circle"></i> Upgrade</span>
+            <h1>Upgrade Your Membership</h1>
+            <p class="section-subtitle">You only pay the difference between your current plan and the new one.</p>
+        </div>
+
+        <div class="booking-tabs">
+            <a asp-action="Index" asp-controller="MyMemberships">Current</a>
+            <a class="active" asp-action="History">History</a>
+        </div>
+
+        @if (Model.Plans.Count == 0)
+        {
+            <div class="public-empty-state">
+                <i class="bi bi-stars"></i>
+                <h2>No higher plan available</h2>
+                <p>There is no membership plan above your current one right now. You can renew your current plan whenever you are ready.</p>
+                <a class="btn-premium" asp-action="Index" asp-controller="MyMemberships">Back to My Membership</a>
+            </div>
+        }
+        else
+        {
+            <div class="plan-card-grid">
+                @foreach (var plan in Model.Plans)
+                {
+                    var isSelected = plan.Id == Model.MembershipPlanId;
+                    var difference = Math.Max(0, plan.JoiningFee - Model.PreviousPlanFee);
+                    <article class="plan-card @(isSelected ? "current" : string.Empty)">
+                        @if (isSelected)
+                        {
+                            <span class="plan-badge">Selected</span>
+                        }
+                        else
+                        {
+                            <span class="plan-badge plan-badge-upgrade">Upgrade</span>
+                        }
+                        <h3>@plan.Name</h3>
+                        <p class="plan-duration">@plan.DurationLabel</p>
+                        <p class="plan-price">
+                            <strong>@Model.CurrencySymbol @difference.ToString("N0")</strong>
+                            <span>price difference</span>
+                        </p>
+                        <ul class="plan-features">
+                            <li><i class="bi bi-percent"></i> @plan.DiscountPercentage.ToString("0.##")% booking discount</li>
+                            <li><i class="bi bi-clock-history"></i> @plan.IncludedBookingHours included hours</li>
+                            <li><i class="bi bi-calendar-check"></i> @plan.PriorityBookingDays day(s) priority access</li>
+                            <li><i class="bi bi-sun"></i> @(plan.AllowPeakHours ? "Includes" : "Excludes") peak hours</li>
+                        </ul>
+                        <a class="btn-premium btn-compact" asp-action="Upgrade" asp-route-planId="@plan.Id">Upgrade to @plan.Name</a>
+                    </article>
+                }
+            </div>
+
+            <div class="membership-join-panel">
+                <form asp-action="Upgrade" method="post">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="MembershipPlanId" type="hidden" />
+
+                    <div class="membership-join-summary">
+                        <span class="eyebrow-pill"><i class="bi bi-receipt"></i> Upgrade Summary</span>
+                        <h2>@selected?.Name</h2>
+                        <dl>
+                            <div><dt>Plan Code</dt><dd>@selected?.Code</dd></div>
+                            <div><dt>Upgrade From</dt><dd>@Model.PreviousPlanName</dd></div>
+                            <div><dt>Valid From</dt><dd>@Model.StartDate.ToString("MMM dd, yyyy")</dd></div>
+                            <div><dt>Valid Until</dt><dd>@Model.ExpiryDate.ToString("MMM dd, yyyy")</dd></div>
+                            <div><dt>Days Left</dt><dd>@Model.RemainingDays day(s)</dd></div>
+                            <div class="summary-divider"></div>
+                            <div class="total"><dt>New Plan Fee</dt><dd>@Model.CurrencySymbol @selected?.JoiningFee.ToString("N0")</dd></div>
+                            <div class="total"><dt>Your Current Plan</dt><dd>&minus; @Model.CurrencySymbol @Model.PreviousPlanFee.ToString("N0")</dd></div>
+                            <div class="total"><dt>Price Difference</dt><dd>@Model.CurrencySymbol @Model.FeeAmount.ToString("N0")</dd></div>
+                            <div class="total"><dt>Total Payable</dt><dd>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</dd></div>
+                        </dl>
+                    </div>
+
+                    <div class="membership-upgrade-notes">
+                        <h3>What changes when you upgrade</h3>
+                        <ul>
+                            <li><i class="bi bi-check2"></i> Your plan changes to <strong>@selected?.Name</strong> straight away.</li>
+                            <li><i class="bi bi-check2"></i> Your valid-until date stays <strong>@Model.ExpiryDate.ToString("MMM dd, yyyy")</strong>. Upgrading does not add or remove days.</li>
+                            <li><i class="bi bi-check2"></i> Your <strong>@Model.RemainingHours unused hour(s)</strong> carry over, so you never lose time you have already paid for.</li>
+                            <li><i class="bi bi-check2"></i> You pay only the price difference: <strong>@Model.CurrencySymbol @Model.FeeAmount.ToString("N0")</strong> plus tax.</li>
+                            <li><i class="bi bi-check2"></i> Your previous plan record, payment and invoice stay in your history.</li>
+                        </ul>
+                    </div>
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                    <label class="premium-policy-check premium-payment-check terms-check">
+                        <input asp-for="AcceptMembershipTerms" />
+                        <span></span>
+                        I understand the upgrade takes effect immediately and I have read the membership terms.
+                    </label>
+                    <span asp-validation-for="AcceptMembershipTerms" class="text-danger small"></span>
+
+                    @if (Model.RequiresEmailVerification)
+                    {
+                        <button class="btn-premium" type="button" disabled><i class="bi bi-envelope-check"></i> Verify your email first</button>
+                        <p class="membership-renew-hint">Membership checkout requires a verified email address. Check your inbox for the verification link.</p>
+                    }
+                    else
+                    {
+                        <button class="btn-premium" type="submit">
+                            <i class="bi bi-credit-card-2-front"></i> Continue to Secure Payment
+                        </button>
+                    }
+                </form>
+            </div>
+        }
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" /> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

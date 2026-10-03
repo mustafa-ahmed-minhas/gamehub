@@ -1,0 +1,99 @@
+@model PaymentReceipt
+@{
+    ViewData["Title"] = Model.ReceiptNumber;
+    Layout = "_CustomerLayout";
+    var booking = Model.Booking;
+    var transaction = Model.PaymentTransaction;
+}
+
+<section class="document-preview-page receipt-preview-page">
+    <div class="container document-preview-shell receipt-shell">
+        <div class="document-toolbar no-print">
+            <a class="btn-ghost-light" asp-action="Details" asp-route-id="@Model.BookingId"><i class="bi bi-arrow-left"></i> Back</a>
+            <div>
+                <button class="btn-ghost-light" type="button" data-doc-share><i class="bi bi-share"></i> Share</button>
+                <button class="btn-ghost-light" type="button" data-doc-print data-document-id="receiptDocument"><i class="bi bi-printer"></i> Print</button>
+                <button class="btn-premium" type="button" data-doc-download data-document-id="receiptDocument"><i class="bi bi-file-earmark-pdf"></i> Download / Save PDF</button>
+            </div>
+        </div>
+
+        <article id="receiptDocument" class="accounting-document receipt-document document-print-root" data-document-preview>
+            <header class="receipt-hero">
+                <div class="receipt-check">
+                    <i class="bi bi-check2"></i>
+                </div>
+                <span class="doc-kicker">Payment Receipt</span>
+                <h1>@Model.CurrencySymbol @Model.AmountPaid.ToString("N0")</h1>
+                <p>Payment received successfully for booking @Model.BookingNumber.</p>
+                <span class="doc-status paid-true">Paid</span>
+            </header>
+
+            <section class="receipt-core">
+                <div class="receipt-number-card">
+                    <span>Receipt Number</span>
+                    <strong>@Model.ReceiptNumber</strong>
+                    <small>@Model.ReceiptDate.ToString("MMM dd, yyyy · hh:mm tt")</small>
+                </div>
+                <div class="receipt-number-card">
+                    <span>Transaction Number</span>
+                    <strong>@(transaction?.TransactionNumber ?? "N/A")</strong>
+                    <small>@Model.PaymentReference</small>
+                </div>
+            </section>
+
+            <section class="doc-section-grid compact">
+                <div class="doc-card">
+                    <span>Payment</span>
+                    <dl class="doc-mini-list">
+                        <div><dt>Payment Reference</dt><dd>@Model.PaymentReference</dd></div>
+                        <div><dt>Payment Method</dt><dd>@Model.PaymentMethod.GetDisplayName()</dd></div>
+                        <div><dt>Status</dt><dd>Paid</dd></div>
+                        <div><dt>Amount Paid</dt><dd>@Model.CurrencySymbol @Model.AmountPaid.ToString("N0")</dd></div>
+                    </dl>
+                </div>
+                <div class="doc-card">
+                    <span>Customer & Booking</span>
+                    <dl class="doc-mini-list">
+                        <div><dt>Customer</dt><dd>@Model.CustomerName</dd></div>
+                        <div><dt>Booking Number</dt><dd>@Model.BookingNumber</dd></div>
+                        <div><dt>Court</dt><dd>@(booking?.Court?.Name ?? "GameHub Court")</dd></div>
+                        <div><dt>Sport</dt><dd>@(booking?.Sport?.Name ?? "GameHub Sport")</dd></div>
+                        <div><dt>Date</dt><dd>@(booking?.BookingDate.ToString("MMM dd, yyyy") ?? Model.ReceiptDate.ToString("MMM dd, yyyy"))</dd></div>
+                        <div><dt>Time</dt><dd>@(booking == null ? "Confirmed booking time" : $"{booking.StartTime:hh\\:mm tt} - {booking.EndTime:hh\\:mm tt}")</dd></div>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="receipt-payment-card">
+                <div>
+                    <span>Arena Details</span>
+                    <h2>@Model.ArenaName</h2>
+                    <p>For support, contact the GameHub front desk or reply with your receipt number.</p>
+                </div>
+                <div class="receipt-amount">
+                    <span>Total Paid</span>
+                    <strong>@Model.CurrencySymbol @Model.AmountPaid.ToString("N0")</strong>
+                </div>
+            </section>
+
+            <footer class="doc-footer receipt-footer">
+                <div>
+                    <h2>Thank you</h2>
+                    <p>Your payment has been recorded and your booking is ready in the GameHub customer portal.</p>
+                </div>
+                <div class="doc-qr">
+                    <i class="bi bi-qr-code"></i>
+                    <span>QR Placeholder</span>
+                </div>
+            </footer>
+        </article>
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-documents.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-documents-print.css" asp-append-version="true" media="print" />
+}
+@section Scripts {
+    <script src="~/js/document-print.js" asp-append-version="true"></script>
+}

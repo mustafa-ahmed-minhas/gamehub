@@ -1,0 +1,17 @@
+@model IReadOnlyList<GameHub.Models.ViewModels.GameHubTable.GameHubTableFilterChipViewModel>
+@if (Model.Any())
+{
+    <div class="gamehub-table-filter-chips">
+        @foreach (var chip in Model)
+        {
+            if (string.IsNullOrWhiteSpace(chip.ClearUrl))
+            {
+                <span>@chip.Label</span>
+            }
+            else
+            {
+                <a href="@chip.ClearUrl">@chip.Label</a>
+            }
+        }
+    </div>
+}

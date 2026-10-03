@@ -1,0 +1,23 @@
+@model PaymentTransaction
+@{
+    ViewData["Title"] = "Membership Payment Failed";
+    Layout = "_CustomerLayout";
+}
+<section class="payment-result failed">
+    <div class="container result-panel">
+        <i class="bi bi-x-circle-fill"></i>
+        <h1>Membership payment was not completed</h1>
+        <p>@(Model.CustomerSafeMessage ?? "No membership was activated and no amount was charged.")</p>
+        <div class="result-grid">
+            <span>Transaction</span><strong>@Model.TransactionNumber</strong>
+            <span>Amount</span><strong>@Model.CurrencySymbol @Model.Amount.ToString("N0")</strong>
+            <span>Status</span><strong>@Model.Status</strong>
+        </div>
+        <div class="result-actions">
+            <a class="btn-premium" asp-controller="MyMemberships" asp-action="Plans">Try Another Plan</a>
+            <a class="btn-ghost-light" asp-controller="MyMemberships" asp-action="Index">My Membership</a>
+            <a class="btn-ghost-light" asp-controller="MyAccount" asp-action="Payments">Payment History</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

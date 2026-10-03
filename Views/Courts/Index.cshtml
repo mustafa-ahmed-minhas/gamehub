@@ -1,0 +1,102 @@
+@model PublicCourtsIndexViewModel
+@{
+    ViewData["Title"] = "Courts";
+    Layout = "_CustomerLayout";
+}
+
+<section class="courts-hero">
+    <div class="container">
+        <span class="eyebrow-pill"><i class="bi bi-grid-3x3-gap"></i> Live Arena Catalog</span>
+        <h1>Choose your court</h1>
+        <p>Browse active courts from the internal GameHub ERP. Booking creation and payment will arrive in the next phase.</p>
+        <form method="get" class="court-filter-panel" data-public-filters>
+            <div class="form-floating">
+                <input name="search" value="@Model.Search" class="form-control" placeholder="Search courts" />
+                <label>Search courts, sports, facilities</label>
+            </div>
+            <div class="form-floating">
+                <select name="sport" class="form-select">
+                    <option value="">All Sports</option>
+                    @foreach (var sport in Model.Sports)
+                    {
+                        <option value="@sport" selected="@(Model.Sport == sport)">@sport</option>
+                    }
+                </select>
+                <label>Sport</label>
+            </div>
+            <div class="form-floating">
+                <select name="facility" class="form-select">
+                    <option value="">All Facilities</option>
+                    @foreach (var facility in Model.Facilities)
+                    {
+                        <option value="@facility" selected="@(Model.Facility == facility)">@facility</option>
+                    }
+                </select>
+                <label>Facility</label>
+            </div>
+            <div class="form-floating">
+                <select name="facilityType" class="form-select">
+                    <option value="">Indoor / Outdoor</option>
+                    <option value="Indoor" selected="@(Model.FacilityType == "Indoor")">Indoor</option>
+                    <option value="Outdoor" selected="@(Model.FacilityType == "Outdoor")">Outdoor</option>
+                    <option value="Mixed" selected="@(Model.FacilityType == "Mixed")">Mixed</option>
+                </select>
+                <label>Type</label>
+            </div>
+            <button class="btn-premium" type="submit"><i class="bi bi-search"></i> Filter</button>
+            <a class="btn-ghost-light" asp-action="Index"><i class="bi bi-x-circle"></i> Clear</a>
+        </form>
+    </div>
+</section>
+
+<section class="court-catalog">
+    <div class="container">
+        @if (!Model.Courts.Any())
+        {
+            <div class="public-empty-state">
+                <i class="bi bi-search"></i>
+                <h2>No courts found</h2>
+                <p>Try changing your filters. Only active public courts are shown here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="court-card-grid">
+                @foreach (var court in Model.Courts)
+                {
+                    var hasPricing = court.StartingPrice.HasValue;
+                    <article class="public-court-card">
+                        <div class="court-image" style="background-image:url('@(court.ImageUrl ?? "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=1200")')">
+                            <span class="court-status">@((court.Status == CourtStatus.Available) ? "Available for Booking" : "Check availability")</span>
+                        </div>
+                        <div class="court-card-body">
+                            <div>
+                                <span class="sport-chip">@court.SportName</span>
+                                <h2>@court.Name</h2>
+                                <p><i class="bi bi-building"></i> @court.FacilityName · @court.FacilityType</p>
+                            </div>
+                            <div class="court-meta">
+                                <span><i class="bi bi-people"></i> @court.Capacity players</span>
+                                <span><i class="bi bi-clock"></i> @court.DefaultDurationMinutes min</span>
+                            </div>
+                            <div class="price-row">
+                                @if (hasPricing)
+                                {
+                                    <strong>From @Model.CurrencySymbol @court.StartingPrice?.ToString("N0")</strong>
+                                }
+                                else
+                                {
+                                    <strong>Pricing unavailable</strong>
+                                }
+                            </div>
+                            <div class="court-actions">
+                                <a class="btn-ghost-light" asp-action="Details" asp-route-id="@court.Id">View Details</a>
+                                <a class="btn-premium @(hasPricing ? "" : "disabled")" asp-controller="OnlineBooking" asp-action="Start" asp-route-id="@court.Id"><i class="bi bi-calendar2-check"></i> Book This Court</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>

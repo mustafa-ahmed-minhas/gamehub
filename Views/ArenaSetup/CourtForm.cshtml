@@ -1,0 +1,17 @@
+@model CourtFormViewModel
+@{ ViewData["Title"] = Model.IsEditMode ? "Edit Court" : "Create Court"; Layout = "_AdminLayout"; }
+<section class="arena-form-page" data-arena-form>
+    <div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@ViewData["Title"]</h1><p>Manage court sport, facility, capacity, and operational status.</p></div><a class="admin-secondary-button" asp-action="Index" asp-route-tab="courts"><i class="bi bi-arrow-left"></i> Back</a></div>
+    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditCourt" : "CreateCourt")" asp-route-id="@Model.Id">
+        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+        <div class="arena-form-card"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <label><span>Name</span><input asp-for="Name" data-preview-name /><small asp-validation-for="Name"></small></label><label><span>Code</span><input asp-for="Code" data-preview-code /><small asp-validation-for="Code"></small></label>
+            <label><span>Sport</span><select asp-for="SportId" asp-items="Model.SportOptions" data-preview-sport></select><small asp-validation-for="SportId"></small></label><label><span>Facility</span><select asp-for="FacilityId" asp-items="Model.FacilityOptions" data-preview-facility></select><small asp-validation-for="FacilityId"></small></label>
+            <label><span>Status</span><select asp-for="Status" asp-items="Html.GetEnumSelectList<CourtStatus>()" data-preview-status></select></label><label><span>Capacity</span><input asp-for="Capacity" type="number" data-preview-capacity /><small asp-validation-for="Capacity"></small></label>
+            <label><span>Image URL</span><input asp-for="ImageUrl" /></label><label><span>Display Order</span><input asp-for="DisplayOrder" type="number" /></label><label><span>Description</span><textarea asp-for="Description"></textarea></label><label><span>Notes</span><textarea asp-for="Notes"></textarea></label>
+            <label class="arena-toggle"><input asp-for="IsActive" data-preview-active /><span>Active Court</span></label>
+        </div>
+        <aside class="arena-preview-card"><i class="bi bi-grid-3x3-gap"></i><h2 data-preview-name-target>@(Model.Name == "" ? "Court Name" : Model.Name)</h2><p data-preview-code-target>@(Model.Code == "" ? "CODE" : Model.Code)</p><span data-preview-sport-target>Sport</span><span data-preview-facility-target>Facility</span><span data-preview-capacity-target>@Model.Capacity players</span><strong data-preview-active-target>@(Model.IsActive ? "Active" : "Inactive")</strong></aside>
+        <div class="arena-save-bar"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="courts">Cancel</a><button class="admin-action-button" type="submit" data-arena-save><i class="bi bi-check2-circle"></i><span>Save Changes</span></button></div>
+    </form>
+</section>

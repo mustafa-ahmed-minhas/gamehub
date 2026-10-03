@@ -1,0 +1,34 @@
+@model ReportPageViewModel
+@{
+    var clearAction = Model.IsOverview ? "Index" : Model.ActionName;
+}
+<section class="report-filter-shell admin-reveal" data-report-filter-shell>
+    <form asp-controller="Reports" asp-action="@clearAction" method="get" class="report-filter-form" data-report-filter-form>
+        <div class="report-presets" role="group" aria-label="Date range">
+            @foreach (var option in new[] { ("today", "Today"), ("yesterday", "Yesterday"), ("this-week", "This Week"), ("this-month", "This Month"), ("last-month", "Last Month"), ("this-quarter", "Quarter"), ("this-year", "This Year") })
+            {
+                <button type="submit" name="Preset" value="@option.Item1" class="@(Model.Filter.Preset == option.Item1 ? "active" : null)">@option.Item2</button>
+            }
+        </div>
+        <div class="report-filter-actions">
+            <button type="button" class="report-filter-toggle" data-report-filter-toggle aria-expanded="false"><i class="bi bi-sliders"></i> Filters <span>@Model.FilterSummary</span></button>
+            <a asp-controller="Reports" asp-action="@clearAction" class="report-filter-clear"><i class="bi bi-arrow-counterclockwise"></i> Clear</a>
+        </div>
+        <div class="report-filter-panel" data-report-filter-panel>
+            <label><span>From</span><input type="date" name="StartDate" value="@Model.RangeStart.ToString("yyyy-MM-dd")" /></label>
+            <label><span>To</span><input type="date" name="EndDate" value="@Model.RangeEnd.ToString("yyyy-MM-dd")" /></label>
+            <input type="hidden" name="Preset" value="custom" />
+            <label><span>Sport</span><select name="SportId"><option value="">All sports</option>@foreach (var x in Model.Options.Sports){<option value="@x.Value" selected="@(Model.Filter.SportId?.ToString()==x.Value)">@x.Text</option>}</select></label>
+            <label><span>Facility</span><select name="FacilityId"><option value="">All facilities</option>@foreach (var x in Model.Options.Facilities){<option value="@x.Value" selected="@(Model.Filter.FacilityId?.ToString()==x.Value)">@x.Text</option>}</select></label>
+            <label><span>Court</span><select name="CourtId"><option value="">All courts</option>@foreach (var x in Model.Options.Courts){<option value="@x.Value" selected="@(Model.Filter.CourtId?.ToString()==x.Value)">@x.Text</option>}</select></label>
+            <label><span>Customer</span><select name="CustomerId"><option value="">All customers</option>@foreach (var x in Model.Options.Customers){<option value="@x.Value" selected="@(Model.Filter.CustomerId?.ToString()==x.Value)">@x.Text</option>}</select></label>
+            <label><span>Owner</span><select name="OwnerId"><option value="">All owners</option>@foreach (var x in Model.Options.Owners){<option value="@x.Value" selected="@(Model.Filter.OwnerId?.ToString()==x.Value)">@x.Text</option>}</select></label>
+            <label><span>Status</span><input name="Status" value="@Model.Filter.Status" placeholder="Any status" /></label>
+            <label><span>Payment Method</span><select name="PaymentMethod"><option value="">All methods</option>@foreach(var method in Enum.GetValues<GameHub.Models.Enums.InvoicePaymentMethod>()){<option value="@method" selected="@(Model.Filter.PaymentMethod==method.ToString())">@method.ToString().Replace("Payment", " Payment").Replace("Card", " Card")</option>}</select></label>
+            <label><span>Page Size</span><select name="PageSize"><option selected="@(Model.PageSize==10)">10</option><option selected="@(Model.PageSize==25)">25</option><option selected="@(Model.PageSize==50)">50</option></select></label>
+            <button type="submit" class="gh-btn gh-btn--gold"><i class="bi bi-check2"></i> Apply Filters</button>
+        </div>
+    </form>
+    <div asp-validation-summary="All" class="report-filter-errors"></div>
+</section>
+

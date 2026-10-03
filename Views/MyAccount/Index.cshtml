@@ -1,0 +1,123 @@
+@model MyAccountViewModel
+@{
+    ViewData["Title"] = "My Account";
+    Layout = "_CustomerLayout";
+}
+
+<section class="myaccount-hero portal-page">
+    <div class="container account-dashboard">
+
+        <header class="portal-head portal-head--profile">
+            <div class="profile-avatar">
+                @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+                {
+                    <img src="@Model.ProfileImageUrl" alt="@Model.FullName" />
+                }
+                else
+                {
+                    <span>@Model.Initials</span>
+                }
+            </div>
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-person-badge"></i> Customer Account</span>
+                <h1>Welcome, @Model.FirstName</h1>
+                <p class="portal-head__lead">@Model.CustomerCode &middot; @Model.MembershipStatus &middot; @Model.LoyaltyPoints loyalty points</p>
+                @if (!Model.EmailVerified)
+                {
+                    <div class="verification-banner"><i class="bi bi-envelope-exclamation"></i> Email verification required before future online checkout.</div>
+                }
+            </div>
+            <div class="portal-head__actions">
+                <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-calendar2-check"></i> Book a Court</a>
+                <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
+                <a class="btn-ghost-light" asp-action="Profile"><i class="bi bi-pencil-square"></i> Edit Profile</a>
+            </div>
+        </header>
+
+        @if (Model.HasActiveCheckout)
+        {
+            <div class="continue-checkout-panel">
+                <i class="bi bi-hourglass-split"></i>
+                <div>
+                    <strong>Continue your booking</strong>
+                    <p>@Model.CheckoutCourtName · @Model.CheckoutDateTime. This is not a confirmed booking.</p>
+                </div>
+                <a class="btn-premium" asp-controller="OnlineBooking" asp-action="Checkout">Continue Checkout</a>
+            </div>
+        }
+
+        <div class="portal-stats">
+            <article class="portal-stat tone-info">
+                <span class="portal-stat__icon"><i class="bi bi-calendar-event"></i></span>
+                <span class="portal-stat__value">@Model.UpcomingBookings</span>
+                <span class="portal-stat__label">Upcoming Bookings</span>
+            </article>
+            <article class="portal-stat tone-success">
+                <span class="portal-stat__icon"><i class="bi bi-check2-circle"></i></span>
+                <span class="portal-stat__value">@Model.CompletedBookings</span>
+                <span class="portal-stat__label">Completed Bookings</span>
+            </article>
+            <article class="portal-stat tone-gold">
+                <span class="portal-stat__icon"><i class="bi bi-gem"></i></span>
+                <span class="portal-stat__value">@(Model.HasActiveMembership ? "Active" : Model.MembershipStatus)</span>
+                <span class="portal-stat__label">Membership</span>
+            </article>
+            <article class="portal-stat tone-warn">
+                <span class="portal-stat__icon"><i class="bi bi-stars"></i></span>
+                <span class="portal-stat__value">@Model.LoyaltyPoints</span>
+                <span class="portal-stat__label">Loyalty Points</span>
+            </article>
+        </div>
+
+        <div class="account-panel-grid">
+            <section class="account-panel">
+                <div class="portal-panel__head">
+                    <i class="bi bi-gem"></i>
+                    <h2>@(Model.HasActiveMembership ? "Your membership" : "Online bookings")</h2>
+                </div>
+                @if (Model.HasActiveMembership)
+                {
+                    <p class="portal-panel__body">
+                        <strong>@Model.MembershipPlanName</strong> (@Model.MembershipNumber)<br />
+                        Valid until @Model.MembershipExpiryDate?.ToString("MMM dd, yyyy") &middot; @Model.MembershipDaysRemaining day(s) remaining
+                    </p>
+                    <a class="portal-panel__link" asp-controller="MyMemberships" asp-action="Index">Manage membership <i class="bi bi-arrow-right"></i></a>
+                }
+                else
+                {
+                    <p class="portal-panel__body">You do not have an active membership. Join a plan to get booking discounts and included hours.</p>
+                    <a class="portal-panel__link" asp-controller="MyMemberships" asp-action="Plans">View membership plans <i class="bi bi-arrow-right"></i></a>
+                }
+            </section>
+
+            <section class="account-panel">
+                <div class="portal-panel__head">
+                    <i class="bi bi-clock-history"></i>
+                    <h2>Recent activity</h2>
+                </div>
+                <p class="portal-panel__body">Review everything on your account in one place.</p>
+                <a class="portal-panel__link" asp-controller="CustomerHistory" asp-action="Index">Open activity history <i class="bi bi-arrow-right"></i></a>
+            </section>
+
+            <section class="account-panel portal-panel--wide">
+                <div class="portal-panel__head">
+                    <i class="bi bi-lightning-charge"></i>
+                    <h2>Quick actions</h2>
+                </div>
+                <div class="portal-quick-grid">
+                    <a asp-controller="Courts" asp-action="Index"><i class="bi bi-calendar2-check"></i> Book a Court</a>
+                    <a asp-controller="MyMemberships" asp-action="Index"><i class="bi bi-award"></i> View Membership</a>
+                    <a asp-controller="MyBookings" asp-action="Index"><i class="bi bi-calendar-check"></i> My Bookings</a>
+                    <a asp-controller="MyInvoices" asp-action="Index"><i class="bi bi-receipt"></i> Invoices</a>
+                    <a asp-action="Payments"><i class="bi bi-credit-card"></i> Payment History</a>
+                    <a asp-action="Profile"><i class="bi bi-person"></i> Edit Profile</a>
+                    <a asp-controller="Courts" asp-action="HowItWorks"><i class="bi bi-question-circle"></i> Booking Help</a>
+                </div>
+            </section>
+        </div>
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}

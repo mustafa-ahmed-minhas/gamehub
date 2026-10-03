@@ -1,0 +1,119 @@
+@model UserDetailsViewModel
+@{
+    ViewData["Title"] = "User Details";
+    Layout = "_AdminLayout";
+}
+
+<form id="statusToggleForm" method="post">
+    @Html.AntiForgeryToken()
+</form>
+
+<section class="users-page user-details-page" data-user-details>
+    <div class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">System Administration</span>
+            <h1>User Details</h1>
+            <p>Safe profile, role, status, and account information.</p>
+        </div>
+        <div class="details-actions">
+            <a class="admin-secondary-button" asp-controller="Users" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Users</a>
+            <a class="admin-secondary-button" asp-controller="Users" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit User</a>
+            <button type="button"
+                    class="admin-action-button"
+                    data-status-toggle
+                    data-user-id="@Model.Id"
+                    data-user-name="@Model.FullName"
+                    data-is-active="@Model.IsActive.ToString().ToLowerInvariant()">
+                <i class="bi @(Model.IsActive ? "bi-pause-circle" : "bi-play-circle")"></i> @(Model.IsActive ? "Deactivate" : "Activate")
+            </button>
+        </div>
+    </div>
+
+    <div class="details-grid">
+        <article class="details-profile-card admin-reveal">
+            @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+            {
+                <img src="@Model.ProfileImageUrl" alt="@Model.FullName" />
+            }
+            else
+            {
+                <span class="user-avatar xl">@Model.Initials</span>
+            }
+            <h2>@Model.FullName</h2>
+            <span class="role-badge role-@Model.Role.ToString().ToLowerInvariant()">@Model.Role.GetDisplayName()</span>
+            <span class="user-status-badge @(Model.IsActive ? "active" : "inactive")" data-status-badge><i></i><span data-status-text>@(Model.IsActive ? "Active" : "Inactive")</span></span>
+            <div class="profile-facts">
+                <div><span>Email</span><strong>@Model.Email</strong></div>
+                <div><span>Phone</span><strong>@(Model.PhoneNumber ?? "Phone not provided")</strong></div>
+                <div><span>User ID</span><strong>#@Model.Id</strong></div>
+            </div>
+        </article>
+
+        <article class="details-card admin-reveal">
+            <h2>Access Summary</h2>
+            <span class="role-badge role-@Model.Role.ToString().ToLowerInvariant()">@Model.Role.GetDisplayName()</span>
+            <p>@RoleAccessSummary(Model.Role)</p>
+        </article>
+
+        <article class="details-card admin-reveal">
+            <h2>Account Status</h2>
+            <div class="detail-list">
+                <div><span>Current Status</span><strong data-status-text>@(Model.IsActive ? "Active" : "Inactive")</strong></div>
+                <div><span>Created</span><strong>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</strong></div>
+                <div><span>Last Updated</span><strong>@(Model.UpdatedAt?.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt") ?? "Not updated yet")</strong></div>
+                <div><span>Last Login</span><strong>@(Model.LastLoginAt?.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt") ?? "Never")</strong></div>
+            </div>
+        </article>
+
+        <article class="details-card admin-reveal">
+            <h2>Security</h2>
+            <div class="detail-list">
+                <div><span>Password</span><strong><i class="bi bi-shield-check"></i> Secured</strong></div>
+                <div><span>Password Hash</span><strong>Hidden</strong></div>
+                <div><span>Last Password Change</span><strong>Not tracked yet</strong></div>
+            </div>
+        </article>
+
+        <article class="details-card activity-placeholder admin-reveal">
+            <h2>Recent Account Activity</h2>
+            <i class="bi bi-clock-history"></i>
+            <p>No activity history available yet.</p>
+        </article>
+    </div>
+</section>
+
+<div class="modal fade user-modal" id="statusConfirmModal" tabindex="-1" aria-labelledby="statusConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="statusConfirmTitle">Confirm Status Change</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p data-status-message>This user status will be changed.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="admin-action-button" data-confirm-status>Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private static string RoleAccessSummary(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "This user will have complete access to all ERP modules.",
+            UserRole.Admin => "This user will have general administrative access across the ERP.",
+            UserRole.BookingManager => "This user will manage bookings, schedules, and booking operations.",
+            UserRole.CourtManager => "This user will manage courts, grounds, and facility availability.",
+            UserRole.FinanceManager => "This user will manage payments and financial records.",
+            UserRole.StaffManager => "This user will manage staff records and attendance.",
+            UserRole.Receptionist => "This user will handle bookings, customers, and front-desk operations.",
+            UserRole.Viewer => "This user will have read-only access.",
+            _ => "This user will have limited ERP access."
+        };
+    }
+}

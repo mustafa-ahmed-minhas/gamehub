@@ -1,0 +1,73 @@
+@model ReportPageViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Reports & Analytics";
+    Layout = "_AdminLayout";
+    var chartJson = JsonSerializer.Serialize(Model.Charts).Replace("</", "<\\/");
+}
+
+<main class="reports-page reports-page--overview">
+    <header class="reports-hero admin-reveal">
+        <div>
+            <span class="reports-kicker">BUSINESS INTELLIGENCE</span>
+            <h1>Reports &amp; Analytics</h1>
+            <p>Monitor revenue, demand, customer growth and arena performance from one trusted workspace.</p>
+        </div>
+        <div class="reports-hero__meta">
+            <span><i class="bi bi-clock-history"></i> Updated @Model.RefreshedAt.ToString("dd MMM, HH:mm")</span>
+            <a asp-action="Exports" class="gh-btn gh-btn--light"><i class="bi bi-download"></i> Export Center</a>
+        </div>
+    </header>
+
+    <partial name="_ReportFilters" model="Model" />
+
+    <section class="reports-kpi-grid" aria-label="Report summary">
+        @foreach (var item in Model.Kpis)
+        {
+            <article class="report-kpi @(!string.IsNullOrWhiteSpace(item.Tone) ? $"report-kpi--{item.Tone}" : "") admin-reveal">
+                <span class="report-kpi__icon"><i class="bi @item.Icon"></i></span>
+                <div><small>@item.Label</small><strong data-report-counter>@item.Value</strong><span>@item.Helper</span></div>
+            </article>
+        }
+    </section>
+
+    <section class="report-chart-grid">
+        @foreach (var chart in Model.Charts)
+        {
+            <article class="report-chart-card admin-reveal">
+                <header><div><span>ANALYTICS</span><h2>@chart.Title</h2><p>@chart.Subtitle</p></div><i class="bi bi-three-dots"></i></header>
+                <div class="report-chart-canvas"><canvas id="@chart.Id" aria-label="@chart.Title"></canvas></div>
+            </article>
+        }
+    </section>
+
+    <section class="reports-overview-grid">
+        <div class="reports-module-panel admin-reveal">
+            <div class="reports-section-heading"><div><span>REPORT LIBRARY</span><h2>Explore detailed reports</h2></div><small>@Model.FilterSummary</small></div>
+            <div class="reports-module-grid">
+                @foreach (var module in Model.Modules.Where(x => x.Available))
+                {
+                    <a asp-action="@module.Action" class="report-module-card">
+                        <span><i class="bi @module.Icon"></i></span>
+                        <div><h3>@module.Title</h3><p>@module.Description</p></div>
+                        <i class="bi bi-arrow-up-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+        <aside class="report-insights admin-reveal">
+            <div class="report-insights__heading"><span><i class="bi bi-stars"></i></span><div><small>SMART SUMMARY</small><h2>Business Insights</h2></div></div>
+            @foreach (var insight in Model.Insights)
+            {
+                <article class="report-insight @(!string.IsNullOrWhiteSpace(insight.Tone) ? $"report-insight--{insight.Tone}" : "")">
+                    <i class="bi @insight.Icon"></i><div><small>@insight.Label</small><strong>@insight.Value</strong><p>@insight.Detail</p></div>
+                </article>
+            }
+        </aside>
+    </section>
+</main>
+
+<script type="application/json" id="reportChartData">@Html.Raw(chartJson)</script>
+@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/reports.js" asp-append-version="true"></script> }
+

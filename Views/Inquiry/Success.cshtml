@@ -1,0 +1,14 @@
+@{
+    ViewData["Title"] = "Inquiry Submitted";
+    Layout = "_CustomerLayout";
+}
+<section class="public-inquiry-page success">
+    <div class="container inquiry-success-card">
+        <i class="bi bi-check2-circle"></i>
+        <span class="eyebrow-pill">Inquiry Submitted</span>
+        <h1>We received your inquiry</h1>
+        <p>Your reference number is <strong>@ViewBag.Reference</strong>. Our team will review it and contact you soon.</p>
+        <div class="inquiry-success-actions"><a class="btn-premium" asp-controller="Courts" asp-action="Index">Browse Courts</a><a class="btn-ghost-light" asp-controller="MyAccount" asp-action="Index">My Account</a><a class="btn-ghost-light" asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact Support</a></div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/public-inquiry.css" asp-append-version="true" /> }

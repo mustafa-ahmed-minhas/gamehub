@@ -1,0 +1,249 @@
+@model OnlinePaymentViewModel
+@{
+    ViewData["Title"] = "Secure Payment";
+    Layout = "_CustomerLayout";
+    var currentYear = DateTime.UtcNow.Year;
+}
+
+<section class="payment-page">
+    <div class="container payment-grid">
+        <form asp-action="Process" method="post" class="payment-card payment-shell" data-payment-form novalidate>
+            @Html.AntiForgeryToken()
+            <input asp-for="CheckoutToken" type="hidden" />
+
+            <div class="payment-heading">
+                <span class="eyebrow-pill"><i class="bi bi-lock-fill"></i> Secure Checkout</span>
+                <h1>Complete Payment</h1>
+                <p>Demo payment environment. Your booking is confirmed after the secure payment simulation succeeds.</p>
+            </div>
+
+            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+            <div class="payment-progress" aria-label="Booking progress">
+                <span class="done"><i class="bi bi-check2"></i> Court</span>
+                <span class="done"><i class="bi bi-check2"></i> Review</span>
+                <span class="current"><i class="bi bi-credit-card-2-front"></i> Payment</span>
+                <span><i class="bi bi-receipt"></i> Receipt</span>
+            </div>
+
+            @if (Model.IsDevelopmentDemo)
+            {
+                <div class="demo-instructions">
+                    <strong><i class="bi bi-terminal"></i> Development test values</strong>
+                    <span>Success card: 4242 4242 4242 4242</span>
+                    <span>Failed card: 4000 0000 0000 0002</span>
+                    <span>Cancelled card: 4000 0000 0000 0069</span>
+                    <span>Wallet ending 00 succeeds, 01 fails, 02 cancels.</span>
+                </div>
+            }
+
+            <div class="premium-payment-stage">
+                <article class="live-card-preview" data-card-preview>
+                    <div class="card-orb"></div>
+                    <div class="live-card-top">
+                        <span>GameHub Pay</span>
+                        <strong data-card-brand>Card</strong>
+                    </div>
+                    <div class="live-card-chip-row">
+                        <span class="secure-chip" aria-hidden="true"></span>
+                        <i class="bi bi-wifi" aria-hidden="true"></i>
+                    </div>
+                    <div class="live-card-number" data-preview-number>•••• •••• •••• ••••</div>
+                    <div class="live-card-footer">
+                        <span>
+                            <small>Card Holder</small>
+                            <strong data-preview-holder>YOUR NAME</strong>
+                        </span>
+                        <span>
+                            <small>Expiry</small>
+                            <strong data-preview-expiry>MM/YYYY</strong>
+                        </span>
+                    </div>
+                </article>
+
+                <div class="payment-method-panel">
+                    <h2>Payment Method</h2>
+                    <div class="payment-method-grid premium-method-grid" role="radiogroup" aria-label="Payment method">
+                        <label class="payment-method-card">
+                            <input asp-for="PaymentMethod" type="radio" value="Card" checked />
+                            <span class="method-icon"><i class="bi bi-credit-card-2-front"></i></span>
+                            <span>
+                                <strong>Visa Card</strong>
+                                <small>Debit or credit card</small>
+                            </span>
+                            <i class="bi bi-check-circle-fill method-check"></i>
+                        </label>
+                        <label class="payment-method-card">
+                            <input asp-for="PaymentMethod" type="radio" value="MobileWallet" />
+                            <span class="method-icon"><i class="bi bi-phone"></i></span>
+                            <span>
+                                <strong>Mobile Wallet</strong>
+                                <small>Digital wallet demo</small>
+                            </span>
+                            <i class="bi bi-check-circle-fill method-check"></i>
+                        </label>
+                        <label class="payment-method-card">
+                            <input asp-for="PaymentMethod" type="radio" value="BankTransfer" />
+                            <span class="method-icon"><i class="bi bi-bank"></i></span>
+                            <span>
+                                <strong>Bank Transfer</strong>
+                                <small>Manual transfer demo</small>
+                            </span>
+                            <i class="bi bi-check-circle-fill method-check"></i>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="method-panel payment-form-section" data-method-panel="Card">
+                <h2>Card Details</h2>
+                <div class="payment-field has-icon">
+                    <i class="bi bi-person"></i>
+                    <input asp-for="CardholderName" class="form-control" placeholder="Card holder name" autocomplete="cc-name" data-card-holder />
+                    <label asp-for="CardholderName">Card Holder Name</label>
+                    <span asp-validation-for="CardholderName" class="text-danger small"></span>
+                    <span class="field-feedback" data-holder-feedback>Letters and spaces only.</span>
+                </div>
+
+                <div class="payment-field has-icon has-brand">
+                    <i class="bi bi-credit-card"></i>
+                    <input asp-for="CardNumber" class="form-control" placeholder="1234 5678 9012 3456" inputmode="numeric" autocomplete="cc-number" maxlength="19" data-card-number />
+                    <label asp-for="CardNumber">Card Number</label>
+                    <span class="card-brand-badge" data-card-brand-badge><i class="bi bi-credit-card-2-front"></i></span>
+                    <span asp-validation-for="CardNumber" class="text-danger small"></span>
+                    <span class="field-feedback" data-card-number-feedback>Enter a valid card number.</span>
+                </div>
+
+                <div class="form-grid three">
+                    <div class="payment-field select-field">
+                        <select asp-for="ExpiryMonth" class="form-select" autocomplete="cc-exp-month" data-expiry-month>
+                            <option value="">Month</option>
+                            @for (var month = 1; month <= 12; month++)
+                            {
+                                <option value="@month.ToString("00")">@month.ToString("00")</option>
+                            }
+                        </select>
+                        <label>Expiry Month</label>
+                        <span asp-validation-for="ExpiryMonth" class="text-danger small"></span>
+                    </div>
+                    <div class="payment-field select-field">
+                        <select asp-for="ExpiryYear" class="form-select" autocomplete="cc-exp-year" data-expiry-year>
+                            <option value="">Year</option>
+                            @for (var year = currentYear; year <= currentYear + 10; year++)
+                            {
+                                <option value="@year">@year</option>
+                            }
+                        </select>
+                        <label>Expiry Year</label>
+                        <span asp-validation-for="ExpiryYear" class="text-danger small"></span>
+                    </div>
+                    <div class="payment-field has-icon">
+                        <i class="bi bi-shield-lock"></i>
+                        <input asp-for="Cvv" class="form-control" placeholder="CVV" type="password" inputmode="numeric" autocomplete="cc-csc" maxlength="3" data-cvv />
+                        <label>CVV</label>
+                        <button class="field-help" type="button" data-bs-toggle="tooltip" title="The security code printed on your card." aria-label="CVV help">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <span asp-validation-for="Cvv" class="text-danger small"></span>
+                        <span class="field-feedback" data-cvv-feedback>Numbers only.</span>
+                    </div>
+                </div>
+                <div class="expiry-feedback" data-expiry-feedback></div>
+            </div>
+
+            <div class="method-panel payment-form-section d-none" data-method-panel="MobileWallet">
+                <h2>Wallet Details</h2>
+                <div class="form-grid two">
+                    <div class="payment-field has-icon">
+                        <i class="bi bi-phone"></i>
+                        <input asp-for="WalletProvider" class="form-control" placeholder="JazzCash, Easypaisa, SadaPay" />
+                        <label>Wallet Provider</label>
+                    </div>
+                    <div class="payment-field has-icon">
+                        <i class="bi bi-hash"></i>
+                        <input asp-for="WalletNumber" class="form-control" placeholder="Wallet number" inputmode="numeric" />
+                        <label>Wallet Number</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="method-panel payment-form-section d-none" data-method-panel="BankTransfer">
+                <div class="bank-demo-box">
+                    <i class="bi bi-bank"></i>
+                    <div>
+                        <h2>Bank Transfer Demo</h2>
+                        <p>Simulate a bank transfer confirmation for the FYP demo gateway.</p>
+                        <label class="premium-policy-check premium-payment-check">
+                            <input asp-for="SimulateBankTransferSuccess" />
+                            <span></span>
+                            Simulate Successful Bank Transfer
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <label class="premium-policy-check premium-payment-check terms-check">
+                <input asp-for="AcceptPaymentTerms" />
+                <span></span>
+                I authorize 100% demo payment for this booking.
+            </label>
+            <span asp-validation-for="AcceptPaymentTerms" class="text-danger small"></span>
+
+            <button class="btn-premium payment-submit" type="submit" data-payment-submit>
+                <i class="bi bi-shield-lock"></i>
+                <span>Pay @Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</span>
+            </button>
+
+            <div class="payment-processing" data-processing-overlay>
+                <div>
+                    <span class="spinner-border"></span>
+                    <h2>Securing your booking...</h2>
+                    <p data-processing-step>Verifying payment</p>
+                </div>
+            </div>
+        </form>
+
+        <aside class="payment-summary">
+            <div class="summary-topline">
+                <span class="checkout-countdown" data-payment-countdown="@Model.SecondsRemaining">15:00 remaining</span>
+                <span class="secure-badge"><i class="bi bi-lock-fill"></i> Secure checkout</span>
+            </div>
+
+            <div class="booking-summary-card">
+                <span class="eyebrow-pill"><i class="bi bi-calendar2-check"></i> Booking Summary</span>
+                <h2>@Model.CourtName</h2>
+                <p>@Model.SportName · @Model.BookingDate.ToString("MMM dd, yyyy")</p>
+                <div class="booking-summary-list">
+                    <div><i class="bi bi-person"></i><span>Customer</span><strong>@Model.CustomerName</strong></div>
+                    <div><i class="bi bi-clock"></i><span>Time</span><strong>@Model.StartTime.ToString("hh:mm tt") - @Model.EndTime.ToString("hh:mm tt")</strong></div>
+                    <div><i class="bi bi-people"></i><span>Players</span><strong>@Model.PlayerCount</strong></div>
+                    <div><i class="bi bi-trophy"></i><span>Sport</span><strong>@Model.SportName</strong></div>
+                </div>
+            </div>
+
+            <div class="payment-breakdown-card">
+                <h2>Payment Summary</h2>
+                <dl>
+                    <div><dt><i class="bi bi-receipt"></i> Subtotal</dt><dd>@Model.CurrencySymbol @Model.BaseAmount.ToString("N0")</dd></div>
+                    <div><dt><i class="bi bi-stars"></i> Discount</dt><dd>- @Model.CurrencySymbol @Model.MembershipDiscountAmount.ToString("N0")</dd></div>
+                    <div><dt><i class="bi bi-percent"></i> Tax</dt><dd>@Model.CurrencySymbol @Model.TaxAmount.ToString("N0")</dd></div>
+                    <div class="summary-divider" aria-hidden="true"></div>
+                    <div class="total"><dt>Total</dt><dd>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</dd></div>
+                </dl>
+                <div class="payment-requirement">
+                    <i class="bi bi-shield-check"></i>
+                    <div>
+                        <strong>100% Payment Required</strong>
+                        <span>Availability is rechecked before confirmation.</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/online-payment.js" asp-append-version="true"></script>
+}

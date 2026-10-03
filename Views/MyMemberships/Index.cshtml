@@ -1,0 +1,194 @@
+@model MyMembershipViewModel
+@{
+    ViewData["Title"] = "My Membership";
+    Layout = "_CustomerLayout";
+}
+<section class="membership-page portal-page">
+    <div class="container">
+
+        <header class="portal-head">
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-stars"></i> Membership</span>
+                <h1>My Membership</h1>
+                <p class="portal-head__lead">Track your plan, remaining hours and renewal options.</p>
+            </div>
+            <div class="portal-head__actions">
+                <a class="btn-ghost-light" asp-action="History"><i class="bi bi-clock-history"></i> Membership History</a>
+                <a class="btn-ghost-light" asp-action="Plans"><i class="bi bi-list-ul"></i> Compare Plans</a>
+                <a class="btn-premium" asp-action="Plans"><i class="bi bi-stars"></i> Get a Plan</a>
+            </div>
+        </header>
+
+        @if (Model.HasMembership)
+        {
+            <article class="membership-current-card">
+                <div class="membership-current-head">
+                    <div>
+                        <span class="eyebrow-pill"><i class="bi bi-patch-check"></i> Active Plan</span>
+                        <h2>@Model.PlanName</h2>
+                        <p>@Model.MembershipNumber &middot; @Model.PlanCode</p>
+                    </div>
+                    <span class="status-pill active">@Model.Status</span>
+                </div>
+
+                <div class="membership-metrics">
+                    <div>
+                        <span>Valid Until</span>
+                        <strong>@Model.ExpiryDate?.ToString("MMM dd, yyyy")</strong>
+                        <small>@Model.RemainingDays day(s) remaining</small>
+                    </div>
+                    <div>
+                        <span>Booking Discount</span>
+                        <strong>@Model.DiscountPercentage.ToString("0.##")%</strong>
+                        <small>Applied at checkout</small>
+                    </div>
+                    <div>
+                        <span>Included Hours</span>
+                        <strong>@Model.RemainingHours / @Model.IncludedBookingHours</strong>
+                        <small>@Model.UsedBookingHours used</small>
+                    </div>
+                    <div>
+                        <span>Upcoming Bookings</span>
+                        <strong>@Model.UpcomingBookingCount</strong>
+                        <small><a asp-controller="MyBookings" asp-action="Index">View bookings</a></small>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.PlanDescription))
+                {
+                    <p class="membership-current-note">@Model.PlanDescription</p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.Benefits))
+                {
+                    <div class="membership-benefits">
+                        <h3>Your Benefits</h3>
+                        <ul>
+                            @foreach (var benefit in Model.Benefits.Split(new[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                <li><i class="bi bi-check2-circle"></i> @benefit</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <div class="membership-actions">
+                    @if (Model.CanRenew)
+                    {
+                        <a class="btn-premium" asp-action="Renew"><i class="bi bi-arrow-repeat"></i> Renew for @Model.CurrencySymbol @Model.NextFee.ToString("N0")</a>
+                        <span class="membership-renew-hint">Renews from @Model.NextExpiryDate?.ToString("MMM dd, yyyy")</span>
+                    }
+                    @if (Model.CanUpgrade)
+                    {
+                        <a class="btn-ghost-light" asp-action="Upgrade"><i class="bi bi-arrow-up-circle"></i> Upgrade Plan</a>
+                    }
+                    <a class="btn-ghost-light" asp-action="History"><i class="bi bi-clock-history"></i> Membership History</a>
+                    <a class="btn-ghost-light" asp-controller="MyInvoices" asp-action="Membership" asp-route-membershipId="@Model.MembershipId"><i class="bi bi-receipt"></i> View Invoice</a>
+                    @if (Model.CanCancel)
+                    {
+                        <a class="btn-ghost-light membership-cancel-link" asp-action="Cancel"><i class="bi bi-x-circle"></i> Cancel Membership</a>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(Model.CancellationBlockReason))
+                    {
+                        <span class="membership-renew-hint" title="@Model.CancellationBlockReason"><i class="bi bi-lock"></i> Cancellation unavailable</span>
+                    }
+                </div>
+            </article>
+        }
+        else
+        {
+            <div class="portal-empty">
+                <span class="portal-empty__icon"><i class="bi bi-stars"></i></span>
+                <h2>You do not have an active membership</h2>
+                <p>Join a plan to receive booking discounts, included hours and priority access.</p>
+                <a class="btn-premium" asp-action="Plans"><i class="bi bi-arrow-right"></i> Browse Membership Plans</a>
+            </div>
+        }
+
+        @if (Model.History.Count > 0)
+        {
+            <div class="membership-history-block">
+                <div class="portal-subhead">
+                    <h2><i class="bi bi-clock-history"></i> Membership History</h2>
+                    <a class="btn-ghost-light btn-compact" asp-action="History">View All</a>
+                </div>
+                <div class="booking-card-list">
+                    @foreach (var item in Model.History)
+                    {
+                        <article class="customer-booking-card">
+                            <div>
+                                <span>@item.MembershipNumber</span>
+                                <h2>@item.PlanName</h2>
+                                <p>@item.StartDate.ToString("MMM dd, yyyy") - @item.ExpiryDate.ToString("MMM dd, yyyy")</p>
+                                @if (!string.IsNullOrWhiteSpace(item.UpgradedFromPlan))
+                                {
+                                    <small class="membership-history-upgraded">Upgraded from @item.UpgradedFromPlan</small>
+                                }
+                            </div>
+                            <div>
+                                <span class="status-pill">@item.Status</span>
+                                @if (!string.IsNullOrWhiteSpace(item.CancellationReason))
+                                {
+                                    <small class="d-block text-muted mt-1">@item.CancellationReason</small>
+                                }
+                            </div>
+                            <div>
+                                <strong>@Model.CurrencySymbol @((item.PaidAmount > 0 ? item.PaidAmount : item.JoiningFee).ToString("N0"))</strong>
+                                <a class="btn-premium btn-compact" asp-controller="MyInvoices" asp-action="Membership" asp-route-membershipId="@item.Id">Invoice</a>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="membership-history-block">
+            <div class="portal-subhead">
+                <h2><i class="bi bi-gem"></i> Available Plans</h2>
+                <a class="btn-ghost-light btn-compact" asp-action="Plans">Compare Plans</a>
+            </div>
+            <div class="plan-card-grid">
+                @foreach (var plan in Model.Plans)
+                {
+                    <article class="plan-card @(plan.IsCurrentPlan ? "current" : string.Empty)">
+                        @if (plan.IsCurrentPlan)
+                        {
+                            <span class="plan-badge">Your Plan</span>
+                        }
+                        <h3>@plan.Name</h3>
+                        <p class="plan-duration">@plan.DurationLabel</p>
+                        <p class="plan-price"><strong>@Model.CurrencySymbol @plan.JoiningFee.ToString("N0")</strong><span>joining fee</span></p>
+                        <ul class="plan-features">
+                            <li><i class="bi bi-percent"></i> @plan.DiscountPercentage.ToString("0.##")% booking discount</li>
+                            <li><i class="bi bi-clock-history"></i> @plan.IncludedBookingHours included hours</li>
+                            <li><i class="bi bi-calendar-check"></i> @plan.PriorityBookingDays day(s) priority access</li>
+                            <li><i class="bi bi-sun"></i> @(plan.AllowPeakHours ? "Includes" : "Excludes") peak hours</li>
+                        </ul>
+                        @if (!plan.IsCurrentPlan)
+                        {
+                            if (Model.HasMembership)
+                            {
+                                @if (plan.IsUpgrade)
+                                {
+                                    <a class="btn-premium btn-compact" asp-action="Upgrade" asp-route-planId="@plan.Id">Upgrade for @Model.CurrencySymbol @plan.PayableAmount.ToString("N0")</a>
+                                }
+                                else
+                                {
+                                    <span class="plan-note">Below your current tier</span>
+                                }
+                            }
+                            else
+                            {
+                                <a class="btn-premium btn-compact" asp-action="Join" asp-route-planId="@plan.Id">Select Plan</a>
+                            }
+                        }
+                    </article>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}

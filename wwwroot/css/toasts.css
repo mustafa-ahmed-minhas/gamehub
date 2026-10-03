@@ -1,0 +1,134 @@
+/* Premium GameHub toast notifications. */
+
+.gamehub-toast-region {
+    position: fixed;
+    top: 22px;
+    right: 22px;
+    z-index: 2000;
+    display: grid;
+    gap: 0.75rem;
+    width: min(380px, calc(100vw - 44px));
+    pointer-events: none;
+}
+
+.gamehub-toast {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+    overflow: hidden;
+    padding: 0.95rem;
+    color: #fff;
+    background: rgba(12, 12, 11, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-left: 4px solid var(--toast-accent, #d6a950);
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(18px);
+    pointer-events: auto;
+    animation: toastIn 260ms ease both;
+}
+
+.gamehub-toast.success { --toast-accent: #44c47c; }
+.gamehub-toast.error { --toast-accent: #e15f52; }
+.gamehub-toast.warning { --toast-accent: #d6a950; }
+.gamehub-toast.info { --toast-accent: #6da7d9; }
+
+.toast-icon {
+    display: grid;
+    width: 2.2rem;
+    height: 2.2rem;
+    place-items: center;
+    color: #17120a;
+    background: var(--toast-accent);
+    border-radius: 50%;
+}
+
+.toast-copy strong,
+.toast-copy span {
+    display: block;
+}
+
+.toast-copy strong {
+    margin-bottom: 0.15rem;
+    font-size: 0.84rem;
+    font-weight: 950;
+}
+
+.toast-copy span {
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 0.8rem;
+    font-weight: 750;
+    line-height: 1.45;
+}
+
+.toast-close {
+    width: 1.9rem;
+    height: 1.9rem;
+    color: rgba(255, 255, 255, 0.72);
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+}
+
+.toast-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.toast-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--toast-accent);
+    transform-origin: left;
+    animation: toastProgress var(--toast-duration, 5000ms) linear forwards;
+}
+
+.gamehub-toast.paused .toast-progress {
+    animation-play-state: paused;
+}
+
+.gamehub-toast.removing {
+    animation: toastOut 180ms ease forwards;
+}
+
+.toast-sound-toggle {
+    width: 100%;
+    display: flex !important;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--admin-text);
+    background: transparent;
+    border: 0;
+    text-align: left;
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+    to { opacity: 0; transform: translateX(16px); }
+}
+
+@keyframes toastProgress {
+    to { transform: scaleX(0); }
+}
+
+@media (max-width: 991px) {
+    .admin-body .gamehub-toast-region {
+        right: 14px;
+    }
+}
+
+@media (max-width: 575px) {
+    .gamehub-toast-region {
+        top: 14px;
+        right: 14px;
+        width: calc(100vw - 28px);
+    }
+}

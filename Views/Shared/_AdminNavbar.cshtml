@@ -1,0 +1,54 @@
+@using System.Security.Claims
+@{
+    var fullName = User.FindFirstValue(ClaimTypes.Name) ?? "GameHub User";
+    var firstName = User.FindFirstValue(ClaimTypes.GivenName) ?? fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "User";
+    var initials = string.Join("", fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => part[0])).ToUpperInvariant();
+    var roleName = RolePermissions.GetCurrentRoleDisplay(User);
+    var canCreateBooking = RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
+}
+
+<header class="admin-topbar">
+    <div class="topbar-left">
+        <button type="button" class="icon-button mobile-sidebar-toggle" data-mobile-sidebar-toggle aria-label="Open sidebar">
+            <i class="bi bi-list"></i>
+        </button>
+        <button type="button" class="icon-button desktop-collapse-toggle" data-sidebar-collapse aria-label="Collapse sidebar">
+            <i class="bi bi-layout-sidebar-inset"></i>
+        </button>
+        <div class="admin-breadcrumb" aria-label="Breadcrumb">
+            <span>Home</span>
+            <i class="bi bi-chevron-right"></i>
+            <strong>@(ViewContext.RouteData.Values["controller"]?.ToString() ?? "Dashboard")</strong>
+            <small>Signed in as @firstName</small>
+        </div>
+    </div>
+
+    <div class="topbar-actions">
+        <span class="topbar-date" data-admin-date>Today</span>
+        @if (canCreateBooking)
+        {
+            <a class="admin-action-button" asp-controller="Bookings" asp-action="Create"><i class="bi bi-plus-lg"></i> New Booking</a>
+        }
+        <button type="button" class="icon-button hide-md" data-fullscreen-toggle aria-label="Toggle fullscreen">
+            <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+
+        <div class="dropdown">
+            <button class="admin-user-menu" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span>@initials</span>
+                <div>
+                    <strong>@firstName</strong>
+                    <small>@roleName</small>
+                </div>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end admin-dropdown profile-dropdown">
+                <button type="button" class="toast-sound-toggle" data-toast-sound-toggle><i class="bi bi-volume-up"></i><span>Toast Sounds On</span></button>
+                <form asp-controller="Auth" asp-action="Logout" method="post" class="admin-logout-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit"><i class="bi bi-box-arrow-right"></i> Sign Out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</header>

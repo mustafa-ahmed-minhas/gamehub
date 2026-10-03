@@ -1,0 +1,385 @@
+@model SalesDashboardViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@using System.Net
+@{
+    ViewData["Title"] = "Sales Pipeline";
+    Layout = "_AdminLayout";
+
+    var q = Model.Quotations;
+    var isPlaceholderTab = Model.ActiveTab is "invoices" or "payments";
+    var start = q.TotalRecords == 0 ? 0 : ((q.CurrentPage - 1) * q.PageSize) + 1;
+    var end = Math.Min(q.CurrentPage * q.PageSize, q.TotalRecords);
+    var pageStart = Math.Max(1, q.CurrentPage - 2);
+    var pageEnd = Math.Min(q.TotalPages, pageStart + 4);
+    pageStart = Math.Max(1, pageEnd - 4);
+
+    var activeFilterCount = new[] { "status", "validityState", "customerId", "opportunityId", "assignedToUserId", "dateFrom", "dateTo" }
+        .Count(x => !string.IsNullOrWhiteSpace(Q(x)));
+    var hasFilters = !string.IsNullOrWhiteSpace(q.Search) || activeFilterCount > 0;
+
+    string Q(string key) => Context.Request.Query[key].ToString();
+    string PageUrl(int page)
+    {
+        var pairs = new List<string>();
+        foreach (var item in Context.Request.Query)
+        {
+            if (item.Key.Equals("page", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var value in item.Value)
+                if (!string.IsNullOrWhiteSpace(value))
+                    pairs.Add($"{WebUtility.UrlEncode(item.Key)}={WebUtility.UrlEncode(value)}");
+        }
+        pairs.Add($"page={page}");
+        return $"{Context.Request.Path}?{string.Join("&", pairs)}";
+    }
+}
+
+<section class="arena-page sales-cycle-page quotations-page">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Sales Management</span>
+            <h1>Sales Pipeline</h1>
+            <p>Create quotations from qualified CRM opportunities and move accepted proposals toward sales orders.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanCreate)
+            {
+                <a class="admin-action-button" asp-controller="CRM" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-plus-lg"></i> Create from Opportunity</a>
+            }
+            <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-file-earmark-text"></i> Quotations</a>
+        </div>
+    </header>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-pencil-square"></i><span>Draft</span><strong data-sales-counter>@Model.DraftCount</strong></article>
+        <article><i class="bi bi-hourglass-split"></i><span>Awaiting Review</span><strong data-sales-counter>@Model.AwaitingReviewCount</strong></article>
+        <article><i class="bi bi-send"></i><span>Sent</span><strong data-sales-counter>@Model.SentCount</strong></article>
+        <article><i class="bi bi-check2-circle"></i><span>Accepted</span><strong data-sales-counter>@Model.AcceptedCount</strong></article>
+        <article><i class="bi bi-alarm"></i><span>Expiring Soon</span><strong data-sales-counter>@Model.ExpiringSoonCount</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Total Quoted</span><strong>@Model.CurrencySymbol @Model.TotalQuotedValue.ToString("N0")</strong></article>
+    </div>
+
+    <nav class="arena-tabs" aria-label="Sales cycle sections">
+        <a class="@(Model.ActiveTab == "overview" ? "active" : "")" asp-action="Index" asp-route-tab="overview"><i class="bi bi-grid-1x2"></i> Overview</a>
+        <a class="@(Model.ActiveTab == "quotations" ? "active" : "")" asp-action="Index" asp-route-tab="quotations">
+            <i class="bi bi-file-earmark-text"></i> Quotations <span class="sales-cycle-tab-count">@q.TotalRecords</span>
+        </a>
+        <a asp-controller="SalesOrders" asp-action="Index"><i class="bi bi-clipboard2-check"></i> Sales Orders</a>
+        <a asp-controller="Invoices" asp-action="Index"><i class="bi bi-receipt"></i> Invoices</a>
+        <a asp-controller="Payments" asp-action="Index"><i class="bi bi-credit-card"></i> Payments</a>
+    </nav>
+
+    <div class="sales-cycle-layout sales-cycle-layout-wide">
+        <main class="sales-cycle-main">
+            @if (isPlaceholderTab)
+            {
+                <section class="arena-card">
+                    <div class="arena-empty">
+                        <i class="bi bi-hourglass-split"></i>
+                        <h2>@(Model.ActiveTab == "invoices" ? "Sales Invoices" : "Sales Payments")</h2>
+                        <p>This area is reserved for the next Sales phase.</p>
+                        <span class="membership-status-badge pending"><i></i> Next Sales Phase</span>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="arena-card">
+                    <form class="arena-toolbar" method="get" asp-action="Index">
+                        <input type="hidden" name="tab" value="quotations" />
+
+                        <div class="arena-search">
+                            <i class="bi bi-search"></i>
+                            <input name="search" value="@q.Search" placeholder="Search quotation, customer, opportunity or phone..." aria-label="Search quotations" autocomplete="off" data-sales-search />
+                        </div>
+
+                        <button class="admin-secondary-button" type="button" data-sales-filter-toggle aria-controls="quotationFilterDrawer" aria-expanded="false">
+                            <i class="bi bi-sliders"></i> Filters
+                            <span class="membership-status-badge @(activeFilterCount > 0 ? "active" : "pending")" data-sales-filter-count @(activeFilterCount == 0 ? "hidden" : "")><i></i>@activeFilterCount</span>
+                        </button>
+
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-x-circle"></i> Clear</a>
+
+                        <select name="sortBy" data-sales-filter aria-label="Sort quotations">
+                            <option value="newest" selected="@(q.SortBy == "newest")">Newest</option>
+                            <option value="oldest" selected="@(q.SortBy == "oldest")">Oldest</option>
+                            <option value="date" selected="@(q.SortBy == "date")">Quotation Date</option>
+                            <option value="valid" selected="@(q.SortBy == "valid")">Valid Until</option>
+                            <option value="highest" selected="@(q.SortBy == "highest")">Highest Value</option>
+                            <option value="lowest" selected="@(q.SortBy == "lowest")">Lowest Value</option>
+                            <option value="status" selected="@(q.SortBy == "status")">Status</option>
+                        </select>
+
+                        <select name="pageSize" data-sales-filter aria-label="Page size">
+                            @foreach (var size in new[] { 10, 25, 50 })
+                            {
+                                <option value="@size" selected="@(q.PageSize == size)">@size</option>
+                            }
+                        </select>
+
+                        @if (Model.CanCreate)
+                        {
+                            <a class="admin-action-button" asp-controller="CRM" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-plus-lg"></i> Create from Opportunity</a>
+                        }
+                    </form>
+
+                    <div class="sales-cycle-chips">
+                        @if (!string.IsNullOrWhiteSpace(q.Search))
+                        {
+                            <span>Search: @q.Search</span>
+                        }
+                        @if (q.Status.HasValue)
+                        {
+                            <span>Status: @q.Status.Value.GetDisplayName()</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(q.ValidityState))
+                        {
+                            <span>Validity: @(q.ValidityState switch
+                            {
+                                "valid" => "Valid",
+                                "expiring" => "Expiring Soon",
+                                "expired" => "Expired",
+                                "ready" => "Accepted, No Order",
+                                _ => q.ValidityState
+                            })</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Q("customerId")))
+                        {
+                            <span>Customer selected</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Q("opportunityId")))
+                        {
+                            <span>Opportunity selected</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Q("assignedToUserId")))
+                        {
+                            <span>Owner selected</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Q("dateFrom")) || !string.IsNullOrWhiteSpace(Q("dateTo")))
+                        {
+                            <span>Date range: @Q("dateFrom") to @Q("dateTo")</span>
+                        }
+                        @if (hasFilters)
+                        {
+                            <a asp-action="Index" asp-route-tab="quotations"><i class="bi bi-x"></i> Clear All</a>
+                        }
+                    </div>
+
+                    @if (!q.Items.Any())
+                    {
+                        <div class="arena-empty">
+                            <i class="bi bi-file-earmark-plus"></i>
+                            <h2>@(hasFilters ? "No Matching Quotations" : "No Quotations Yet")</h2>
+                            <p>@(hasFilters ? "Try changing or clearing your filters." : "Create a quotation from a qualified opportunity to begin the sales process.")</p>
+                            @if (hasFilters)
+                            {
+                                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                            }
+                            else
+                            {
+                                <a class="admin-action-button" asp-controller="CRM" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-plus-lg"></i> Open Opportunities</a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="arena-table-wrap">
+                            <table class="arena-table sales-cycle-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Quotation</th>
+                                        <th scope="col">Customer</th>
+                                        <th scope="col">Opportunity</th>
+                                        <th scope="col">Amount</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Valid Until</th>
+                                        <th scope="col">Owner</th>
+                                        <th scope="col" class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in q.Items)
+                                    {
+                                        var initials = string.Join("", (item.CustomerName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                                        <tr>
+                                            <td data-label="Quotation">
+                                                <strong title="@item.QuotationNumber">@item.QuotationNumber</strong>
+                                                <small title="@(item.Subject ?? "Commercial quotation")">@(item.Subject ?? "Commercial quotation")</small>
+                                                <em>@item.QuotationDate.ToString("MMM dd, yyyy")</em>
+                                            </td>
+                                            <td data-label="Customer">
+                                                <div class="user-cell membership-name-cell">
+                                                    <span class="user-avatar membership-table-avatar">@(initials.Length == 0 ? "Q" : initials)</span>
+                                                    <div>
+                                                        <strong title="@item.CustomerName">@item.CustomerName</strong>
+                                                        <small>@item.CustomerCode</small>
+                                                        <em>@(item.OrganizationName ?? "Individual")</em>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td data-label="Opportunity">
+                                                <strong>@item.OpportunityNumber</strong>
+                                                <small title="@item.OpportunityName">@item.OpportunityName</small>
+                                                <em>@item.OpportunityStage.GetDisplayName()</em>
+                                            </td>
+                                            <td data-label="Amount">
+                                                <strong>@item.CurrencySymbol @item.GrandTotal.ToString("N0")</strong>
+                                                <small>Grand total</small>
+                                            </td>
+                                            <td data-label="Status">
+                                                <span class="@item.Status.Badge()"><i></i>@item.Status.GetDisplayName()</span>
+                                                @if (item.IsReadyForSalesOrder)
+                                                {
+                                                    <small class="membership-status-badge active"><i></i>Ready for Sales Order</small>
+                                                }
+                                                else if (item.SalesOrderCreated)
+                                                {
+                                                    <small class="membership-status-badge suspended"><i></i>Order created</small>
+                                                }
+                                            </td>
+                                            <td data-label="Valid Until">
+                                                <span class="@StatusBadgeHelper.Badge(item.ValidityState)"><i></i>@item.ValidityState</span>
+                                                <small>@item.ValidUntil.ToString("MMM dd, yyyy")</small>
+                                            </td>
+                                            <td data-label="Owner">
+                                                <div class="user-cell membership-name-cell">
+                                                    <span class="user-avatar membership-table-avatar">@((item.Owner ?? "U").First())</span>
+                                                    <div><strong>@(item.Owner ?? "Unassigned")</strong></div>
+                                                </div>
+                                            </td>
+                                            <td data-label="Actions">
+                                                <div class="arena-actions">
+                                                    <div class="membership-action-menu">
+                                                        <a class="membership-icon-button" asp-action="QuotationDetails" asp-route-id="@item.Id" aria-label="View @item.QuotationNumber" data-tooltip="View"><i class="bi bi-eye"></i></a>
+                                                        @if (Model.CanCreate && item.Status is SalesQuotationStatus.Draft or SalesQuotationStatus.SubmittedForApproval)
+                                                        {
+                                                            <a class="membership-icon-button" asp-action="EditQuotation" asp-route-id="@item.Id" aria-label="Edit @item.QuotationNumber" data-tooltip="Edit"><i class="bi bi-pencil"></i></a>
+                                                        }
+                                                        <div class="dropdown">
+                                                            <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions for @item.QuotationNumber" data-tooltip="More"><i class="bi bi-three-dots"></i></button>
+                                                            <div class="dropdown-menu dropdown-menu-end">
+                                                                <a class="dropdown-item" asp-action="QuotationDetails" asp-route-id="@item.Id"><i class="bi bi-eye"></i> View</a>
+                                                                <a class="dropdown-item" asp-action="QuotationPreview" asp-route-id="@item.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a>
+                                                                @if (Model.CanCreate && item.Status is SalesQuotationStatus.Draft or SalesQuotationStatus.SubmittedForApproval)
+                                                                {
+                                                                    <a class="dropdown-item" asp-action="EditQuotation" asp-route-id="@item.Id"><i class="bi bi-pencil"></i> Edit</a>
+                                                                }
+                                                                @if (item.IsReadyForSalesOrder)
+                                                                {
+                                                                    <a class="dropdown-item" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@item.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="arena-pagination">
+                            <span>Showing @start-@end of @q.TotalRecords quotations</span>
+                            <nav aria-label="Quotation pagination">
+                                <a class="page-link @(q.CurrentPage <= 1 ? "disabled" : "")" href="@(q.CurrentPage <= 1 ? "#" : PageUrl(q.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                                @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                                {
+                                    <a class="page-link @(pageNumber == q.CurrentPage ? "active" : "")" href="@PageUrl(pageNumber)" aria-current="@(pageNumber == q.CurrentPage ? "page" : null)">@pageNumber</a>
+                                }
+                                <a class="page-link @(q.CurrentPage >= q.TotalPages ? "disabled" : "")" href="@(q.CurrentPage >= q.TotalPages ? "#" : PageUrl(q.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                            </nav>
+                        </div>
+                    }
+                </section>
+            }
+        </main>
+    </div>
+
+    <div class="sales-cycle-filter-drawer" data-sales-filter-drawer aria-hidden="true">
+        <div class="sales-cycle-filter-panel" id="quotationFilterDrawer" role="dialog" aria-label="Quotation filters">
+            <div class="sales-cycle-filter-head">
+                <div>
+                    <span class="admin-label">Quotation Filters</span>
+                    <h2>Refine the pipeline</h2>
+                </div>
+                <button class="membership-icon-button" type="button" data-sales-filter-close aria-label="Close filters"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form method="get" asp-action="Index">
+                <input type="hidden" name="tab" value="quotations" />
+                @if (!string.IsNullOrWhiteSpace(q.Search))
+                {
+                    <input type="hidden" name="search" value="@q.Search" />
+                }
+                @if (q.SortBy != "newest")
+                {
+                    <input type="hidden" name="sortBy" value="@q.SortBy" />
+                }
+                @if (q.PageSize != 10)
+                {
+                    <input type="hidden" name="pageSize" value="@q.PageSize" />
+                }
+                <div class="sales-cycle-filter-grid">
+                    <label>Status
+                        <select name="status" data-sales-filter-input>
+                            <option value="">All Statuses</option>
+                            @foreach (SalesQuotationStatus item in Enum.GetValues<SalesQuotationStatus>().Distinct())
+                            {
+                                <option value="@item" selected="@(Q("status") == item.ToString())">@item.GetDisplayName()</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Validity
+                        <select name="validityState" data-sales-filter-input>
+                            <option value="">All Validity</option>
+                            <option value="valid" selected="@(q.ValidityState == "valid")">Valid</option>
+                            <option value="expiring" selected="@(q.ValidityState == "expiring")">Expiring Soon</option>
+                            <option value="expired" selected="@(q.ValidityState == "expired")">Expired</option>
+                            <option value="ready" selected="@(q.ValidityState == "ready")">Accepted, No Order</option>
+                        </select>
+                    </label>
+                    <label>Customer
+                        <select name="customerId" data-sales-filter-input>
+                            <option value="">All Customers</option>
+                            @foreach (var item in q.CustomerOptions)
+                            {
+                                <option value="@item.Value" selected="@(Q("customerId") == item.Value)">@item.Text</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Opportunity
+                        <select name="opportunityId" data-sales-filter-input>
+                            <option value="">All Opportunities</option>
+                            @foreach (var item in q.OpportunityOptions)
+                            {
+                                <option value="@item.Value" selected="@(Q("opportunityId") == item.Value)">@item.Text</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Owner
+                        <select name="assignedToUserId" data-sales-filter-input>
+                            <option value="">All Owners</option>
+                            @foreach (var item in q.UserOptions)
+                            {
+                                <option value="@item.Value" selected="@(Q("assignedToUserId") == item.Value)">@item.Text</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Quotation Date From
+                        <input type="date" name="dateFrom" value="@Q("dateFrom")" />
+                    </label>
+                    <label>Quotation Date To
+                        <input type="date" name="dateTo" value="@Q("dateTo")" />
+                    </label>
+                </div>
+                <div class="sales-cycle-filter-actions">
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                    <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations">Clear All</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/sales.js" asp-append-version="true"></script> }

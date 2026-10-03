@@ -1,0 +1,84 @@
+@model BookingDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.BookingNumber;
+    Layout = "_AdminLayout";
+}
+
+<section class="booking-details-page">
+    <header class="booking-hero booking-details-hero">
+        <div>
+            <span class="admin-label">BOOKING PROFILE</span>
+            <h1>@Model.BookingNumber</h1>
+            <p>@Model.CustomerName • @Model.CourtName • @Model.BookingDate.ToString("dd MMM yyyy")</p>
+        </div>
+        <div class="booking-hero-actions">
+            <a class="booking-btn booking-btn-secondary" asp-action="Index"><i class="bi bi-arrow-left"></i><span>Back</span></a>
+            @if (Model.CanManage && Model.Status is BookingStatus.Draft or BookingStatus.Pending or BookingStatus.Confirmed)
+            {
+                <a class="booking-btn booking-btn-secondary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i><span>Edit</span></a>
+                <a class="booking-btn booking-btn-secondary" asp-action="Reschedule" asp-route-id="@Model.Id"><i class="bi bi-calendar2-week"></i><span>Reschedule</span></a>
+            }
+        </div>
+    </header>
+
+    <section class="booking-profile-card">
+        <div class="booking-profile-main">
+            <div class="booking-person large"><span>@Model.CustomerInitials</span><div><h2>@Model.CustomerName</h2><p>@Model.CustomerPhone • @Model.CustomerCode</p></div></div>
+            <div class="booking-profile-meta">
+                <span class="booking-badge status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.GetDisplayName()</span>
+                <span class="booking-badge payment-@Model.PaymentStatus.ToString().ToLowerInvariant()">@Model.PaymentStatus.GetDisplayName()</span>
+            </div>
+        </div>
+        <div class="booking-hero-grid">
+            <div><span>Court</span><strong>@Model.CourtName</strong><small>@Model.FacilityName</small></div>
+            <div><span>Sport</span><strong>@Model.SportName</strong><small>@Model.DurationMinutes min</small></div>
+            <div><span>Date</span><strong>@Model.BookingDate.ToString("dd MMM yyyy")</strong><small>@Model.StartTime.ToString("HH:mm") - @Model.EndTime.ToString("HH:mm")</small></div>
+            <div><span>Players</span><strong>@Model.PlayerCount</strong><small>@Model.Source.GetDisplayName()</small></div>
+        </div>
+    </section>
+
+    <div class="booking-summary-grid">
+        <article><span>Total Amount</span><strong>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</strong></article>
+        <article><span>Paid Amount</span><strong>@Model.CurrencySymbol @Model.PaidAmount.ToString("N0")</strong></article>
+        <article><span>Balance</span><strong>@Model.CurrencySymbol @Model.BalanceAmount.ToString("N0")</strong></article>
+        <article><span>Member Discount</span><strong>@Model.CurrencySymbol @Model.MembershipDiscountAmount.ToString("N0")</strong></article>
+        <article><span>Duration</span><strong>@Model.DurationMinutes min</strong></article>
+        <article><span>Created By</span><strong>@Model.CreatedByName</strong></article>
+    </div>
+
+    @if (Model.CanManage)
+    {
+        <section class="booking-action-strip">
+            @Html.AntiForgeryToken()
+            <button class="booking-btn booking-btn-success" data-booking-action data-url="@Url.Action("Confirm", new { id = Model.Id })" data-message="Confirm this booking?" type="button"><i class="bi bi-check2-circle"></i><span>Confirm</span></button>
+            <button class="booking-btn booking-btn-secondary" data-booking-action data-url="@Url.Action("CheckIn", new { id = Model.Id })" data-message="Check in this customer?" type="button"><i class="bi bi-person-check"></i><span>Check In</span></button>
+            <button class="booking-btn booking-btn-secondary" data-booking-action data-url="@Url.Action("StartBooking", new { id = Model.Id })" data-message="Start this booking?" type="button"><i class="bi bi-play-circle"></i><span>Start</span></button>
+            <button class="booking-btn booking-btn-success" data-booking-action data-url="@Url.Action("Complete", new { id = Model.Id })" data-message="Complete this booking?" type="button"><i class="bi bi-trophy"></i><span>Complete</span></button>
+            <button class="booking-btn booking-btn-danger" data-booking-action data-url="@Url.Action("Cancel", new { id = Model.Id })" data-message="Cancel this booking?" data-reason="true" type="button"><i class="bi bi-x-circle"></i><span>Cancel</span></button>
+            <button class="booking-btn booking-btn-danger" data-booking-action data-url="@Url.Action("MarkNoShow", new { id = Model.Id })" data-message="Mark this booking as no-show?" type="button"><i class="bi bi-person-x"></i><span>No Show</span></button>
+        </section>
+    }
+
+    <div class="booking-details-grid">
+        <section class="booking-info-card"><h2><i class="bi bi-calendar-event"></i> Booking Schedule</h2><dl><div><dt>Date</dt><dd>@Model.BookingDate.ToString("dd MMM yyyy")</dd></div><div><dt>Time</dt><dd>@Model.StartTime.ToString("HH:mm") - @Model.EndTime.ToString("HH:mm")</dd></div><div><dt>Reference</dt><dd>@(Model.ReferenceNumber ?? "Not provided")</dd></div></dl></section>
+        <section class="booking-info-card"><h2><i class="bi bi-person"></i> Customer Information</h2><dl><div><dt>Email</dt><dd>@(Model.CustomerEmail ?? "Not provided")</dd></div><div><dt>Type</dt><dd>@Model.CustomerType</dd></div><div><dt>Loyalty</dt><dd>@Model.LoyaltyPoints points</dd></div><div><dt>Outstanding</dt><dd>@Model.CurrencySymbol @Model.OutstandingBalance.ToString("N0")</dd></div></dl></section>
+        <section class="booking-info-card"><h2><i class="bi bi-person-badge"></i> Membership Benefits</h2><dl><div><dt>Membership</dt><dd>@(Model.MembershipPlanName ?? "No benefit applied")</dd></div><div><dt>Number</dt><dd>@(Model.MembershipNumber ?? "N/A")</dd></div><div><dt>Hours Applied</dt><dd>@(Model.MembershipHoursApplied ? "Yes" : "No")</dd></div></dl></section>
+        <section class="booking-info-card"><h2><i class="bi bi-wallet2"></i> Pricing Breakdown</h2><dl><div><dt>Base</dt><dd>@Model.CurrencySymbol @Model.BaseAmount.ToString("N0")</dd></div><div><dt>Membership Discount</dt><dd>@Model.CurrencySymbol @Model.MembershipDiscountAmount.ToString("N0")</dd></div><div><dt>Manual Discount</dt><dd>@Model.CurrencySymbol @Model.ManualDiscountAmount.ToString("N0")</dd></div><div><dt>Tax</dt><dd>@Model.CurrencySymbol @Model.TaxAmount.ToString("N0")</dd></div></dl></section>
+        <section class="booking-info-card"><h2><i class="bi bi-chat-square-text"></i> Notes and Requests</h2><p>@(Model.SpecialRequest ?? Model.CustomerNotes ?? Model.InternalNotes ?? "No notes or special requests recorded.")</p></section>
+        <section class="booking-info-card"><h2><i class="bi bi-clock-history"></i> Booking Lifecycle</h2><div class="booking-timeline"><span>Created: @Model.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>@if (Model.ConfirmedAt.HasValue) { <span>Confirmed: @Model.ConfirmedAt.Value.ToString("dd MMM yyyy HH:mm")</span> }@if (Model.CheckedInAt.HasValue) { <span>Checked In: @Model.CheckedInAt.Value.ToString("dd MMM yyyy HH:mm")</span> }@if (Model.CompletedAt.HasValue) { <span>Completed: @Model.CompletedAt.Value.ToString("dd MMM yyyy HH:mm")</span> }@if (Model.CancelledAt.HasValue) { <span>Cancelled: @Model.CancelledAt.Value.ToString("dd MMM yyyy HH:mm")</span> }</div></section>
+        <section class="booking-info-card"><h2><i class="bi bi-shield-check"></i> Audit Information</h2><dl><div><dt>Created By</dt><dd>@Model.CreatedByName</dd></div><div><dt>Created</dt><dd>@Model.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd></div><div><dt>Updated</dt><dd>@(Model.UpdatedAt?.ToString("dd MMM yyyy HH:mm") ?? "Not updated")</dd></div></dl></section>
+    </div>
+</section>
+
+@Html.AntiForgeryToken()
+<div class="booking-modal" data-booking-modal hidden>
+    <div>
+        <button type="button" data-booking-modal-close><i class="bi bi-x-lg"></i></button>
+        <h3>Confirm Action</h3>
+        <p data-booking-modal-message>Are you sure?</p>
+        <textarea data-booking-modal-reason placeholder="Enter reason"></textarea>
+        <button class="booking-btn booking-btn-primary" type="button" data-booking-modal-confirm>Confirm</button>
+    </div>
+</div>

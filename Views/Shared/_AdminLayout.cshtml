@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="GameHub ERP administration dashboard." />
+    <title>@ViewData["Title"] - GameHub ERP</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/gamehub-table.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/settings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/arena-setup.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customers.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/memberships.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/bookings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/toasts.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="admin-body">
+    <div class="admin-shell" data-admin-shell>
+        <partial name="_AdminSidebar" />
+
+        <div class="admin-overlay" data-admin-overlay aria-hidden="true"></div>
+
+        <div class="admin-main">
+            <partial name="_AdminNavbar" />
+
+            <main class="admin-workspace" id="adminContent" tabindex="-1">
+                @RenderBody()
+            </main>
+
+            <footer class="admin-footer">
+                <span>GameHub ERP</span>
+                <span>Version 1.0.0</span>
+                <span>&copy; 2026 GameHub</span>
+            </footer>
+        </div>
+    </div>
+    <partial name="_ToastContainer" />
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    <script src="~/js/admin-layout.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/users.js" asp-append-version="true"></script>
+    <script src="~/js/settings.js" asp-append-version="true"></script>
+    <script src="~/js/arena-setup.js" asp-append-version="true"></script>
+    <script src="~/js/customers.js" asp-append-version="true"></script>
+    <script src="~/js/bookings.js" asp-append-version="true"></script>
+    <script src="~/js/gamehub-table.js" asp-append-version="true"></script>
+    <script src="~/js/toasts.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

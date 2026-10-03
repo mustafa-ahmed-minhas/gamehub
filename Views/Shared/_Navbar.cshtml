@@ -1,0 +1,29 @@
+<nav class="public-navbar" data-public-navbar aria-label="Primary navigation">
+    <div class="container nav-inner">
+        <a class="brand-mark" asp-controller="Home" asp-action="Index" aria-label="GameHub Arena home">
+            <span class="brand-icon">G</span>
+            <span>
+                <strong>GameHub</strong>
+                <small>Arena</small>
+            </span>
+        </a>
+
+        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="false">
+            <i class="bi bi-list"></i>
+        </button>
+
+        <div class="nav-links" data-nav-links>
+            <a class="active" asp-controller="Home" asp-action="Index" asp-fragment="home">Home</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="sports">Sports</a>
+            <a asp-controller="Courts" asp-action="Index">Courts</a>
+            <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="facilities">Facilities</a>
+            <a asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact</a>
+            <a asp-controller="Account" asp-action="Login">Sign In</a>
+        </div>
+
+        <a class="btn-premium btn-compact" asp-controller="Courts" asp-action="Index" aria-label="Browse courts">
+            <i class="bi bi-calendar2-check"></i> Book a Court
+        </a>
+    </div>
+</nav>

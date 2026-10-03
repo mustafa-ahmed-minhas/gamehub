@@ -1,0 +1,277 @@
+/* ==========================================================================
+   Customer notifications screen
+   --------------------------------------------------------------------------
+   Page sheet for the notifications inbox. Loaded before customer-portal.css
+   on this view so the shared portal system (tone vocabulary, metric tiles,
+   filter tabs, badges, empty states) keeps winning, and everything here is
+   namespaced under `.portal-page.notifications-page` so no other customer
+   screen is affected.
+   ========================================================================== */
+
+.portal-page.notifications-page {
+    padding-top: 3.4rem;
+    padding-bottom: 3.6rem;
+}
+
+.portal-page.notifications-page .portal-head__actions form {
+    display: flex;
+}
+
+.portal-page.notifications-page .portal-head__actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+}
+
+.portal-page.notifications-page .portal-head__actions button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.portal-notification-list {
+    display: grid;
+    gap: .9rem;
+}
+
+/* Row --------------------------------------------------------------------- */
+
+.portal-notification {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 1rem 1.25rem;
+    padding: 1.1rem 1.3rem 1.1rem 1.45rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(214, 166, 82, .2);
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .06);
+    overflow: hidden;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.portal-notification::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--tone, rgba(214, 166, 82, .6));
+}
+
+.portal-notification:hover {
+    transform: translateY(-2px);
+    border-color: rgba(214, 166, 82, .42);
+    box-shadow: 0 18px 40px rgba(45, 34, 17, .1);
+}
+
+/* Unread keeps the gold wash and a lifted icon; read steps back visually. */
+.portal-notification.is-unread {
+    background: linear-gradient(100deg, var(--tone-soft, #fdf3e2) 0%, rgba(255, 255, 255, .95) 46%);
+    border-color: rgba(214, 166, 82, .38);
+}
+
+.portal-notification.is-read {
+    box-shadow: 0 8px 22px rgba(45, 34, 17, .04);
+}
+
+.portal-notification.is-read .portal-notification__title {
+    font-weight: 800;
+}
+
+/* Icon -------------------------------------------------------------------- */
+
+.portal-notification__icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 auto;
+    border-radius: 16px;
+    background: var(--tone-soft, #f2e3ca);
+    color: var(--tone-ink, #7a5517);
+    font-size: 1.3rem;
+    transition: transform 180ms ease;
+}
+
+.portal-notification:hover .portal-notification__icon {
+    transform: scale(1.04);
+}
+
+.portal-notification.is-read .portal-notification__icon {
+    background: #f1ece2;
+    color: #8b8171;
+}
+
+/* Body -------------------------------------------------------------------- */
+
+.portal-notification__main {
+    min-width: 0;
+}
+
+.portal-notification__top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.portal-notification__kind {
+    color: var(--tone-ink, #8a6528);
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.portal-notification__ref {
+    padding: .16rem .5rem;
+    border-radius: 999px;
+    background: rgba(214, 166, 82, .14);
+    color: #8a6528;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+.portal-notification__title {
+    margin: .32rem 0 .18rem;
+    color: var(--color-ink, #191713);
+    font-size: 1.08rem;
+    font-weight: 900;
+    line-height: 1.28;
+    overflow-wrap: anywhere;
+}
+
+.portal-notification__message {
+    margin: 0;
+    color: #6b5b45;
+    font-size: .92rem;
+    font-weight: 600;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.portal-notification__meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .35rem 1rem;
+    margin-top: .55rem;
+    color: #9a8459;
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.portal-notification__meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: .32rem;
+    white-space: nowrap;
+}
+
+.portal-notification__meta i {
+    font-size: .82rem;
+}
+
+.portal-notification__meta--warn {
+    color: #8a5a06;
+}
+
+/* State and actions -------------------------------------------------------- */
+
+.portal-notification__state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .4rem;
+    min-width: 0;
+}
+
+.portal-notification__state .portal-badge .bi-circle-fill {
+    font-size: .5rem;
+}
+
+.portal-notification__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .6rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.portal-notification__actions form {
+    display: flex;
+}
+
+/* Focus parity with the rest of the portal -------------------------------- */
+
+.portal-notification__actions .btn-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    white-space: nowrap;
+}
+
+/* Responsive --------------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+    .portal-notification {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .portal-notification__state,
+    .portal-notification__actions {
+        grid-column: 2;
+    }
+
+    .portal-notification__actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 680px) {
+    .portal-page.notifications-page {
+        padding-top: 2.2rem;
+    }
+
+    .portal-notification {
+        grid-template-columns: minmax(0, 1fr);
+        gap: .85rem;
+        padding: 1.15rem 1.1rem 1.15rem 1.3rem;
+    }
+
+    .portal-notification__icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: 14px;
+        font-size: 1.15rem;
+    }
+
+    .portal-notification__state,
+    .portal-notification__actions {
+        grid-column: 1;
+    }
+
+    .portal-notification__actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        width: 100%;
+    }
+
+    .portal-notification__actions form,
+    .portal-notification__actions .btn-compact {
+        width: 100%;
+    }
+
+    .portal-notification__actions .btn-compact {
+        justify-content: center;
+    }
+
+    .portal-page.notifications-page .portal-head__actions,
+    .portal-page.notifications-page .portal-head__actions form,
+    .portal-page.notifications-page .portal-head__actions button {
+        width: 100%;
+    }
+}

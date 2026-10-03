@@ -1,0 +1,367 @@
+@model SalesQuotationDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var q = Model.Quotation;
+    ViewData["Title"] = q.QuotationNumber;
+    Layout = "_AdminLayout";
+
+    var validityLabel = q.IsReadyForSalesOrder
+        ? "Ready for Sales Order"
+        : q.ValidUntil < DateOnly.FromDateTime(DateTime.UtcNow)
+            ? "Expired"
+            : $"{q.RemainingValidityDays} days remaining";
+    var validityBadge = q.IsReadyForSalesOrder
+        ? "active"
+        : q.ValidUntil < DateOnly.FromDateTime(DateTime.UtcNow)
+            ? "expired"
+            : q.RemainingValidityDays <= 2 ? "pending" : "confirmed";
+
+    var subject = string.IsNullOrWhiteSpace(q.Subject) ? q.Opportunity.Name : q.Subject;
+    var initials = string.Join("", (q.Customer.FullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    var lineCount = q.Items.Count;
+    var documentCompleteness = Math.Clamp((int)Math.Round(new[] { lineCount > 0, q.Subtotal > 0, q.ValidUntil >= q.QuotationDate, !string.IsNullOrWhiteSpace(q.TermsAndConditions) }
+        .Count(x => x) / 4.0 * 100), 0, 100);
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+
+    var lifecycleStages = new (SalesQuotationStatus Status, string Label, DateTime? At, string Icon)[]
+    {
+        (SalesQuotationStatus.Draft, "Created", q.CreatedAt == default ? null : q.CreatedAt, "bi-plus-circle"),
+        (SalesQuotationStatus.ReadyForReview, "Ready for Review", null, "bi-search"),
+        (SalesQuotationStatus.Sent, "Sent", q.SentAt, "bi-send"),
+        (SalesQuotationStatus.Sent, "Viewed", q.ViewedAt, "bi-eye"),
+        (SalesQuotationStatus.Accepted, "Accepted", q.AcceptedAt, "bi-check2-circle"),
+        (SalesQuotationStatus.Rejected, "Rejected", q.RejectedAt, "bi-x-circle"),
+        (SalesQuotationStatus.Cancelled, "Cancelled", q.CancelledAt, "bi-slash-circle")
+    }.Where(x => x.At.HasValue).ToList();
+}
+
+<section class="users-page customer-details-page customer-profile-page sales-cycle-page sales-document-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-arrow-left"></i> Back to Sales</a>
+            <span class="admin-label">Quotation Details</span>
+            <h1>@q.QuotationNumber</h1>
+            <p>@subject</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanEdit)
+            {
+                <a class="admin-action-button" asp-action="EditQuotation" asp-route-id="@q.Id"><i class="bi bi-pencil"></i> Edit</a>
+            }
+            @if (q.IsReadyForSalesOrder)
+            {
+                <a class="admin-action-button" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@q.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
+            }
+            <a class="admin-secondary-button" asp-action="QuotationPreview" asp-route-id="@q.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a>
+            <div class="membership-action-menu">
+                <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More quotation actions"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-arrow-left"></i> Back to list</a></li>
+                    <li><a class="dropdown-item" asp-action="QuotationPreview" asp-route-id="@q.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a></li>
+                    @if (Model.CanEdit)
+                    {
+                        <li><a class="dropdown-item" asp-action="EditQuotation" asp-route-id="@q.Id"><i class="bi bi-pencil"></i> Edit</a></li>
+                    }
+                    @if (q.IsReadyForSalesOrder)
+                    {
+                        <li><a class="dropdown-item" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@q.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@(initials.Length == 0 ? "Q" : initials)</div>
+            <div>
+                <h2>@subject</h2>
+                <p>@q.Customer.FullName</p>
+                <strong class="membership-code">@q.QuotationNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="@q.Status.Badge()"><i></i>@q.Status.GetDisplayName()</span>
+                    <span class="membership-status-badge @validityBadge"><i></i>@validityLabel</span>
+                    @if (q.SalesOrderCreated)
+                    {
+                        <span class="membership-status-badge suspended"><i></i>Sales Order Created</span>
+                    }
+                    <span class="role-badge">@q.Opportunity.Stage.GetDisplayName()</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-receipt"></i><span>Quotation Date</span><strong>@q.QuotationDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-calendar2-check"></i><span>Valid Until</span><strong>@q.ValidUntil.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-person"></i><span>Customer</span><strong>@q.Customer.FullName</strong></div>
+            <div><i class="bi bi-telephone"></i><span>Phone</span><strong>@q.Customer.PrimaryPhone</strong></div>
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@TextOrFallback(q.Customer.Email)</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@documentCompleteness%">
+                <strong>@documentCompleteness%</strong>
+                <span>Complete</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Grand Total</span><strong>@q.CurrencySymbol @q.GrandTotal.ToString("N0")</strong></div>
+                <div><span>Line Items</span><strong>@lineCount</strong></div>
+                <div><span>Days Remaining</span><strong>@q.RemainingValidityDays</strong></div>
+                <div><span>Revision</span><strong>@q.RevisionNumber</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    <div class="kpi-grid customer-detail-kpis">
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-list-check"></i></span><span class="trend-pill neutral">Lines</span></div><h2>@lineCount</h2><p>Line Items</p><div class="kpi-bottom"><span>Priced service lines</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-receipt"></i></span><span class="trend-pill neutral">@q.CurrencySymbol</span></div><h2>@q.Subtotal.ToString("N0")</h2><p>Subtotal</p><div class="kpi-bottom"><span>Before discounts</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-percent"></i></span><span class="trend-pill warn">Discount</span></div><h2>@q.DiscountTotal.ToString("N0")</h2><p>Discount</p><div class="kpi-bottom"><span>Line and manual discount</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-bank"></i></span><span class="trend-pill neutral">Tax</span></div><h2>@q.TaxTotal.ToString("N0")</h2><p>Tax</p><div class="kpi-bottom"><span>Applied tax total</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="trend-pill up">@q.CurrencySymbol</span></div><h2>@q.GrandTotal.ToString("N0")</h2><p>Grand Total</p><div class="kpi-bottom"><span>Payable document value</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-calendar2-check"></i></span><span class="trend-pill @(q.ValidUntil < DateOnly.FromDateTime(DateTime.UtcNow) ? "warn" : "up")">Validity</span></div><h2>@q.ValidUntil.ToString("dd MMM")</h2><p>Valid Until</p><div class="kpi-bottom"><span>@validityLabel</span></div></article>
+    </div>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Customer Details</h2><p>Account linked to this quotation.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Name</dt><dd>@q.Customer.FullName</dd></div>
+                    <div><dt>Code</dt><dd>@q.Customer.CustomerCode</dd></div>
+                    <div><dt>Organization</dt><dd>@TextOrFallback(q.Customer.OrganizationName)</dd></div>
+                    <div><dt>Email</dt><dd>@TextOrFallback(q.Customer.Email)</dd></div>
+                    <div><dt>Phone</dt><dd>@q.Customer.PrimaryPhone</dd></div>
+                    <div><dt>Customer Reference</dt><dd>@TextOrFallback(q.CustomerReference)</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="Customers" asp-action="Details" asp-route-id="@q.Customer.Id"><i class="bi bi-person"></i> Open Customer</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-bullseye"></i><div><h2>Opportunity Details</h2><p>Source opportunity that produced this quotation.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Number</dt><dd>@q.Opportunity.OpportunityNumber</dd></div>
+                    <div><dt>Name</dt><dd>@q.Opportunity.Name</dd></div>
+                    <div><dt>Stage</dt><dd>@q.Opportunity.Stage.GetDisplayName()</dd></div>
+                    <div><dt>Requirement</dt><dd>@TextOrFallback(q.Opportunity.CustomerRequirement)</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="CRM" asp-action="OpportunityDetails" asp-route-id="@q.Opportunity.Id"><i class="bi bi-clock-history"></i> View CRM History</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-list-check"></i><div><h2>Quotation Line Items</h2><p>Priced service lines captured on this document.</p></div></header>
+                <div class="sales-cycle-lines">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Unit</th>
+                                <th scope="col">Rate</th>
+                                <th scope="col">Discount</th>
+                                <th scope="col">Tax</th>
+                                <th scope="col">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in q.Items.OrderBy(x => x.DisplayOrder))
+                            {
+                                <tr>
+                                    <td>@item.LineNumber</td>
+                                    <td>@item.Description<small>@item.ItemType.GetDisplayName()</small></td>
+                                    <td>@item.Quantity @item.UnitOfMeasure</td>
+                                    <td>@q.CurrencySymbol @item.UnitPrice.ToString("N2")</td>
+                                    <td>@q.CurrencySymbol @item.DiscountAmount.ToString("N2")</td>
+                                    <td>@q.CurrencySymbol @item.TaxAmount.ToString("N2")</td>
+                                    <td>@q.CurrencySymbol @item.LineTotal.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-calculator"></i><div><h2>Pricing Summary</h2><p>Server calculated document totals.</p></div></header>
+                <div class="sales-cycle-totals">
+                    <span>Subtotal <strong>@q.CurrencySymbol @q.Subtotal.ToString("N2")</strong></span>
+                    <span>Discount <strong>@q.CurrencySymbol @q.DiscountTotal.ToString("N2")</strong></span>
+                    <span>Tax <strong>@q.CurrencySymbol @q.TaxTotal.ToString("N2")</strong></span>
+                    <span class="grand">Grand Total <strong>@q.CurrencySymbol @q.GrandTotal.ToString("N2")</strong></span>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-journal-richtext"></i><div><h2>Terms and Notes</h2><p>Commercial terms recorded on this quotation.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Terms and Conditions</dt><dd>@TextOrFallback(q.TermsAndConditions)</dd></div>
+                    <div><dt>Customer Notes</dt><dd>@TextOrFallback(q.CustomerNotes)</dd></div>
+                    <div><dt>Internal Notes</dt><dd>@TextOrFallback(q.InternalNotes)</dd></div>
+                    <div><dt>Revision Reason</dt><dd>@TextOrFallback(q.LastRevisionReason)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-notes-card admin-reveal">
+                <header><i class="bi bi-journal-text"></i><div><h2>Internal Notes</h2><span>Internal Use Only</span></div></header>
+                <p>@TextOrFallback(q.InternalNotes)</p>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card membership-card admin-reveal">
+                <header><i class="bi bi-arrow-repeat"></i><h2>Lifecycle</h2></header>
+                <strong>@q.Status.GetDisplayName()</strong>
+                <p>Revision @q.RevisionNumber</p>
+                <dl>
+                    <div><dt>Created</dt><dd>@q.CreatedAt.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Valid Until</dt><dd>@q.ValidUntil.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Days Remaining</dt><dd>@q.RemainingValidityDays</dd></div>
+                    <div><dt>Sales Order</dt><dd>@(q.SalesOrderCreated ? "Created" : "Not created")</dd></div>
+                </dl>
+            </article>
+
+            @if (Model.CanManageLifecycle)
+            {
+                <article class="customer-side-card admin-reveal">
+                    <header><i class="bi bi-lightning-charge"></i><h2>Next Action</h2></header>
+                    @if (q.IsEditable)
+                    {
+                        <p>Submit this quotation for internal review.</p>
+                        <form asp-action="SubmitForApproval" asp-route-id="@q.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-send-check"></i> Submit for Approval</button>
+                        </form>
+                    }
+                    @if (q.Status == SalesQuotationStatus.Rejected)
+                    {
+                        <p>Record a revision summary and resubmit this quotation.</p>
+                        <form asp-action="ResubmitQuotation" asp-route-id="@q.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <input name="revisionReason" placeholder="Revision summary" required />
+                            <button class="admin-action-button" type="submit"><i class="bi bi-arrow-repeat"></i> Resubmit</button>
+                        </form>
+                    }
+                    @if (q.Status == SalesQuotationStatus.SubmittedForApproval)
+                    {
+                        <p>Approve or reject this quotation after review.</p>
+                        <form asp-action="ApproveQuotation" asp-route-id="@q.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Approve</button>
+                        </form>
+                        <form asp-action="RejectQuotation" asp-route-id="@q.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <input name="reason" placeholder="Rejection reason" required />
+                            <button class="admin-secondary-button is-danger" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                        </form>
+                    }
+                    @if (q.Status == SalesQuotationStatus.Approved)
+                    {
+                        <p>Record the customer decision on this quotation.</p>
+                        <form asp-action="AcceptQuotation" asp-route-id="@q.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-person-check"></i> Mark Customer Accepted</button>
+                        </form>
+                    }
+                    @if (q.Status is not (SalesQuotationStatus.Draft or SalesQuotationStatus.Rejected or SalesQuotationStatus.RevisedDraft or SalesQuotationStatus.SubmittedForApproval or SalesQuotationStatus.Approved))
+                    {
+                        <p class="customer-empty-copy">No further review action is available at this stage.</p>
+                    }
+                </article>
+            }
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clipboard2-check"></i><h2>Sales Order</h2></header>
+                @if (q.IsReadyForSalesOrder)
+                {
+                    <p>This accepted quotation can now be converted into a sales order.</p>
+                    <a class="admin-action-button" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@q.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
+                }
+                else
+                {
+                    <p class="customer-empty-copy">@(q.SalesOrderCreated ? "A sales order has already been created for this quotation." : "Only accepted quotations can be converted into sales orders.")</p>
+                    <button class="admin-secondary-button" type="button" disabled><i class="bi bi-lock"></i> Create Sales Order</button>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><h2>Lifecycle Timeline</h2></header>
+                <div class="sales-cycle-timeline">
+                    @foreach (var stage in lifecycleStages)
+                    {
+                        <span><i class="bi @stage.Icon"></i><strong>@stage.Label</strong> @stage.At!.Value.ToString("dd MMM yyyy hh:mm tt")</span>
+                    }
+                </div>
+            </article>
+
+            @if (Model.CanManageLifecycle && q.Status == SalesQuotationStatus.Approved)
+            {
+                <article class="customer-side-card sales-cycle-danger admin-reveal">
+                    <header><i class="bi bi-exclamation-triangle"></i><h2>Reject or Cancel</h2></header>
+                    <form asp-action="RejectQuotation" asp-route-id="@q.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input name="reason" placeholder="Rejection reason" />
+                        <button class="admin-secondary-button is-danger" type="submit">Reject</button>
+                    </form>
+                    <form asp-action="CancelQuotation" asp-route-id="@q.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input name="reason" placeholder="Cancellation reason" />
+                        <button class="admin-secondary-button is-danger" type="submit">Cancel</button>
+                    </form>
+                    <form asp-action="DuplicateQuotation" asp-route-id="@q.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-files"></i> Duplicate</button>
+                    </form>
+                </article>
+            }
+        </aside>
+    </div>
+
+    <article class="customer-info-card admin-reveal">
+        <header><i class="bi bi-diagram-3"></i><div><h2>Approval &amp; Revision Timeline</h2><p>Complete audit trail for this document.</p></div></header>
+        <div class="sales-cycle-timeline">
+            @foreach (var entry in Model.ApprovalHistory)
+            {
+                <span>
+                    <i class="bi bi-dot"></i><strong>@entry.Action.GetDisplayName()</strong> · Revision @entry.RevisionNumber · @(entry.ActionByUser?.FullName ?? "System") · @entry.ActionAt.ToString("dd MMM yyyy hh:mm tt")
+                    @if (!string.IsNullOrWhiteSpace(entry.RejectionReason))
+                    {
+                        <em>Reason: @entry.RejectionReason</em>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(entry.Comments))
+                    {
+                        <em>@entry.Comments</em>
+                    }
+                </span>
+            }
+            @foreach (var revision in Model.RevisionHistory)
+            {
+                <span><i class="bi bi-dot"></i><strong>Revision @revision.RevisionNumber archived</strong> · @revision.CreatedAt.ToString("dd MMM yyyy hh:mm tt") · @revision.RevisionReason</span>
+            }
+            @if (!Model.ApprovalHistory.Any() && !Model.RevisionHistory.Any())
+            {
+                <span><i class="bi bi-dot"></i><strong>No approval activity recorded yet.</strong></span>
+            }
+        </div>
+    </article>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-shield-check"></i><div><h2>Document Information</h2><p>Audit metadata and document state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Quotation ID</span><strong>@q.Id</strong></div>
+            <div><span>Quotation Number</span><strong>@q.QuotationNumber</strong></div>
+            <div><span>Revision</span><strong>@q.RevisionNumber</strong></div>
+            <div><span>Currency</span><strong>@q.Currency @q.CurrencySymbol</strong></div>
+            <div><span>Created At</span><strong>@q.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Editable</span><strong>@(q.IsEditable ? "Yes" : "No")</strong></div>
+            <div><span>Quotation Status</span><strong>@q.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/sales.js" asp-append-version="true"></script> }

@@ -1,0 +1,31 @@
+@model SalesQuotation
+@using GameHub.Helpers
+@{
+    ViewData["Title"] = Model.QuotationNumber;
+    Layout = "_CustomerLayout";
+}
+<section class="customer-account-page quotation-preview-page">
+    <div class="quotation-actions">
+        <a class="customer-secondary-button" asp-action="Quotations"><i class="bi bi-arrow-left"></i> Back</a>
+        <button class="customer-secondary-button" type="button" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+    </div>
+    <article class="quotation-document" id="quotationDocument">
+        <header>
+            <div class="quotation-brand"><span>G</span><div><strong>GameHub Arena</strong><small>Premium sports experience</small></div></div>
+            <div><span class="sales-status status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.GetDisplayName()</span><h1>Quotation</h1><p>@Model.QuotationNumber</p><p>Date: @Model.QuotationDate.ToString("MMM dd, yyyy")</p><p>Valid until: @Model.ValidUntil.ToString("MMM dd, yyyy")</p></div>
+        </header>
+        <section class="quotation-party-grid"><div><h2>Customer</h2><p><strong>@Model.Customer.FullName</strong></p><p>@Model.Customer.CustomerCode</p><p>@(Model.Customer.OrganizationName ?? "Individual")</p><p>@(Model.Customer.Email ?? "-")</p><p>@Model.Customer.PrimaryPhone</p></div><div><h2>Opportunity</h2><p><strong>@Model.Opportunity.OpportunityNumber</strong></p><p>@Model.Opportunity.Name</p><p>@(Model.Opportunity.CustomerRequirement ?? "Requirement not recorded.")</p></div></section>
+        <section><h2>@(Model.Subject ?? "Commercial Quotation")</h2><p>@(Model.Introduction ?? "Thank you for your interest in GameHub Arena services.")</p></section>
+        <table class="quotation-items"><thead><tr><th>#</th><th>Description</th><th>Quantity</th><th>Unit</th><th>Rate</th><th>Discount</th><th>Tax</th><th>Total</th></tr></thead><tbody>@foreach (var item in Model.Items.OrderBy(x => x.DisplayOrder)) { <tr><td>@item.LineNumber</td><td>@item.Description<br /><small>@item.ItemType.GetDisplayName()</small></td><td>@item.Quantity</td><td>@item.UnitOfMeasure</td><td>@Model.CurrencySymbol @item.UnitPrice.ToString("N2")</td><td>@Model.CurrencySymbol @item.DiscountAmount.ToString("N2")</td><td>@Model.CurrencySymbol @item.TaxAmount.ToString("N2")</td><td>@Model.CurrencySymbol @item.LineTotal.ToString("N2")</td></tr> }</tbody></table>
+        <section class="quotation-total-wrap"><div class="sales-document-totals"><span>Subtotal <strong>@Model.CurrencySymbol @Model.Subtotal.ToString("N2")</strong></span><span>Discount <strong>@Model.CurrencySymbol @Model.DiscountTotal.ToString("N2")</strong></span><span>Tax <strong>@Model.CurrencySymbol @Model.TaxTotal.ToString("N2")</strong></span><span class="grand">Grand Total <strong>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</strong></span></div></section>
+        <section><h2>Terms and Conditions</h2><p>@(Model.TermsAndConditions ?? "Standard GameHub quotation terms apply.")</p></section>
+    </article>
+    @if (Model.Status is SalesQuotationStatus.Sent or SalesQuotationStatus.Viewed)
+    {
+        <div class="customer-quotation-actions">
+            <form asp-action="AcceptQuotation" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<label class="sales-check"><input type="checkbox" name="acceptTerms" value="true" /> I have reviewed the quotation and accept its terms.</label><button class="customer-primary-button">Accept Quotation</button></form>
+            <form asp-action="RejectQuotation" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<input name="reason" placeholder="Reason for rejection" /><button class="customer-secondary-button danger">Reject Quotation</button></form>
+        </div>
+    }
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/quotation-document.css" asp-append-version="true" /> }

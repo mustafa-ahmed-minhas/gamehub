@@ -1,0 +1,950 @@
+/* ==========================================================================
+   Sales Cycle shared UI layer
+   Modules: Quotations, Sales Orders, Invoices, Payments
+
+   DESIGN OWNER: the Customer module is the master design.
+   Every Sales Cycle screen is composed from the shared master primitives:
+     arena-*      (arena-setup.css)  page shell, dark header bar, KPI grid,
+                                    tabs, card, toolbar, search, table,
+                                    empty state, pagination, form grid,
+                                    save bar, preview card
+     customer-*   (customers.css)    detail hero, info/side/notes/audit
+                                    cards, meta grids, back link, alerts
+     membership-* (memberships.css)  status badges, row action menus,
+                                    icon buttons, table avatars
+     admin-*      (admin.css)        primary/secondary buttons, labels
+   This file only carries the genuinely module-specific pieces that the
+   master primitives do not already provide.
+   ========================================================================== */
+
+/* Shared tokens. Also consumed by invoice-details.css, invoice-preview.css
+   and payments.css, so these names are kept stable. */
+:root {
+    --sales-ink: #17120a;
+    --sales-muted: #6d6458;
+    --sales-line: rgba(214, 169, 80, .22);
+    --sales-soft: #fbf7ef;
+    --sales-gold: #d6a952;
+    --sales-gold-2: #f3d78f;
+    --sales-shadow: 0 18px 45px rgba(20, 16, 9, .08);
+}
+
+/* --------------------------------------------------------------------------
+   Page shell + KPI + table + empty state alignment (mirrors the Customer
+   module's own arena tuning so the chrome is identical).
+   -------------------------------------------------------------------------- */
+.sales-cycle-page {
+    min-width: 0;
+}
+
+.sales-cycle-page .arena-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.sales-cycle-page .arena-summary-grid span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.sales-cycle-page .arena-table-wrap {
+    overflow-x: auto;
+}
+
+.sales-cycle-page .arena-table th,
+.sales-cycle-page .arena-table td {
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-page .arena-table td strong,
+.sales-cycle-page .arena-table td small,
+.sales-cycle-page .arena-table td em {
+    display: block;
+    min-width: 0;
+}
+
+/* Full-width Quotation + Sales Order register tables (the guidance rail is
+   gone, so the tables stretch across the content area). These rules scale
+   and align columns so every column stays readable on large screens, while
+   the existing mobile stacking keeps working below the breakpoint. */
+.quotations-page .sales-cycle-table {
+    min-width: 1000px;
+}
+
+.sales-order-page .sales-cycle-table {
+    min-width: 1120px;
+}
+
+.sales-cycle-table th,
+.sales-cycle-table td {
+    vertical-align: top;
+    padding: .6rem .7rem;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-table th:first-child,
+.sales-cycle-table td:first-child {
+    min-width: 10.5rem;
+}
+
+.sales-cycle-table th:nth-child(2),
+.sales-cycle-table td:nth-child(2) {
+    min-width: 12rem;
+}
+
+/* Dates, amounts, status, invoice state and owner never wrap. */
+.sales-cycle-table td:nth-child(n + 4) {
+    white-space: nowrap;
+}
+
+.quotations-page .sales-cycle-table th:nth-child(4),
+.quotations-page .sales-cycle-table td:nth-child(4),
+.sales-order-page .sales-cycle-table th:nth-child(5),
+.sales-order-page .sales-cycle-table td:nth-child(5) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.sales-cycle-table th:last-child,
+.sales-cycle-table td:last-child {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Invoices register (no guidance rail): full width with right-aligned
+   money columns and leant source/date/status columns. */
+.invoice-index-page .sales-cycle-table {
+    min-width: 1120px;
+}
+
+.invoice-index-page .sales-cycle-table th:first-child,
+.invoice-index-page .sales-cycle-table td:first-child {
+    min-width: 11rem;
+}
+
+.invoice-index-page .sales-cycle-table th:nth-child(2),
+.invoice-index-page .sales-cycle-table td:nth-child(2) {
+    min-width: 7rem;
+}
+
+.invoice-index-page .sales-cycle-table th:nth-child(3),
+.invoice-index-page .sales-cycle-table td:nth-child(3) {
+    min-width: 12rem;
+}
+
+.invoice-index-page .sales-cycle-table th:nth-child(6),
+.invoice-index-page .sales-cycle-table td:nth-child(6),
+.invoice-index-page .sales-cycle-table th:nth-child(7),
+.invoice-index-page .sales-cycle-table td:nth-child(7) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Payments register: full width with a tight invoice/method area and a
+   right-aligned amount column. */
+.payment-index-page .sales-cycle-table {
+    min-width: 1080px;
+}
+
+.payment-index-page .sales-cycle-table th:first-child,
+.payment-index-page .sales-cycle-table td:first-child {
+    min-width: 10rem;
+}
+
+.payment-index-page .sales-cycle-table th:nth-child(2),
+.payment-index-page .sales-cycle-table td:nth-child(2) {
+    min-width: 8.5rem;
+}
+
+.payment-index-page .sales-cycle-table th:nth-child(3),
+.payment-index-page .sales-cycle-table td:nth-child(3) {
+    min-width: 12rem;
+}
+
+.payment-index-page .sales-cycle-table th:nth-child(6),
+.payment-index-page .sales-cycle-table td:nth-child(6) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.sales-cycle-page .arena-empty h2 {
+    margin: .75rem 0 .2rem;
+    font-family: var(--font-heading);
+    font-size: 1.55rem;
+    font-weight: 950;
+}
+
+.sales-cycle-page .arena-empty p {
+    margin: 0 0 1.15rem;
+    color: var(--admin-muted);
+    font-size: .85rem;
+    font-weight: 850;
+}
+
+/* Header action row (create / secondary / overflow). */
+.sales-cycle-page .arena-header .arena-actions {
+    align-items: center;
+}
+
+.sales-cycle-page .arena-tabs .sales-cycle-tab-count {
+    display: inline-grid;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 .3rem;
+    place-items: center;
+    color: var(--admin-text);
+    background: rgba(255, 255, 255, .5);
+    border-radius: 999px;
+    font-size: .66rem;
+    font-weight: 950;
+}
+
+.sales-cycle-page .arena-tabs a.active .sales-cycle-tab-count {
+    background: rgba(255, 255, 255, .55);
+}
+
+/* --------------------------------------------------------------------------
+   Workspace: single-column layout that fills the content area (the guidance
+   rail is gone across Quotations, Sales Orders, Invoices and Payments).
+   -------------------------------------------------------------------------- */
+.sales-cycle-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.sales-cycle-main {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+/* Kept as an explicit full-width alias used by the register pages. */
+.sales-cycle-layout-wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* --------------------------------------------------------------------------
+   Active filter chips.
+   -------------------------------------------------------------------------- */
+.sales-cycle-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    margin-bottom: 1rem;
+}
+
+.sales-cycle-chips span,
+.sales-cycle-chips a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0 .7rem;
+    color: var(--admin-muted);
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.sales-cycle-chips a {
+    color: #17120a;
+    background: var(--admin-gold);
+    border-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Filter drawer.
+   -------------------------------------------------------------------------- */
+.sales-cycle-filter-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    display: none;
+    justify-items: end;
+    background: rgba(12, 12, 11, .45);
+    backdrop-filter: blur(3px);
+}
+
+.sales-cycle-filter-drawer.is-open {
+    display: grid;
+}
+
+.sales-cycle-filter-panel {
+    width: min(400px, 100%);
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 1.15rem;
+    background: var(--admin-surface);
+    border-left: 1px solid var(--admin-border);
+    box-shadow: var(--admin-shadow);
+}
+
+.sales-cycle-filter-head {
+    display: flex;
+    justify-content: space-between;
+    gap: .8rem;
+    align-items: center;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.sales-cycle-filter-head h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 950;
+}
+
+.sales-cycle-filter-grid {
+    display: grid;
+    gap: .75rem;
+    padding: .95rem 0;
+}
+
+.sales-cycle-filter-grid label {
+    display: grid;
+    gap: .35rem;
+    color: var(--admin-muted);
+    font-size: .78rem;
+    font-weight: 950;
+}
+
+.sales-cycle-filter-grid select,
+.sales-cycle-filter-grid input {
+    width: 100%;
+    min-height: 2.6rem;
+    padding: 0 .7rem;
+    color: var(--admin-text);
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: .85rem;
+    font-weight: 850;
+    outline: 0;
+}
+
+.sales-cycle-filter-grid select:focus,
+.sales-cycle-filter-grid input:focus {
+    border-color: rgba(214, 169, 80, .7);
+    box-shadow: 0 0 0 4px rgba(214, 169, 80, .13);
+}
+
+.sales-cycle-filter-actions {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+    padding-top: .35rem;
+}
+
+/* --------------------------------------------------------------------------
+   Line item tables (details, previews, document views).
+   -------------------------------------------------------------------------- */
+.sales-cycle-lines {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.sales-cycle-lines table {
+    width: 100%;
+    min-width: 720px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0 .5rem;
+}
+
+.sales-cycle-lines th {
+    padding: .5rem .7rem;
+    color: var(--admin-muted);
+    background: transparent;
+    font-size: .7rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    white-space: normal;
+    vertical-align: bottom;
+}
+
+.sales-cycle-lines th:nth-child(1) { width: 5%; }
+.sales-cycle-lines th:nth-child(2) { width: 31%; }
+.sales-cycle-lines th:nth-child(3),
+.sales-cycle-lines th:nth-child(4) { width: 9%; }
+.sales-cycle-lines th:nth-child(n + 5) { width: 11.5%; }
+
+.sales-cycle-lines td {
+    padding: .75rem;
+    background: #fff;
+    border-top: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border);
+    font-size: .84rem;
+    font-weight: 850;
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-lines td:first-child {
+    border-left: 1px solid var(--admin-border);
+    border-radius: 1rem 0 0 1rem;
+}
+
+.sales-cycle-lines td:last-child {
+    border-right: 1px solid var(--admin-border);
+    border-radius: 0 1rem 1rem 0;
+}
+
+.sales-cycle-lines tbody tr:hover td {
+    background: #fffdf6;
+}
+
+.sales-cycle-lines small {
+    display: block;
+    color: var(--admin-muted);
+    font-size: .74rem;
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Totals + timeline.
+   -------------------------------------------------------------------------- */
+.sales-cycle-totals {
+    display: grid;
+    gap: .5rem;
+    margin-left: auto;
+    max-width: min(380px, 100%);
+}
+
+.sales-cycle-totals span {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem .85rem;
+    color: var(--admin-muted);
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: .9rem;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-totals strong {
+    color: var(--admin-text);
+}
+
+.sales-cycle-totals .grand {
+    color: rgba(255, 255, 255, .78);
+    background: linear-gradient(135deg, #17120a, #2f2517);
+    border-color: transparent;
+}
+
+.sales-cycle-totals .grand strong {
+    color: var(--sales-gold-2);
+}
+
+.sales-cycle-manual-discount {
+    max-width: 22rem;
+    margin-top: .9rem;
+}
+
+.sales-cycle-timeline {
+    display: grid;
+    gap: .5rem;
+}
+
+.sales-cycle-timeline > span {
+    display: block;
+    padding: .7rem .85rem;
+    color: var(--admin-text);
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: .9rem;
+    font-size: .82rem;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-timeline em {
+    display: block;
+    color: var(--admin-muted);
+    font-style: normal;
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Dynamic line item editor (quotation / sales order forms).
+   -------------------------------------------------------------------------- */
+.sales-cycle-form-lines {
+    display: grid;
+    gap: .85rem;
+}
+
+.sales-cycle-line {
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 1.1rem;
+    box-shadow: var(--admin-shadow);
+}
+
+.sales-cycle-line-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .85rem;
+}
+
+.sales-cycle-line-head strong {
+    font-family: var(--font-heading);
+    font-size: .95rem;
+    font-weight: 950;
+}
+
+.sales-cycle-line-head button {
+    display: grid;
+    width: 2.15rem;
+    height: 2.15rem;
+    place-items: center;
+    color: #9c2629;
+    background: #fff0ef;
+    border: 1px solid rgba(210, 68, 76, .18);
+    border-radius: .7rem;
+}
+
+.sales-cycle-line-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: .7rem;
+}
+
+.sales-cycle-line-grid label {
+    display: grid;
+    gap: .35rem;
+    grid-column: span 3;
+    min-width: 0;
+    color: var(--admin-muted);
+    font-size: .78rem;
+    font-weight: 950;
+}
+
+.sales-cycle-line-grid label.wide {
+    grid-column: span 6;
+}
+
+.sales-cycle-line-grid label.full {
+    grid-column: 1 / -1;
+}
+
+.sales-cycle-line-grid input,
+.sales-cycle-line-grid select,
+.sales-cycle-line-grid textarea {
+    width: 100%;
+    min-height: 2.6rem;
+    padding: 0 .7rem;
+    color: var(--admin-text);
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: .85rem;
+    font-weight: 850;
+    outline: 0;
+}
+
+.sales-cycle-line-grid textarea {
+    min-height: 5.5rem;
+    padding-top: .6rem;
+}
+
+.sales-cycle-line-grid input[readonly] {
+    color: var(--admin-muted);
+    background: #fbf7ef;
+}
+
+/* Live summary panel inside the form aside. */
+.sales-cycle-live-summary {
+    display: grid;
+    gap: .55rem;
+    padding: 1.05rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+}
+
+.sales-cycle-live-summary h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-live-summary p {
+    margin: 0;
+    color: var(--admin-muted);
+    font-size: .82rem;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-live-summary dl {
+    display: grid;
+    gap: .45rem;
+    margin: 0;
+}
+
+.sales-cycle-live-summary dl div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .6rem;
+    padding: .55rem .7rem;
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: .85rem;
+}
+
+.sales-cycle-live-summary dt {
+    color: var(--admin-muted);
+    font-size: .72rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+.sales-cycle-live-summary dd {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: .82rem;
+    font-weight: 950;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.sales-cycle-completeness {
+    display: grid;
+    gap: .4rem;
+}
+
+.sales-cycle-completeness span {
+    display: block;
+    padding: .5rem .65rem;
+    color: var(--admin-muted);
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: .8rem;
+    font-size: .76rem;
+    font-weight: 850;
+}
+
+.sales-cycle-completeness span.complete {
+    color: #16643f;
+    background: #eaf8f0;
+    border-color: rgba(35, 146, 91, .16);
+}
+
+/* --------------------------------------------------------------------------
+   Lifecycle / danger action rows.
+   -------------------------------------------------------------------------- */
+.sales-cycle-danger {
+    display: flex;
+    gap: .7rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.sales-cycle-danger form {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    min-width: 0;
+}
+
+.sales-cycle-danger input {
+    min-height: 2.6rem;
+    padding: 0 .7rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: .85rem;
+    font-weight: 850;
+    outline: 0;
+}
+
+.sales-cycle-danger .is-danger {
+    color: #9c2629 !important;
+    background: #fff0ef !important;
+    border-color: rgba(210, 68, 76, .2) !important;
+}
+
+.sales-cycle-danger .is-secondary {
+    color: var(--admin-text) !important;
+    background: #fff !important;
+    border-color: var(--admin-border) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Inline forms (reason inputs beside a submit button) and alerts.
+   -------------------------------------------------------------------------- */
+.sales-cycle-inline-form {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    min-width: 0;
+}
+
+.sales-cycle-inline-form input {
+    min-height: 2.6rem;
+    padding: 0 .75rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: .85rem;
+    font-weight: 800;
+    outline: 0;
+    min-width: 0;
+    flex: 1 1 12rem;
+}
+
+.sales-cycle-inline-form input:focus {
+    border-color: var(--admin-gold);
+    box-shadow: 0 0 0 .2rem rgba(214, 166, 82, .18);
+}
+
+.dropdown-menu .sales-cycle-inline-form {
+    padding: .35rem;
+    margin: 0;
+}
+
+.dropdown-menu .sales-cycle-inline-form input {
+    min-height: 2.2rem;
+    font-size: .8rem;
+}
+
+.dropdown-menu .sales-cycle-inline-form .dropdown-item {
+    flex: 0 0 auto;
+}
+
+.sales-cycle-alert {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    padding: .95rem 1.1rem;
+    border-radius: 1.1rem;
+    background: #fff8e7;
+    border: 1px solid rgba(214, 166, 82, .28);
+    color: #7a5517;
+    font-weight: 800;
+}
+
+.sales-cycle-alert i {
+    font-size: 1.15rem;
+    flex: 0 0 auto;
+}
+
+.sales-cycle-review {
+    display: grid;
+    gap: 1rem;
+}
+
+.customer-alert-card {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1.15rem 1.35rem;
+    border-radius: 1.35rem;
+    background: #fff0ef;
+    border: 1px solid rgba(210, 68, 76, .2);
+    color: #8b1f22;
+    box-shadow: var(--sales-shadow);
+}
+
+.customer-alert-card.is-overdue {
+    background: #fff8e7;
+    border-color: rgba(214, 166, 82, .3);
+    color: #7a5517;
+}
+
+.customer-alert-card > i {
+    font-size: 1.4rem;
+    flex: 0 0 auto;
+}
+
+.customer-alert-card h2 {
+    font-size: 1.05rem;
+    font-weight: 900;
+    margin: 0 0 .25rem;
+}
+
+.customer-alert-card p {
+    margin: 0 0 .3rem;
+    font-weight: 700;
+}
+
+.customer-alert-card small {
+    opacity: .8;
+    font-weight: 700;
+}
+
+/* Document preview pages: keep the printable sheet centered on screen. The
+   paper layout and the print rules stay with the document stylesheets
+   (customer-documents.css, customer-documents-print.css,
+   quotation-document.css, invoice-preview.css and payment-receipt.css). */
+.sales-document-page {
+    display: grid;
+    gap: 1.25rem;
+    justify-items: stretch;
+}
+
+.sales-document-page .accounting-document {
+    margin-inline: auto;
+    max-width: 900px;
+}
+
+/* Long text values in a KPI headline, e.g. a payment method name. */
+.kpi-widget h2.kpi-text {
+    font-size: 1.1rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 991px) {
+    .sales-document-page .accounting-document {
+        max-width: 100%;
+    }
+}
+
+/* Section wrapper used inside forms, matching the Customer form cards. */
+.sales-cycle-section {    display: grid;
+    gap: .8rem;
+    padding-bottom: 1.15rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.sales-cycle-section:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.sales-cycle-section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: .8rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sales-cycle-section-head h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 950;
+}
+
+.sales-cycle-section-head p {
+    margin: .15rem 0 0;
+    color: var(--admin-muted);
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+.sales-cycle-section-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+/* Read-only reference values (linked customer / opportunity). */
+.sales-cycle-readonly {
+    color: var(--admin-muted);
+    background: #fbf7ef !important;
+}
+
+/* Printable document wrapper (previews and receipts). */
+.sales-cycle-document-page {
+    display: grid;
+    gap: 1rem;
+    padding-bottom: 3rem;
+}
+
+.sales-cycle-document-actions {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive behaviour, matching the master breakpoints.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1199px) {
+    .sales-cycle-page .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 991px) {
+    .sales-cycle-page .arena-header .arena-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 767px) {
+    .sales-cycle-page .arena-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-cycle-page .arena-header .arena-actions {
+        align-items: stretch;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .sales-cycle-page .arena-header .arena-actions > * {
+        width: 100%;
+    }
+
+    .sales-cycle-line-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-cycle-line-grid label,
+    .sales-cycle-line-grid label.wide,
+    .sales-cycle-line-grid label.full {
+        grid-column: auto;
+    }
+
+    .sales-cycle-danger,
+    .sales-cycle-danger form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sales-cycle-danger > *,
+    .sales-cycle-danger input,
+    .sales-cycle-danger .admin-action-button,
+    .sales-cycle-danger .admin-secondary-button {
+        width: 100%;
+    }
+
+    .sales-cycle-totals {
+        margin-left: 0;
+        max-width: 100%;
+    }
+
+    .sales-cycle-document-actions {
+        flex-direction: column;
+    }
+
+    .sales-cycle-document-actions > * {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}

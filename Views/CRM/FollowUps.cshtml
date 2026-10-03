@@ -1,0 +1,176 @@
+@model List<CrmFollowUpItemViewModel>
+@using GameHub.Helpers
+@{
+    ViewData["Title"] = "CRM Follow-ups";
+    Layout = "_AdminLayout";
+    var now = DateTime.UtcNow;
+    var dueToday = Model.Count(x => !x.IsCompleted && x.DueAt.Date == now.Date);
+    var overdue = Model.Count(x => !x.IsCompleted && x.DueAt < now);
+    var upcoming = Model.Count(x => !x.IsCompleted && x.DueAt.Date > now.Date);
+    var completed = Model.Count(x => x.IsCompleted);
+    var completionRate = Model.Count == 0 ? 0 : (int)Math.Round(completed * 100m / Model.Count);
+    ViewData["CrmGuidance"] = "followups";
+    ViewData["CrmGuidanceRail"] = false;
+    ViewData["DueToday"] = dueToday;
+    ViewData["OverdueFollowUps"] = overdue;
+    ViewData["CompletionRate"] = $"{completionRate}%";
+}
+
+<section class="crm-page crm-page-pro followups-page">
+    <div class="arena-header">
+        <div>
+            <span class="admin-label">Customer Relationship Management</span>
+            <h1>Follow-up Center</h1>
+            <p>Work through due, upcoming and overdue CRM actions from one focused productivity space.</p>
+            <div class="crm-filter-summary">
+                <span class="crm-health-pill @(overdue > 0 ? "risk" : "healthy")"><i class="bi bi-alarm"></i> @(overdue > 0 ? $"{overdue} overdue" : "Follow-ups healthy")</span>
+                <span><i class="bi bi-check2-circle"></i> @completionRate% completion rate</span>
+            </div>
+        </div>
+        <div class="crm-command-actions">
+            <a class="admin-secondary-button" asp-action="Index" asp-route-tab="leads"><i class="bi bi-person-lines-fill"></i> Leads</a>
+            <a class="admin-secondary-button" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-graph-up-arrow"></i> Opportunities</a>
+            <button class="crm-guide-link" type="button" data-crm-guide-open><i class="bi bi-question-circle"></i> Help</button>
+        </div>
+    </div>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-sun"></i><span>Due Today</span><strong>@dueToday</strong></article>
+        <article><i class="bi bi-calendar2-week"></i><span>Upcoming</span><strong>@upcoming</strong></article>
+        <article><i class="bi bi-exclamation-triangle"></i><span>Overdue</span><strong>@overdue</strong></article>
+        <article><i class="bi bi-check2-circle"></i><span>Completed</span><strong>@completed</strong></article>
+    </div>
+
+    <nav class="arena-tabs" aria-label="Follow-up status filters" role="tablist">
+        <button class="active" type="button" data-followup-tab="all">All <span>@Model.Count</span></button>
+        <button type="button" data-followup-tab="today">Today <span>@dueToday</span></button>
+        <button type="button" data-followup-tab="upcoming">Upcoming <span>@upcoming</span></button>
+        <button type="button" data-followup-tab="overdue">Overdue <span>@overdue</span></button>
+        <button type="button" data-followup-tab="completed">Completed <span>@completed</span></button>
+    </nav>
+
+    <main class="crm-workspace-main">
+        <section class="arena-card crm-followups-card">
+                <div class="membership-table-heading crm-followups-heading">
+                    <div>
+                        <span class="admin-kicker">Workspace</span>
+                        <h2>Follow-up Queue</h2>
+                    </div>
+                    <span class="membership-record-pill">@Model.Count records</span>
+                </div>
+
+                <form class="arena-toolbar" role="search" aria-label="Follow-up filters">
+                    <div class="arena-search">
+                        <i class="bi bi-search"></i>
+                        <input type="search" placeholder="Search follow-ups..." data-followup-search aria-label="Search follow-ups" />
+                    </div>
+                    <button class="admin-secondary-button" type="button" data-followup-clear><i class="bi bi-x-circle"></i> Clear</button>
+                </form>
+
+                @if (!Model.Any())
+                {
+                    <div class="arena-empty">
+                        <i class="bi bi-calendar-check"></i>
+                        <h2>No Follow-ups Yet</h2>
+                        <p>CRM actions with due dates will appear here once leads and opportunities need attention.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="arena-table-wrap crm-followups-table-wrap">
+                        <table class="arena-table crm-table crm-followups-table">
+                            <thead>
+                                <tr>
+                                    <th>Follow-up</th>
+                                    <th>Customer</th>
+                                    <th>Related Lead/Opportunity</th>
+                                    <th>Assigned To</th>
+                                    <th>Follow-up Type</th>
+                                    <th>Scheduled Date &amp; Time</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.OrderBy(x => x.IsCompleted).ThenBy(x => x.DueAt))
+                                {
+                                    var state = item.IsCompleted ? "completed" : item.DueAt < now ? "overdue" : item.DueAt.Date == now.Date ? "today" : "upcoming";
+                                    var initials = string.Join("", item.Subject.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                                    initials = string.IsNullOrWhiteSpace(initials) ? "FU" : initials;
+                                    var ownerInitials = string.IsNullOrWhiteSpace(item.Owner) ? "U" : string.Join("", item.Owner.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                                    var relatedAction = item.RecordType == "Lead" ? "LeadDetails" : "OpportunityDetails";
+                                    var statusText = state switch
+                                    {
+                                        "completed" => "Completed",
+                                        "overdue" => "Overdue",
+                                        "today" => "Today",
+                                        _ => "Upcoming"
+                                    };
+                                    <tr data-followup-state="@state" data-followup-search-row="@($"{item.Subject} {item.Customer} {item.Number} {item.RecordType} {item.Owner} {item.Priority}")">
+                                        <td data-label="Follow-up">
+                                            <div class="user-cell membership-name-cell crm-person-cell">
+                                                <span class="user-avatar membership-table-avatar crm-mini-avatar">@initials</span>
+                                                <div>
+                                                    <strong>@item.Subject</strong>
+                                                    <small>@item.DueAt.ToString("MMM dd, yyyy")</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td data-label="Customer"><strong>@item.Customer</strong><small>CRM contact</small></td>
+                                        <td data-label="Related">
+                                            <a asp-action="@relatedAction" asp-route-id="@item.ParentId"><strong>@item.Number</strong></a>
+                                            <small>@item.RecordType</small>
+                                        </td>
+                                        <td data-label="Assigned To">
+                                            <div class="user-cell crm-owner-cell">
+                                                <span class="user-avatar">@ownerInitials</span>
+                                                <div><strong>@(item.Owner ?? "Unassigned")</strong><small>@(string.IsNullOrWhiteSpace(item.Owner) ? "Needs owner" : "Owner")</small></div>
+                                            </div>
+                                        </td>
+                                        <td data-label="Follow-up Type"><span class="membership-code">@item.RecordType Activity</span></td>
+                                        <td data-label="Scheduled">
+                                            <strong>@item.DueAt.ToString("MMM dd, yyyy")</strong>
+                                            <small>@item.DueAt.ToString("hh:mm tt")</small>
+                                        </td>
+                                        <td data-label="Priority"><span class="membership-status-badge crm-followup-priority priority-@item.Priority.ToString().ToLowerInvariant()"><i></i>@item.Priority.GetDisplayName()</span></td>
+                                        <td data-label="Status"><span class="membership-status-badge crm-followup-status status-@state"><i></i>@statusText</span></td>
+                                        <td data-label="Actions">
+                                            <div class="membership-action-menu crm-followup-actions-cell">
+                                                <a class="membership-icon-button" asp-action="@relatedAction" asp-route-id="@item.ParentId" aria-label="View follow-up record" data-tooltip="View"><i class="bi bi-eye"></i></a>
+                                                <div class="dropdown">
+                                                    <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More follow-up actions" data-tooltip="More"><i class="bi bi-three-dots"></i></button>
+                                                    <div class="dropdown-menu dropdown-menu-end crm-followup-more-menu">
+                                                        <a class="dropdown-item" asp-action="@relatedAction" asp-route-id="@item.ParentId"><i class="bi bi-box-arrow-up-right"></i> Open Record</a>
+                                                        <button class="dropdown-item" type="button" disabled><i class="bi bi-calendar-plus"></i> Reschedule</button>
+                                                        <button class="dropdown-item" type="button" disabled><i class="bi bi-chat-left-text"></i> Add Note</button>
+                                                        @if (!item.IsCompleted)
+                                                        {
+                                                            <form asp-action="CompleteFollowUp" method="post">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="recordType" value="@item.RecordType" />
+                                                                <input type="hidden" name="activityId" value="@item.ActivityId" />
+                                                                <button class="dropdown-item" type="submit"><i class="bi bi-check2-circle"></i> Mark Complete</button>
+                                                            </form>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="arena-pagination">
+                        <span>Showing 1-@Model.Count of @Model.Count follow-ups</span>
+                    </div>
+                }
+            </section>
+        </main>
+    <partial name="_GuidancePanel" />
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/crm.js" asp-append-version="true"></script> }

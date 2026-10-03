@@ -1,0 +1,17 @@
+@model CourtPricingFormViewModel
+@{ ViewData["Title"] = Model.IsEditMode ? "Edit Pricing Rule" : "Create Pricing Rule"; Layout = "_AdminLayout"; }
+<section class="arena-form-page" data-arena-form>
+    <div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@ViewData["Title"]</h1><p>Manage court pricing by day, time, duration, and peak status.</p></div><a class="admin-secondary-button" asp-action="Index" asp-route-tab="pricing"><i class="bi bi-arrow-left"></i> Back</a></div>
+    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditPricing" : "CreatePricing")" asp-route-id="@Model.Id">
+        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+        <div class="arena-form-card"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <label><span>Court</span><select asp-for="CourtId" asp-items="Model.CourtOptions" data-preview-court></select><small asp-validation-for="CourtId"></small></label><label><span>Name</span><input asp-for="Name" data-preview-name /><small asp-validation-for="Name"></small></label>
+            <label><span>Day</span><select asp-for="DayOfWeek" data-preview-day><option value="">All Days</option>@foreach (DayOfWeek d in Enum.GetValues<DayOfWeek>()) { <option value="@d">@d</option> }</select></label>
+            <label><span>Start Time</span><input asp-for="StartTime" type="time" data-preview-start /></label><label><span>End Time</span><input asp-for="EndTime" type="time" data-preview-end /><small asp-validation-for="EndTime"></small></label>
+            <label><span>Duration</span><input asp-for="DurationMinutes" type="number" data-preview-duration /><small asp-validation-for="DurationMinutes"></small></label><label><span>Price</span><input asp-for="Price" type="number" step="0.01" data-preview-price /><small asp-validation-for="Price"></small></label>
+            <label class="arena-toggle"><input asp-for="IsPeakRate" data-preview-peak /><span>Peak Rate</span></label><label class="arena-toggle"><input asp-for="IsActive" data-preview-active /><span>Active Pricing</span></label>
+        </div>
+        <aside class="arena-preview-card"><i class="bi bi-cash-stack"></i><h2 data-preview-name-target>@(Model.Name == "" ? "Pricing Rule" : Model.Name)</h2><p data-preview-court-target>Court</p><span data-preview-day-target>All Days</span><span data-preview-time-target>@Model.StartTime.ToString("HH:mm") - @Model.EndTime.ToString("HH:mm")</span><strong data-preview-price-target>PKR @Model.Price.ToString("N0")</strong><span data-preview-peak-target>@(Model.IsPeakRate ? "Peak" : "Standard")</span></aside>
+        <div class="arena-save-bar"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="pricing">Cancel</a><button class="admin-action-button" type="submit" data-arena-save><i class="bi bi-check2-circle"></i><span>Save Changes</span></button></div>
+    </form>
+</section>

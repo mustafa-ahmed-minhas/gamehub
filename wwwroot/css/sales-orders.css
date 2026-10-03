@@ -1,0 +1,277 @@
+/* ==========================================================================
+   sales-orders.css
+   Thin Sales Cycle layer.
+
+   The shared visual language for the Sales Cycle (Quotations, Sales Orders,
+   Invoices and Payments) now lives in sales.css: the arena-* page primitives,
+   the customer-* form, detail and side card components, and the
+   sales-cycle-* workspace, filter drawer, line item and summary components.
+
+   This file only carries rules that have no shared equivalent. Add a rule
+   here only when this module genuinely needs its own presentation, never a
+   duplicate of a shared primitive.
+   ========================================================================== */
+
+/* Sales Order document preview page: the printable order sheet. The
+   Quotation, Invoice and Payment previews use the shared accounting-document
+   component instead; this module keeps its own sheet. */
+.sales-order-preview-page {
+    display: grid;
+    gap: 1.25rem;
+    justify-items: start;
+    padding: 2rem clamp(1rem, 3vw, 2.5rem) 3rem;
+    background: #f6f1e8;
+    min-height: calc(100vh - 76px);
+}
+
+.sales-order-preview-page .sales-cycle-document-actions {
+    display: flex;
+    gap: .7rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: .9rem 1.1rem;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 1.1rem;
+    box-shadow: var(--sales-shadow);
+}
+
+.sales-order-document {
+    width: 100%;
+    max-width: 900px;
+    margin-inline: auto;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 1.4rem;
+    box-shadow: var(--sales-shadow);
+    padding: clamp(1.5rem, 4vw, 3rem);
+    display: grid;
+    gap: 1.5rem;
+}
+
+.sales-order-document > header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid var(--sales-ink, #17140f);
+}
+
+.sales-order-document > header h1 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    margin: 0 0 .25rem;
+}
+
+.sales-order-document > header p,
+.sales-order-document footer p {
+    margin: 0;
+    color: var(--sales-muted, #6b6152);
+    font-weight: 700;
+    font-size: .85rem;
+    line-height: 1.5;
+}
+
+.sales-order-document > header > div:last-child {
+    text-align: right;
+    display: grid;
+    gap: .35rem;
+    justify-items: end;
+}
+
+.sales-order-document > header > div:last-child > span {
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--sales-muted, #6b6152);
+}
+
+.sales-order-document > header > div:last-child > strong {
+    font-size: 1.3rem;
+    font-weight: 900;
+}
+
+.sales-order-doc-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.sales-order-doc-grid > div {
+    display: grid;
+    gap: .3rem;
+    padding: .9rem 1rem;
+    background: var(--sales-soft, #faf6ef);
+    border: 1px solid var(--sales-line, #e7dccb);
+    border-radius: 1rem;
+}
+
+.sales-order-doc-grid > div > span {
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--sales-muted, #6b6152);
+}
+
+.sales-order-doc-grid > div > strong {
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.sales-order-doc-grid > div > p {
+    margin: 0;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--sales-muted, #6b6152);
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+.sales-order-doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+}
+
+.sales-order-doc-table th {
+    text-align: left;
+    padding: .7rem .6rem;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--sales-muted, #6b6152);
+    border-bottom: 2px solid var(--sales-line, #e7dccb);
+}
+
+.sales-order-doc-table td {
+    padding: .7rem .6rem;
+    border-bottom: 1px solid var(--sales-line, #e7dccb);
+    vertical-align: top;
+}
+
+.sales-order-doc-table td small {
+    color: var(--sales-muted, #6b6152);
+    font-weight: 700;
+}
+
+.sales-order-doc-bottom {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.sales-order-doc-bottom h2 {
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--sales-muted, #6b6152);
+    margin: 0 0 .3rem;
+}
+
+.sales-order-doc-bottom p {
+    margin: 0 0 1rem;
+    font-size: .86rem;
+    font-weight: 700;
+    line-height: 1.55;
+    max-width: 46ch;
+}
+
+.sales-order-document > footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--sales-line, #e7dccb);
+}
+
+.sales-order-document > footer > div {
+    display: grid;
+    gap: .35rem;
+}
+
+.sales-order-document > footer > div strong {
+    font-size: .82rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.sales-order-document > footer > div span {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--sales-muted, #6b6152);
+}
+
+@media (max-width: 991px) {
+    .sales-order-preview-page {
+        padding: 1.25rem 1rem 2rem;
+    }
+
+    .sales-order-document {
+        border-radius: 1.1rem;
+        padding: 1.25rem;
+    }
+
+    .sales-order-doc-bottom {
+        flex-direction: column;
+    }
+}
+
+@media print {
+    .sales-order-preview-page {
+        padding: 0;
+        background: #fff;
+    }
+
+    .sales-order-preview-page .sales-cycle-document-actions {
+        display: none;
+    }
+
+    .sales-order-document {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        max-width: none;
+        padding: 0;
+    }
+}
+
+/* Amount input with a currency prefix, shared by order and payment forms. */
+.sales-cycle-amount-input,
+.payment-amount-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.sales-cycle-amount-input > span,
+.payment-amount-input > span {
+    position: absolute;
+    inset-inline-start: .75rem;
+    font-weight: 850;
+    color: var(--admin-muted, #6b7280);
+    pointer-events: none;
+}
+
+.sales-cycle-amount-input > input,
+.payment-amount-input > input {
+    padding-inline-start: 2.6rem;
+    width: 100%;
+}
+
+@media (max-width: 767px) {
+    .sales-cycle-amount-input > *,
+    .payment-amount-input > * {
+        width: 100%;
+    }
+}

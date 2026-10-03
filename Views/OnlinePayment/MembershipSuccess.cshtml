@@ -1,0 +1,35 @@
+@model PaymentTransaction
+@using GameHub.Models.Entities
+@{
+    ViewData["Title"] = "Membership Active";
+    Layout = "_CustomerLayout";
+    var membership = (CustomerMembership)ViewBag.Membership;
+    var invoice = ViewBag.Invoice as MembershipInvoice;
+}
+<section class="payment-result success">
+    <div class="container result-panel">
+        <i class="bi bi-patch-check-fill"></i>
+        <h1>Your Membership Is Active</h1>
+        <p>Booking discounts and included hours are now applied automatically at checkout.</p>
+        <div class="result-grid">
+            <span>Membership No</span><strong>@membership?.MembershipNumber</strong>
+            <span>Plan</span><strong>@membership?.MembershipPlan?.Name</strong>
+            <span>Valid From</span><strong>@membership?.StartDate.ToString("MMM dd, yyyy")</strong>
+            <span>Valid Until</span><strong>@membership?.ExpiryDate.ToString("MMM dd, yyyy")</strong>
+            <span>Transaction</span><strong>@Model.TransactionNumber</strong>
+            <span>Invoice</span><strong>@invoice?.InvoiceNumber</strong>
+            <span>Amount Paid</span><strong>@Model.CurrencySymbol @Model.Amount.ToString("N0")</strong>
+            <span>Payment Method</span><strong>@Model.PaymentMethod.GetDisplayName()</strong>
+        </div>
+        <div class="result-actions">
+            <a class="btn-premium" asp-controller="MyMemberships" asp-action="Index">View Membership</a>
+            @if (membership != null)
+            {
+                <a class="btn-ghost-light" asp-controller="MyInvoices" asp-action="Membership" asp-route-membershipId="@membership.Id">View Invoice</a>
+            }
+            <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index">Book a Court</a>
+            <a class="btn-ghost-light" asp-controller="MyInvoices" asp-action="Index">All Invoices</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

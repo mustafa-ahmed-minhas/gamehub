@@ -1,0 +1,46 @@
+@model Lead
+@using GameHub.Helpers
+@{
+    ViewData["Title"] = Model.LeadNumber;
+    Layout = "_AdminLayout";
+    var canManage = ViewBag.CanManageLeads as bool? == true;
+    var canConvert = ViewBag.CanConvert as bool? == true;
+    ViewData["CrmGuidance"] = "lead";
+    ViewData["NoFollowUpLeads"] = Model.NextFollowUpAt == null ? 1 : 0;
+    ViewData["OverdueFollowUps"] = Model.NextFollowUpAt.HasValue && Model.NextFollowUpAt.Value < DateTime.UtcNow ? 1 : 0;
+    ViewData["UnassignedLeads"] = Model.AssignedToUser == null ? 1 : 0;
+    var lifecycle = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Converted };
+}
+<section class="crm-page crm-page-pro">
+    <header class="crm-command-header">
+        <div class="crm-command-copy"><a class="customer-back-link" asp-action="Index" asp-route-tab="leads"><i class="bi bi-arrow-left"></i> Back to Leads</a><span class="admin-kicker">Lead Profile</span><h1>@Model.CustomerName</h1><p>@Model.LeadNumber - @Model.ServiceInterest.GetDisplayName()</p></div>
+        <div class="crm-command-actions">@if (canManage) { <a class="admin-action-button crm-premium-button" asp-action="EditLead" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit</a> }@if (canConvert && Model.Status == LeadStatus.Qualified && !Model.IsConverted) { <a class="admin-secondary-button crm-premium-button secondary" asp-action="ConvertToOpportunity" asp-route-id="@Model.Id"><i class="bi bi-arrow-right-circle"></i> Convert</a> }</div>
+    </header>
+    <div class="crm-workspace-shell">
+    <main class="crm-workspace-main">
+    <article class="crm-profile-hero crm-profile-hero-pro"><div><span class="crm-avatar">@Model.CustomerName.FirstOrDefault()</span><h2>@Model.LeadNumber</h2><p>@Model.ContactDisplay</p></div><div class="crm-profile-badges"><span class="crm-badge status-@Model.Status.ToString().ToLowerInvariant()">@Model.Status.GetDisplayName()</span><span class="crm-badge priority-@Model.Priority.ToString().ToLowerInvariant()">@Model.Priority.GetDisplayName()</span><span class="crm-badge temp-@Model.Temperature.ToString().ToLowerInvariant()">@Model.Temperature.GetDisplayName()</span><span class="crm-badge source">@Model.Source.GetDisplayName()</span></div></article>
+    <div class="crm-lifecycle">
+        @foreach (var step in lifecycle)
+        {
+            var active = Array.IndexOf(lifecycle, step) <= Array.IndexOf(lifecycle, lifecycle.Contains(Model.Status) ? Model.Status : LeadStatus.New);
+            <span class="@(active ? "active" : "")"><i class="bi bi-check2"></i>@step.GetDisplayName()</span>
+        }
+    </div>
+    <div class="crm-kpi-grid compact"><article class="crm-kpi"><i class="bi bi-clock-history"></i><span>Days Open</span><strong>@Model.DaysOpen</strong></article><article class="crm-kpi"><i class="bi bi-chat-dots"></i><span>Activities</span><strong>@Model.Activities.Count</strong></article><article class="crm-kpi"><i class="bi bi-alarm"></i><span>Next Follow-up</span><strong>@(Model.NextFollowUpAt?.ToString("MMM dd") ?? "-")</strong></article><article class="crm-kpi"><i class="bi bi-briefcase"></i><span>Opportunity</span><strong>@(Model.IsConverted ? "Created" : "Pending")</strong></article></div>
+    <div class="crm-detail-grid">
+        <article class="crm-card"><header><h2>Contact</h2></header><dl class="crm-detail-list"><div><dt>Name</dt><dd>@Model.CustomerName</dd></div><div><dt>Email</dt><dd>@(Model.Email ?? "Not provided")</dd></div><div><dt>Phone</dt><dd>@(Model.Phone ?? "Not provided")</dd></div><div><dt>WhatsApp</dt><dd>@(Model.WhatsAppNumber ?? "Not provided")</dd></div><div><dt>Organization</dt><dd>@(Model.OrganizationName ?? "Not provided")</dd></div>@if (Model.Customer != null) { <div><dt>Customer</dt><dd><a asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">@Model.Customer.CustomerCode</a></dd></div> }</dl></article>
+        <article class="crm-card"><header><h2>Inquiry</h2></header><dl class="crm-detail-list"><div><dt>Interest</dt><dd>@Model.ServiceInterest.GetDisplayName()</dd></div><div><dt>Sport</dt><dd>@(Model.Sport?.Name ?? "Any")</dd></div><div><dt>Facility</dt><dd>@(Model.Facility?.Name ?? "Any")</dd></div><div><dt>Court</dt><dd>@(Model.Court?.Name ?? "Any")</dd></div><div><dt>Preferred</dt><dd>@(Model.PreferredDate?.ToString("MMM dd, yyyy") ?? "Not provided") @(Model.PreferredStartTime?.ToString("hh:mm tt"))</dd></div><div><dt>Players</dt><dd>@(Model.ExpectedPlayerCount?.ToString() ?? "Not provided")</dd></div></dl></article>
+        <article class="crm-card"><header><h2>Management</h2></header><dl class="crm-detail-list"><div><dt>Assigned</dt><dd>@(Model.AssignedToUser?.FullName ?? "Unassigned")</dd></div><div><dt>Last Contact</dt><dd>@(Model.LastContactedAt?.ToString("MMM dd, yyyy hh:mm tt") ?? "Not contacted")</dd></div><div><dt>Qualified At</dt><dd>@(Model.QualifiedAt?.ToString("MMM dd, yyyy") ?? "-")</dd></div><div><dt>Tags</dt><dd>@(Model.Tags ?? "No tags")</dd></div></dl></article>
+        <article class="crm-card"><header><h2>Notes</h2></header><p>@(Model.InquiryDetails ?? "No inquiry details.")</p><h3>Qualification</h3><p>@(Model.QualificationNotes ?? "Not qualified yet.")</p><h3>Internal</h3><p>@(Model.InternalNotes ?? "No internal notes.")</p></article>
+    </div>
+    @if (canManage)
+    {
+        <article class="crm-card crm-action-card" id="lead-actions"><header><h2>Lead Actions</h2><span>Record every meaningful interaction</span></header><form asp-action="AddLeadActivity" asp-route-id="@Model.Id" method="post" class="crm-inline-form">@Html.AntiForgeryToken()<select name="activityType" asp-items="Html.GetEnumSelectList<LeadActivityType>()"></select><input name="subject" placeholder="Activity subject" /><input name="activityDate" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" /><input name="followUpDueAt" type="datetime-local" /><textarea name="description" placeholder="Description"></textarea><label class="crm-premium-check"><input name="isCompleted" type="checkbox" value="true" /> <span>Completed</span></label><button class="admin-action-button crm-premium-button">Add Activity</button></form><div class="crm-action-forms"><form asp-action="QualifyLead" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<input name="qualificationNotes" placeholder="Qualification notes" /><button class="admin-secondary-button crm-premium-button secondary">Qualify</button></form><form asp-action="DisqualifyLead" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<input name="reason" placeholder="Reason, min 10 chars" /><button class="admin-secondary-button danger crm-premium-button">Disqualify</button></form></div></article>
+    }
+    <article class="crm-card crm-timeline-card"><header><h2>Activity Timeline</h2><span>@Model.Activities.Count activities</span></header><div class="crm-timeline">@foreach (var item in Model.Activities.OrderByDescending(x => x.ActivityDate)) { <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div> }@if (!Model.Activities.Any()) { <div class="crm-empty-state compact"><i class="bi bi-chat-dots"></i><strong>No activity yet</strong><span>Notes, calls and follow-ups will appear here.</span></div> }</div></article>
+    </main>
+    <partial name="_GuidancePanel" />
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/crm.js" asp-append-version="true"></script> }

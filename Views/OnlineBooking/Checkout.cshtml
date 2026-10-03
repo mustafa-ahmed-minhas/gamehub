@@ -1,0 +1,63 @@
+@model OnlineBookingCheckoutViewModel
+@{
+    ViewData["Title"] = "Checkout";
+    Layout = "_CustomerLayout";
+}
+
+<section class="checkout-page">
+    <div class="container checkout-grid">
+        @if (Model.IsExpired)
+        {
+            <main class="checkout-card expired">
+                <i class="bi bi-hourglass-split"></i>
+                <h1>Your checkout session has expired</h1>
+                <p>Please select your court and time again. No booking was created.</p>
+                <a class="btn-premium" asp-controller="Courts" asp-action="Index">Browse Courts</a>
+            </main>
+        }
+        else
+        {
+            <main class="checkout-card">
+                <span class="eyebrow-pill"><i class="bi bi-shield-lock"></i> Secure Checkout Preview</span>
+                <h1>Checkout summary</h1>
+                <div class="checkout-countdown" data-checkout-countdown="@Model.SecondsRemaining">15:00 remaining</div>
+                <div class="review-list premium-review-list">
+                    <div><i class="bi bi-person"></i><strong>Customer</strong><span>@Model.CustomerName (@Model.CustomerCode)</span></div>
+                    <div><i class="bi bi-geo-alt"></i><strong>Court</strong><span>@Model.CourtName · @Model.SportName · @Model.FacilityName</span></div>
+                    <div><i class="bi bi-calendar3"></i><strong>Date</strong><span>@Model.BookingDate.ToString("dddd, MMM dd yyyy")</span></div>
+                    <div><i class="bi bi-clock"></i><strong>Time</strong><span>@Model.StartTime.ToString("hh:mm tt") - @Model.EndTime.ToString("hh:mm tt")</span></div>
+                    <div><i class="bi bi-hourglass-split"></i><strong>Duration</strong><span>@Model.DurationMinutes minutes</span></div>
+                    <div><i class="bi bi-people"></i><strong>Players</strong><span>@Model.PlayerCount</span></div>
+                    <div><i class="bi bi-stars"></i><strong>Membership</strong><span>@(Model.MembershipSummary ?? "No membership benefit applied")</span></div>
+                    <div><i class="bi bi-check2-circle"></i><strong>Policies</strong><span>Booking and cancellation policies accepted</span></div>
+                </div>
+                <div class="race-notice">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <p>Availability is rechecked before payment is completed. A slot may become unavailable if another customer completes payment first.</p>
+                </div>
+                <form asp-action="CancelCheckout" method="post" class="checkout-actions">
+                    @Html.AntiForgeryToken()
+                    <button class="btn-ghost-light" type="submit"><i class="bi bi-x-circle"></i> Cancel Checkout</button>
+                    <a class="btn-premium" data-checkout-continue asp-controller="OnlinePayment" asp-action="Index"><i class="bi bi-lock-fill"></i> Continue to Secure Payment</a>
+                </form>
+            </main>
+            <aside class="payment-summary-card premium-price-card">
+                <span class="eyebrow-pill"><i class="bi bi-receipt"></i> Payment Summary</span>
+                <h2>Total Due</h2>
+                <div><span><i class="bi bi-receipt-cutoff"></i> Subtotal</span><strong>@Model.CurrencySymbol @Model.BaseAmount.ToString("N0")</strong></div>
+                <div><span><i class="bi bi-stars"></i> Discount</span><strong>- @Model.CurrencySymbol @Model.MembershipDiscountAmount.ToString("N0")</strong></div>
+                <div><span><i class="bi bi-percent"></i> Tax</span><strong>@Model.CurrencySymbol @Model.TaxAmount.ToString("N0")</strong></div>
+                <div class="total"><span>Total due</span><strong>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</strong></div>
+                <p><i class="bi bi-credit-card-2-front"></i> Amount required now: 100%</p>
+                <p><i class="bi bi-lock"></i> Secure checkout simulation is ready.</p>
+            </aside>
+        }
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/online-booking.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/online-booking.js" asp-append-version="true"></script>
+}

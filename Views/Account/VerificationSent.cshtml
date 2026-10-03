@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "Verify Your Email";
+    Layout = "_CustomerLayout";
+    var email = ViewBag.Email as string;
+    var devLink = TempData["DevelopmentVerificationLink"]?.ToString();
+}
+
+<section class="account-result">
+    <div class="container result-card">
+        <i class="bi bi-envelope-check"></i>
+        <span class="eyebrow-pill">Verification Required</span>
+        <h1>Check your email</h1>
+        <p>We prepared a verification link for @(email ?? "your account"). You can browse GameHub before verification, but future booking checkout will require a verified email.</p>
+        @if (!string.IsNullOrWhiteSpace(devLink))
+        {
+            <div class="dev-link">
+                <strong>Development verification link</strong>
+                <a href="@devLink">@devLink</a>
+            </div>
+        }
+        <form asp-action="ResendVerification" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="email" value="@email" />
+            <button class="btn-ghost-light" type="submit"><i class="bi bi-arrow-clockwise"></i> Resend Verification</button>
+            <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
+        </form>
+    </div>
+</section>

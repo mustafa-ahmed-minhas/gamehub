@@ -1,0 +1,110 @@
+@model MembershipPlanDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Membership Plan Details";
+    Layout = "_AdminLayout";
+    var canManage = Model.CanManage;
+}
+
+<div class="admin-page membership-page">
+    <div class="page-hero membership-hero">
+        <div>
+            <span class="section-label">MEMBERSHIP SETUP</span>
+            <h1>@Model.Name</h1>
+            <p>Review plan benefits, pricing, validity, and assigned customer memberships.</p>
+        </div>
+        <div class="hero-actions">
+            <a asp-action="Index" class="membership-btn membership-btn-secondary"><i class="bi bi-arrow-left"></i> <span>Back</span></a>
+            @if (canManage)
+            {
+                <a asp-action="EditPlan" asp-route-id="@Model.Id" class="membership-btn membership-btn-primary"><i class="bi bi-pencil-square"></i> <span>Edit Plan</span></a>
+            }
+        </div>
+    </div>
+
+    <div class="membership-details-grid">
+        <section class="users-card membership-profile-card reveal-up">
+            <div class="membership-avatar-lg">@Model.Code</div>
+            <h2>@Model.Name</h2>
+            <div class="membership-muted">@Model.Description</div>
+            <div class="membership-badge-row">
+                <span class="role-badge">@Model.PlanType.GetDisplayName()</span>
+                <span class="status-badge @(Model.IsActive ? "active" : "inactive")">@(Model.IsActive ? "Active" : "Inactive")</span>
+            </div>
+            <dl class="membership-info-list">
+                <div><dt>Joining Fee</dt><dd>@Model.CurrencySymbol @Model.JoiningFee.ToString("N0")</dd></div>
+                <div><dt>Duration</dt><dd>@Model.DurationMonths months</dd></div>
+                <div><dt>Discount</dt><dd>@Model.DiscountPercentage.ToString("0.##")%</dd></div>
+                <div><dt>Included Hours</dt><dd>@Model.IncludedBookingHours.ToString("0.##")</dd></div>
+            </dl>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-stars"></i> Benefits</div>
+            <p class="membership-note">@(!string.IsNullOrWhiteSpace(Model.Benefits) ? Model.Benefits : "No benefits have been described yet.")</p>
+            <div class="membership-chip-row">
+                <span class="membership-chip @(Model.AllowPeakHours ? "enabled" : "")">Peak hours</span>
+                <span class="membership-chip @(Model.AllowOffPeakHours ? "enabled" : "")">Off-peak hours</span>
+                <span class="membership-chip @(Model.IsActive ? "enabled" : "")">Available for assignment</span>
+            </div>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-dribbble"></i> Sports Access</div>
+            <p class="membership-note">@(string.IsNullOrWhiteSpace(Model.AllowedSportCodes) ? "All configured sports" : Model.AllowedSportCodes)</p>
+        </section>
+
+        <section class="users-card reveal-up">
+            <div class="card-section-title"><i class="bi bi-clock-history"></i> Record Info</div>
+            <dl class="membership-info-list compact">
+                <div><dt>Created</dt><dd>@Model.CreatedAt.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Last Updated</dt><dd>@(Model.UpdatedAt?.ToString("MMM dd, yyyy") ?? "Not updated")</dd></div>
+                <div><dt>Assigned Members</dt><dd>@Model.MemberCount</dd></div>
+            </dl>
+        </section>
+    </div>
+
+    <section class="users-card membership-table-card reveal-up">
+        <div class="table-card-header">
+            <div>
+                <span class="section-label">CUSTOMERS</span>
+                <h2>Recent Assigned Memberships</h2>
+            </div>
+        </div>
+        @if (Model.AssignedMembers.Any())
+        {
+            <div class="users-table-wrap">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Membership No.</th>
+                            <th>Expiry</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.AssignedMembers)
+                        {
+                            <tr>
+                                <td data-label="Customer">
+                                    <div class="user-cell"><span class="user-avatar">@item.CustomerInitials</span><div><strong>@item.CustomerName</strong><small>@item.CustomerPhone</small></div></div>
+                                </td>
+                                <td data-label="Membership">@item.MembershipNumber</td>
+                                <td data-label="Expiry">@item.ExpiryDate.ToString("MMM dd, yyyy")</td>
+                                <td data-label="Status"><span class="status-badge @item.Status.ToString().ToLowerInvariant()">@item.Status.GetDisplayName()</span></td>
+                                <td class="table-actions"><a asp-action="MembershipDetails" asp-route-id="@item.Id" class="btn-icon" aria-label="View membership"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state"><i class="bi bi-person-vcard"></i><h3>No assigned customers yet</h3><p>This plan has not been assigned to any customer.</p></div>
+        }
+    </section>
+</div>

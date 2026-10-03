@@ -1,0 +1,233 @@
+@model PaymentDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var payment = Model.Payment;
+    ViewData["Title"] = payment.PaymentNumber;
+    Layout = "_AdminLayout";
+
+    var initials = string.Join("", (payment.Customer.FullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    var outstanding = payment.Invoice.OutstandingAmount;
+    var paymentShare = payment.Invoice.GrandTotal > 0 ? Math.Clamp((int)Math.Round(payment.Amount / payment.Invoice.GrandTotal * 100), 0, 100) : 0;
+    var documentCompleteness = Math.Clamp((int)Math.Round(new[] { payment.Amount > 0, !string.IsNullOrWhiteSpace(payment.ReferenceNumber), !string.IsNullOrWhiteSpace(payment.PaymentMethod.ToString()), !string.IsNullOrWhiteSpace(payment.Notes) }
+        .Count(x => x) / 4.0 * 100), 0, 100);
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string MethodIcon(InvoicePaymentMethod method) => method switch
+    {
+        InvoicePaymentMethod.Cash => "bi-cash-coin",
+        InvoicePaymentMethod.CreditCard => "bi-credit-card-2-front",
+        InvoicePaymentMethod.DebitCard => "bi-credit-card-2-back",
+        InvoicePaymentMethod.BankTransfer => "bi-bank",
+        InvoicePaymentMethod.OnlinePayment => "bi-globe",
+        InvoicePaymentMethod.Cheque => "bi-file-earmark-text",
+        _ => "bi-cash-stack"
+    };
+}
+
+<section class="users-page customer-details-page customer-profile-page sales-cycle-page sales-document-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Payments</a>
+            <span class="admin-label">Payment Details</span>
+            <h1>@payment.PaymentNumber</h1>
+            <p>Invoice @payment.Invoice.InvoiceNumber · Recorded @payment.PaymentDate.ToString("dd MMM yyyy")</p>
+        </div>
+        <div class="customer-detail-actions">
+            <a class="admin-action-button" asp-action="Receipt" asp-route-id="@payment.Id"><i class="bi bi-file-earmark-richtext"></i> Receipt</a>
+            <a class="admin-secondary-button" asp-controller="Invoices" asp-action="Details" asp-route-id="@payment.InvoiceId"><i class="bi bi-receipt"></i> View Invoice</a>
+            <div class="membership-action-menu">
+                <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More payment actions"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to list</a></li>
+                    <li><a class="dropdown-item" asp-action="Receipt" asp-route-id="@payment.Id"><i class="bi bi-file-earmark-richtext"></i> Receipt</a></li>
+                    <li><a class="dropdown-item" asp-controller="Invoices" asp-action="Details" asp-route-id="@payment.InvoiceId"><i class="bi bi-receipt"></i> View invoice</a></li>
+                    @if (Model.CanRecord && outstanding > 0)
+                    {
+                        <li><hr class="dropdown-divider" /></li>
+                        <li><a class="dropdown-item" asp-action="Create" asp-route-invoiceId="@payment.InvoiceId"><i class="bi bi-plus-lg"></i> Record another payment</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@(initials.Length == 0 ? "C" : initials)</div>
+            <div>
+                <h2>@payment.PaymentNumber</h2>
+                <p>@payment.Customer.FullName · @payment.Customer.CustomerCode</p>
+                <strong class="membership-code">@payment.Invoice.InvoiceNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="membership-status-badge active"><i></i>@payment.Status.GetDisplayName()</span>
+                    <span class="membership-status-badge @StatusBadgeHelper.Modifier(payment.PaymentMethod switch { InvoicePaymentMethod.BankTransfer => "confirmed", InvoicePaymentMethod.Cheque => "pending", _ => "active" })"><i class="bi @MethodIcon(payment.PaymentMethod)"></i>@payment.PaymentMethod.GetDisplayName()</span>
+                    @if (outstanding > 0)
+                    {
+                        <span class="membership-status-badge frozen"><i></i>Balance Remaining</span>
+                    }
+                    else
+                    {
+                        <span class="membership-status-badge confirmed"><i></i>Invoice Settled</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-cash-stack"></i><span>Amount</span><strong>@payment.CurrencySymbol @payment.Amount.ToString("N2")</strong></div>
+            <div><i class="bi bi-calendar-event"></i><span>Payment Date</span><strong>@payment.PaymentDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-person"></i><span>Customer</span><strong>@payment.Customer.FullName</strong></div>
+            <div><i class="bi bi-telephone"></i><span>Phone</span><strong>@TextOrFallback(payment.Customer.PrimaryPhone)</strong></div>
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@TextOrFallback(payment.Customer.Email)</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@documentCompleteness%">
+                <strong>@documentCompleteness%</strong>
+                <span>Complete</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Amount</span><strong>@payment.CurrencySymbol @payment.Amount.ToString("N0")</strong></div>
+                <div><span>Invoice Total</span><strong>@payment.Invoice.CurrencySymbol @payment.Invoice.GrandTotal.ToString("N0")</strong></div>
+                <div><span>Remaining</span><strong>@payment.Invoice.CurrencySymbol @outstanding.ToString("N0")</strong></div>
+                <div><span>Share of Invoice</span><strong>@paymentShare%</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    <div class="kpi-grid customer-detail-kpis">
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="trend-pill up">@payment.CurrencySymbol</span></div><h2>@payment.Amount.ToString("N0")</h2><p>Amount Received</p><div class="kpi-bottom"><span>Value of this payment</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-calendar-event"></i></span><span class="trend-pill neutral">Date</span></div><h2>@payment.PaymentDate.ToString("dd MMM")</h2><p>Payment Date</p><div class="kpi-bottom"><span>@payment.PaymentDate.ToString("yyyy")</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-credit-card"></i></span><span class="trend-pill neutral">Method</span></div><h2 class="kpi-text">@payment.PaymentMethod.GetDisplayName()</h2><p>Payment Method</p><div class="kpi-bottom"><span>@TextOrFallback(payment.ReferenceNumber)</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-receipt"></i></span><span class="trend-pill neutral">Invoice</span></div><h2>@payment.Invoice.GrandTotal.ToString("N0")</h2><p>Invoice Total</p><div class="kpi-bottom"><span>@payment.Invoice.InvoiceNumber</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-check2-circle"></i></span><span class="trend-pill up">Paid</span></div><h2>@payment.Invoice.PaidAmount.ToString("N0")</h2><p>Paid to Date</p><div class="kpi-bottom"><span>Across all payments</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-wallet2"></i></span><span class="trend-pill @(outstanding > 0 ? "warn" : "up")">Balance</span></div><h2>@outstanding.ToString("N0")</h2><p>Outstanding</p><div class="kpi-bottom"><span>@(outstanding > 0 ? "A further payment can be recorded" : "Invoice fully settled")</span></div></article>
+    </div>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Customer Information</h2><p>Account that received this payment.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Name</dt><dd>@payment.Customer.FullName</dd></div>
+                    <div><dt>Code</dt><dd>@payment.Customer.CustomerCode</dd></div>
+                    <div><dt>Email</dt><dd>@TextOrFallback(payment.Customer.Email)</dd></div>
+                    <div><dt>Phone</dt><dd>@TextOrFallback(payment.Customer.PrimaryPhone)</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="Customers" asp-action="Details" asp-route-id="@payment.CustomerId"><i class="bi bi-person"></i> Open Customer</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-receipt"></i><div><h2>Invoice Summary</h2><p>Source document this payment was applied to.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Invoice</dt><dd>@payment.Invoice.InvoiceNumber</dd></div>
+                    <div><dt>Invoice Total</dt><dd>@payment.Invoice.CurrencySymbol @payment.Invoice.GrandTotal.ToString("N2")</dd></div>
+                    <div><dt>Paid to Date</dt><dd>@payment.Invoice.CurrencySymbol @payment.Invoice.PaidAmount.ToString("N2")</dd></div>
+                    <div><dt>Remaining</dt><dd>@payment.Invoice.CurrencySymbol @outstanding.ToString("N2")</dd></div>
+                    <div><dt>Invoice Status</dt><dd>@payment.Invoice.Status.GetDisplayName()</dd></div>
+                    <div><dt>Due Date</dt><dd>@payment.Invoice.DueDate.ToString("dd MMM yyyy")</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="Invoices" asp-action="Details" asp-route-id="@payment.InvoiceId"><i class="bi bi-receipt"></i> Open Invoice</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-card-checklist"></i><div><h2>Transaction Record</h2><p>Payment capture details.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Payment Method</dt><dd>@payment.PaymentMethod.GetDisplayName()</dd></div>
+                    <div><dt>Reference</dt><dd>@TextOrFallback(payment.ReferenceNumber)</dd></div>
+                    <div><dt>Received By</dt><dd>@payment.ReceivedByUser.FullName</dd></div>
+                    <div><dt>Currency</dt><dd>@payment.Currency @payment.CurrencySymbol</dd></div>
+                    <div><dt>Recorded</dt><dd>@payment.CreatedAt.ToString("dd MMM yyyy, hh:mm tt")</dd></div>
+                    <div><dt>Status</dt><dd>@payment.Status.GetDisplayName()</dd></div>
+                </dl>
+                @if (!string.IsNullOrWhiteSpace(payment.Notes))
+                {
+                    <article class="customer-notes-card admin-reveal">
+                        <header><i class="bi bi-journal-text"></i><div><h2>Notes</h2><span>Payment record</span></div></header>
+                        <p>@payment.Notes</p>
+                    </article>
+                }
+            </article>
+
+            @if (Model.Allocations.Any())
+            {
+                <article class="customer-info-card admin-reveal">
+                    <header><i class="bi bi-diagram-3"></i><div><h2>Allocation</h2><p>How this payment was applied to the invoice.</p></div></header>
+                    <div class="sales-cycle-lines">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Invoice</th>
+                                    <th scope="col">Allocated</th>
+                                    <th scope="col">Recorded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var allocation in Model.Allocations)
+                                {
+                                    <tr>
+                                        <td>@allocation.Invoice?.InvoiceNumber</td>
+                                        <td>@payment.CurrencySymbol @allocation.Amount.ToString("N2")</td>
+                                        <td>@allocation.CreatedAt.ToString("dd MMM yyyy")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            }
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><div><h2>Payment Timeline</h2><p>Audit trail for this transaction.</p></div></header>
+                <div class="sales-cycle-timeline">
+                    <span><i class="bi bi-plus-circle"></i><strong>Payment recorded</strong> · @payment.CreatedByUser.FullName · @payment.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</span>
+                    <span><i class="bi bi-cash-stack"></i><strong>@payment.CurrencySymbol @payment.Amount.ToString("N2") allocated</strong> · Applied to @payment.Invoice.InvoiceNumber</span>
+                    @if (payment.UpdatedAt.HasValue)
+                    {
+                        <span><i class="bi bi-pencil"></i><strong>Record updated</strong> · @payment.UpdatedAt.Value.ToString("dd MMM yyyy hh:mm tt")</span>
+                    }
+                </div>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card membership-card admin-reveal">
+                <header><i class="bi bi-receipt-cutoff"></i><h2>Receipt</h2></header>
+                <p>Issue a customer-ready receipt for this transaction.</p>
+                <a class="admin-action-button" asp-action="Receipt" asp-route-id="@payment.Id"><i class="bi bi-file-earmark-richtext"></i> Open Receipt</a>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><h2>Payment Lifecycle</h2></header>
+                <strong>@payment.Status.GetDisplayName()</strong>
+                <p>@payment.PaymentMethod.GetDisplayName()</p>
+                <dl>
+                    <div><dt>Recorded</dt><dd>@payment.CreatedAt.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Payment Date</dt><dd>@payment.PaymentDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Invoice</dt><dd>@payment.Invoice.InvoiceNumber</dd></div>
+                    <div><dt>Balance</dt><dd>@payment.Invoice.CurrencySymbol @outstanding.ToString("N2")</dd></div>
+                </dl>
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-shield-check"></i><div><h2>Transaction Information</h2><p>Audit metadata for this payment.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Payment ID</span><strong>@payment.Id</strong></div>
+            <div><span>Payment Number</span><strong>@payment.PaymentNumber</strong></div>
+            <div><span>Invoice ID</span><strong>@payment.InvoiceId</strong></div>
+            <div><span>Customer ID</span><strong>@payment.CustomerId</strong></div>
+            <div><span>Currency</span><strong>@payment.Currency @payment.CurrencySymbol</strong></div>
+            <div><span>Created At</span><strong>@payment.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Payment Status</span><strong>@payment.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/payments.css" asp-append-version="true" /> }

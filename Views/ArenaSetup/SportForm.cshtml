@@ -1,0 +1,21 @@
+@model SportFormViewModel
+@{ ViewData["Title"] = Model.IsEditMode ? "Edit Sport" : "Create Sport"; Layout = "_AdminLayout"; }
+<section class="arena-form-page" data-arena-form>
+    <div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@ViewData["Title"]</h1><p>Manage sport identity, default duration, and visibility.</p></div><a class="admin-secondary-button" asp-action="Index" asp-route-tab="sports"><i class="bi bi-arrow-left"></i> Back</a></div>
+    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditSport" : "CreateSport")" asp-route-id="@Model.Id">
+        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+        <div class="arena-form-card"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <label><span>Name</span><input asp-for="Name" data-preview-name /><small asp-validation-for="Name"></small></label>
+            <label><span>Code</span><input asp-for="Code" data-preview-code /><small asp-validation-for="Code"></small></label>
+            <label><span>Description</span><textarea asp-for="Description"></textarea><small asp-validation-for="Description"></small></label>
+            <label><span>Icon Class</span><input asp-for="IconClass" data-preview-icon placeholder="bi-trophy" /><small asp-validation-for="IconClass"></small></label>
+            <label><span>Image URL</span><input asp-for="ImageUrl" /><small asp-validation-for="ImageUrl"></small></label>
+            <label><span>Accent Color</span><input asp-for="AccentColor" data-preview-accent placeholder="#d6a950" /><small asp-validation-for="AccentColor"></small></label>
+            <label><span>Default Duration</span><input asp-for="DefaultDurationMinutes" type="number" data-preview-duration /><small asp-validation-for="DefaultDurationMinutes"></small></label>
+            <label><span>Display Order</span><input asp-for="DisplayOrder" type="number" /><small asp-validation-for="DisplayOrder"></small></label>
+            <label class="arena-toggle"><input asp-for="IsActive" data-preview-active /><span>Active Sport</span></label>
+        </div>
+        <aside class="arena-preview-card"><i class="bi @(Model.IconClass ?? "bi-trophy")" data-preview-icon-target style="--accent:@(Model.AccentColor ?? "#d6a950")"></i><h2 data-preview-name-target>@(Model.Name == "" ? "Sport Name" : Model.Name)</h2><p data-preview-code-target>@(Model.Code == "" ? "CODE" : Model.Code)</p><span data-preview-duration-target>@Model.DefaultDurationMinutes min default</span><strong data-preview-active-target>@(Model.IsActive ? "Active" : "Inactive")</strong></aside>
+        <div class="arena-save-bar"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="sports">Cancel</a><button class="admin-action-button" type="submit" data-arena-save><i class="bi bi-check2-circle"></i><span>Save Changes</span></button></div>
+    </form>
+</section>

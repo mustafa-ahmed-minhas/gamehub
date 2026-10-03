@@ -1,0 +1,86 @@
+@model IReadOnlyList<PaymentTransaction>
+@{
+    ViewData["Title"] = "Payment History";
+    Layout = "_CustomerLayout";
+    var succeeded = Model.Where(x => x.Status == PaymentTransactionStatus.Succeeded).ToList();
+    var failed = Model.Where(x => x.Status is PaymentTransactionStatus.Failed or PaymentTransactionStatus.Cancelled or PaymentTransactionStatus.Refunded).ToList();
+    var succeededTotal = succeeded.Sum(x => x.Amount);
+}
+<section class="my-bookings-page">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-credit-card"></i> Payments</span>
+            <h1>Payment History</h1>
+            <p class="section-subtitle">Every payment attempt on your account, including failed and cancelled ones.</p>
+        </div>
+
+        <div class="account-stats">
+            <article><i class="bi bi-check2-circle"></i><strong>@succeeded.Count</strong><span>Successful Payments</span></article>
+            <article><i class="bi bi-x-circle"></i><strong>@failed.Count</strong><span>Failed / Cancelled</span></article>
+            <article><i class="bi bi-wallet2"></i><strong>@(succeeded.Count > 0 ? succeeded[0].CurrencySymbol : "Rs") @succeededTotal.ToString("N0")</strong><span>Paid via Payments</span></article>
+        </div>
+
+        <div class="booking-tabs">
+            <a asp-action="Index" asp-controller="MyInvoices"><i class="bi bi-receipt"></i> Invoices</a>
+            <a asp-action="Index" asp-controller="CustomerHistory" asp-route-tab="payments"><i class="bi bi-clock-history"></i> Activity History</a>
+        </div>
+
+        <div class="booking-card-list">
+            @foreach (var payment in Model)
+            {
+                var isMembershipPayment = !payment.BookingId.HasValue && payment.Status == PaymentTransactionStatus.Succeeded;
+                <article class="customer-booking-card">
+                    <div>
+                        <span>@payment.TransactionNumber</span>
+                        <h2>@(isMembershipPayment ? "Membership Purchase" : payment.Booking != null ? "Court Booking" : "Payment Attempt")</h2>
+                        <p>
+                            @payment.PaymentMethod.GetDisplayName()
+                            @if (!string.IsNullOrWhiteSpace(payment.GatewayReference))
+                            {
+                                <span> · @payment.GatewayReference</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(payment.CardLastFour))
+                            {
+                                <span> · @payment.CardBrand •••• @payment.CardLastFour</span>
+                            }
+                        </p>
+                    </div>
+                    <div>
+                        <span class="status-pill @(payment.Status == PaymentTransactionStatus.Succeeded ? "active" : string.Empty)">@payment.Status.GetDisplayName()</span>
+                        <span class="d-block text-muted small mt-1">@payment.CreatedAt.ToString("MMM dd, yyyy hh\\:mm tt")</span>
+                    </div>
+                    <div>
+                        <strong>@payment.CurrencySymbol @payment.Amount.ToString("N0")</strong>
+                        @if (payment.BookingId.HasValue)
+                        {
+                            <a class="btn-premium btn-compact" asp-controller="MyBookings" asp-action="Details" asp-route-id="@payment.BookingId">View Booking</a>
+                        }
+                        else if (isMembershipPayment)
+                        {
+                            <a class="btn-premium btn-compact" asp-controller="MyMemberships" asp-action="Index">View Membership</a>
+                        }
+                        else if (payment.BookingId == null && payment.Status == PaymentTransactionStatus.Succeeded)
+                        {
+                            <a class="btn-premium btn-compact" asp-controller="MyMemberships" asp-action="Index">View Membership</a>
+                        }
+                        else
+                        {
+                            <a class="btn-ghost-light btn-compact" asp-controller="MyMemberships" asp-action="Plans">Start a Membership</a>
+                        }
+                    </div>
+                </article>
+            }
+
+            @if (!Model.Any())
+            {
+                <div class="public-empty-state">
+                    <i class="bi bi-credit-card"></i>
+                    <h2>No payments yet</h2>
+                    <p>Payments you make for bookings and memberships will appear here.</p>
+                    <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-calendar2-check"></i> Book a Court</a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" /> }

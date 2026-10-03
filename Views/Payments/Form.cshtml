@@ -1,0 +1,103 @@
+@model PaymentFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Record Payment";
+    Layout = "_AdminLayout";
+
+    var completenessChecks = new (string Label, bool Complete)[]
+    {
+        ("Invoice selected", Model.InvoiceId > 0),
+        ("Payment date set", Model.PaymentDate != default),
+        ("Amount entered", Model.Amount > 0),
+        ("Method selected", Enum.IsDefined(Model.PaymentMethod)),
+        ("Reference captured", !string.IsNullOrWhiteSpace(Model.ReferenceNumber))
+    };
+    var completeness = Math.Clamp((int)Math.Round(completenessChecks.Count(x => x.Complete) / (double)completenessChecks.Length * 100), 0, 100);
+    var remainingAfter = Model.InvoiceId > 0 ? Model.OutstandingAmount - Model.Amount : 0;
+}
+
+<section class="users-page customer-form-page sales-cycle-page">
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Finance Workspace</span>
+            <h1>Record Payment</h1>
+            <p>Apply a full or partial payment to an issued invoice and update its customer balance.</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Payments</a>
+    </header>
+
+    <form class="customer-form-grid" asp-action="Create" method="post" data-sales-form data-payment-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="RowVersion" type="hidden" />
+
+        <div class="customer-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <section class="customer-form-card">
+                <div class="sales-cycle-section-head">
+                    <h2><i class="bi bi-receipt"></i> Source Document</h2>
+                </div>
+                <label class="wide"><span>Issued Invoice *</span>
+                    <select asp-for="InvoiceId" asp-items="Model.InvoiceOptions" data-payment-invoice>
+                        <option value="">Select an invoice</option>
+                    </select>
+                    <small>Only active issued invoices with an outstanding balance are available.</small>
+                    <small asp-validation-for="InvoiceId"></small>
+                </label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-cash-coin"></i> Payment Information</h2>
+                <label><span>Payment Date *</span><input asp-for="PaymentDate" type="date" /><small asp-validation-for="PaymentDate"></small></label>
+                <label><span>Amount Received *</span>
+                    <div class="payment-amount-input">
+                        <span>@Model.CurrencySymbol</span>
+                        <input asp-for="Amount" type="number" min="0.01" step="0.01" placeholder="0.00" />
+                    </div>
+                    <small asp-validation-for="Amount"></small>
+                </label>
+                <label><span>Payment Method *</span><select asp-for="PaymentMethod" asp-items="Html.GetEnumSelectList<InvoicePaymentMethod>()"></select><small asp-validation-for="PaymentMethod"></small></label>
+                <label><span>Reference Number</span><input asp-for="ReferenceNumber" placeholder="Bank, card or receipt reference" /><small>Required for card, bank transfer and online payments.</small><small asp-validation-for="ReferenceNumber"></small></label>
+                <label class="wide"><span>Notes</span><textarea asp-for="Notes" rows="4" placeholder="Add a short note for the payment record..."></textarea><small asp-validation-for="Notes"></small></label>
+            </section>
+        </div>
+
+        <aside class="customer-preview-card sales-cycle-live-summary">
+            <span class="admin-label">Live Payment Summary</span>
+            <h2>@(Model.InvoiceNumber ?? "Choose an invoice")</h2>
+            <p>@(Model.CustomerName ?? "Invoice details will appear here.")</p>
+            <dl>
+                <div><dt>Payment Date</dt><dd>@Model.PaymentDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Method</dt><dd>@Model.PaymentMethod.GetDisplayName()</dd></div>
+                <div><dt>Invoice Total</dt><dd>@Model.CurrencySymbol @Model.InvoiceTotal.ToString("N2")</dd></div>
+                <div><dt>Outstanding</dt><dd>@Model.CurrencySymbol @Model.OutstandingAmount.ToString("N2")</dd></div>
+                <div><dt>Amount Received</dt><dd>@Model.CurrencySymbol @Model.Amount.ToString("N2")</dd></div>
+                <div><dt>Balance After</dt><dd>@Model.CurrencySymbol @remainingAfter.ToString("N2")</dd></div>
+            </dl>
+            <div class="sales-cycle-completeness">
+                @foreach (var check in completenessChecks)
+                {
+                    <span class="@(check.Complete ? "complete" : "")">@check.Label</span>
+                }
+            </div>
+            <div class="customer-completeness">
+                <div><span>Payment Completeness</span><strong data-complete-value>@completeness%</strong></div>
+                <meter min="0" max="100" value="@completeness" data-complete-meter></meter>
+            </div>
+        </aside>
+
+        <div class="customer-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Index">Cancel</a>
+            <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> Record Payment</button>
+        </div>
+    </form>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/sales-orders.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/payments.css" asp-append-version="true" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/sales.js" asp-append-version="true"></script>
+    <script src="~/js/payments.js" asp-append-version="true"></script>
+}

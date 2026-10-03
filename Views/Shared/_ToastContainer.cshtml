@@ -1,0 +1,14 @@
+@{
+    var toastType = TempData["ToastType"]?.ToString();
+    var toastTitle = TempData["ToastTitle"]?.ToString();
+    var toastMessage = TempData["ToastMessage"]?.ToString();
+}
+
+<div class="gamehub-toast-region" aria-live="polite" aria-atomic="false" data-toast-region></div>
+
+@if (!string.IsNullOrWhiteSpace(toastMessage))
+{
+    <script type="application/json" data-server-toast>
+        @Json.Serialize(new { type = toastType ?? "info", title = toastTitle ?? "Information", message = toastMessage })
+    </script>
+}

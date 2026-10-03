@@ -1,0 +1,3 @@
+@model GameHub.Models.Entities.Facility
+@{ ViewData["Title"] = "Facility Details"; Layout = "_AdminLayout"; }
+<section class="arena-details"><div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@Model.Name</h1><p>@Model.Description</p></div><div class="arena-detail-actions"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="facilities">Back</a><a class="admin-action-button" asp-action="EditFacility" asp-route-id="@Model.Id">Edit</a></div></div><div class="arena-detail-grid"><article><i class="bi bi-building"></i><h2>@Model.Code</h2><p>Type: @Model.Type</p><p>Location: @(Model.LocationLabel ?? "-")</p><p>Courts: @Model.Courts.Count</p><p>Status: @(Model.IsActive ? "Active" : "Inactive")</p></article></div></section>

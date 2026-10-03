@@ -1,0 +1,347 @@
+@model GameHub.Models.ViewModels.CustomerDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.FullName;
+    Layout = "_AdminLayout";
+
+    var sports = string.IsNullOrWhiteSpace(Model.PreferredSportCodes)
+        ? Array.Empty<string>()
+        : Model.PreferredSportCodes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var tags = string.IsNullOrWhiteSpace(Model.CustomerTags)
+        ? Array.Empty<string>()
+        : Model.CustomerTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var profileItems = new[]
+    {
+        Model.FullName,
+        Model.CustomerCode,
+        Model.PrimaryPhone,
+        Model.Email,
+        Model.City,
+        Model.Country,
+        Model.DateOfBirth?.ToString(),
+        Model.NationalIdNumber,
+        Model.EmergencyContactName,
+        Model.PreferredSportCodes,
+        Model.CustomerTags
+    };
+    var profileCompleteness = Math.Clamp((int)Math.Round(profileItems.Count(item => !string.IsNullOrWhiteSpace(item)) / (double)profileItems.Length * 100), 0, 100);
+    var daysRemaining = Model.MembershipExpiryDate.HasValue
+        ? Model.MembershipExpiryDate.Value.DayNumber - DateOnly.FromDateTime(DateTime.UtcNow).DayNumber
+        : (int?)null;
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateOrFallback(DateOnly? value) => value?.ToString("dd MMM yyyy") ?? "Not provided";
+    string DateTimeOrFallback(DateTime? value) => value?.ToString("dd MMM yyyy hh:mm tt") ?? "Not available";
+}
+
+@functions {
+    private static string IconForSport(string code)
+    {
+        return code.Trim().ToUpperInvariant() switch
+        {
+            "PAD" => "bi-dribbble",
+            "BDM" => "bi-feather",
+            "FTB" => "bi-trophy",
+            "CRK" => "bi-bullseye",
+            _ => "bi-activity"
+        };
+    }
+}
+
+<section class="users-page customer-details-page customer-profile-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Customers</a>
+            <span class="admin-label">Customer Profile</span>
+            <h1>@Model.FullName</h1>
+            <p>@Model.CustomerCode - Complete customer information, membership, preferences, and account overview.</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Customer</a>
+                <button class="admin-secondary-button" type="button" data-customer-toggle data-url="@Url.Action("ToggleStatus", new { id = Model.Id })" data-message="@(Model.IsActive ? "Deactivate this customer?" : "Activate this customer?")">
+                    <i class="bi bi-power"></i> @(Model.IsActive ? "Deactivate" : "Activate")
+                </button>
+                <button class="admin-secondary-button" type="button" data-blacklist-toggle data-url="@Url.Action("ToggleBlacklist", new { id = Model.Id })" data-blacklisted="@Model.IsBlacklisted.ToString().ToLowerInvariant()">
+                    <i class="bi bi-shield-exclamation"></i> @(Model.IsBlacklisted ? "Remove Blacklist" : "Blacklist")
+                </button>
+                <div class="dropdown">
+                    <button class="icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More customer actions">
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text">Future booking actions</span></li>
+                        <li><span class="dropdown-item-text">Future invoice actions</span></li>
+                    </ul>
+                </div>
+            }
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+            {
+                <img class="customer-hero-avatar" src="@Model.ProfileImageUrl" alt="@Model.FullName" />
+            }
+            else
+            {
+                <div class="customer-hero-avatar">@Model.Initials</div>
+            }
+            <div>
+                <h2>@Model.FullName</h2>
+                <p>@TextOrFallback(Model.PreferredName)</p>
+                <strong>@Model.CustomerCode</strong>
+                <div class="customer-profile-badges">
+                    <span class="role-badge">@Model.CustomerType.GetDisplayName()</span>
+                    <span class="status-badge reserved">@Model.CustomerSource.GetDisplayName()</span>
+                    <span class="user-status-badge @(Model.IsActive ? "active" : "inactive")"><i></i>@(Model.IsActive ? "Active" : "Inactive")</span>
+                    <span class="status-badge @(Model.IsMember ? "confirmed" : "reserved")">@(Model.IsMember ? "Member" : "Non-Member")</span>
+                    @if (Model.CustomerType == CustomerType.VIP)
+                    {
+                        <span class="status-badge maintenance">VIP</span>
+                    }
+                    @if (Model.IsBlacklisted)
+                    {
+                        <span class="status-badge cancelled">Requires Review</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-telephone"></i><span>Primary Phone</span><strong>@Model.PrimaryPhone</strong></div>
+            <div><i class="bi bi-whatsapp"></i><span>WhatsApp</span><strong>@TextOrFallback(Model.WhatsAppNumber)</strong></div>
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@TextOrFallback(Model.Email)</strong></div>
+            <div><i class="bi bi-geo-alt"></i><span>Location</span><strong>@($"{TextOrFallback(Model.City)}, {Model.Country}")</strong></div>
+            <div><i class="bi bi-chat-dots"></i><span>Preferred Contact</span><strong>@Model.PreferredContactMethod.GetDisplayName()</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@profileCompleteness%">
+                <strong>@profileCompleteness%</strong>
+                <span>Complete</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Loyalty Points</span><strong>@Model.LoyaltyPoints</strong></div>
+                <div><span>Outstanding Balance</span><strong>PKR @Model.OutstandingBalance.ToString("N0")</strong></div>
+                <div><span>Last Visit</span><strong>@DateTimeOrFallback(Model.LastVisitAt)</strong></div>
+                <div><span>@(Model.IsMember ? "Member Since" : "Created")</span><strong>@(Model.MembershipStartDate?.ToString("dd MMM yyyy") ?? Model.CreatedAt.ToString("dd MMM yyyy"))</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    @if (Model.IsBlacklisted)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-shield-exclamation"></i>
+            <div>
+                <h2>Customer Requires Review</h2>
+                <p>@TextOrFallback(Model.BlacklistReason)</p>
+                <span>Blacklisted status is active. Review before accepting future bookings.</span>
+            </div>
+            @if (Model.CanManage)
+            {
+                <button class="admin-secondary-button" type="button" data-blacklist-toggle data-url="@Url.Action("ToggleBlacklist", new { id = Model.Id })" data-blacklisted="true">
+                    Remove Blacklist
+                </button>
+            }
+        </section>
+    }
+
+    <div class="kpi-grid customer-detail-kpis">
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-calendar-check"></i></span><span class="trend-pill neutral">Future</span></div><h2>@Model.TotalBookings</h2><p>Total Bookings</p><div class="kpi-bottom"><span>Bookings module pending</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-check2-circle"></i></span><span class="trend-pill up">Done</span></div><h2>@Model.CompletedBookings</h2><p>Completed Bookings</p><div class="kpi-bottom"><span>Placeholder value</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-x-circle"></i></span><span class="trend-pill warn">Track</span></div><h2>@Model.CancelledBookings</h2><p>Cancelled Bookings</p><div class="kpi-bottom"><span>Cancellation history</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="trend-pill neutral">PKR</span></div><h2>@Model.TotalSpent.ToString("N0")</h2><p>Total Spent</p><div class="kpi-bottom"><span>Payment module pending</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-gem"></i></span><span class="trend-pill up">Points</span></div><h2>@Model.LoyaltyPoints</h2><p>Loyalty Points</p><div class="kpi-bottom"><span>Reward potential</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-wallet2"></i></span><span class="trend-pill @(Model.OutstandingBalance > 0 ? "warn" : "neutral")">Balance</span></div><h2>@Model.OutstandingBalance.ToString("N0")</h2><p>Outstanding Balance</p><div class="kpi-bottom"><span>PKR payable balance</span><svg viewBox="0 0 120 34" aria-hidden="true"><polyline points="0,25 18,22 34,26 52,14 68,18 86,9 104,12 120,5" /></svg></div></article>
+    </div>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-diagram-2"></i><div><h2>CRM Snapshot</h2><p>Lead and opportunity activity for this customer.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Open Leads</dt><dd>@(ViewBag.OpenLeads ?? 0)</dd></div>
+                    <div><dt>Opportunities</dt><dd>@(ViewBag.Opportunities ?? 0)</dd></div>
+                    <div><dt>Last Inquiry</dt><dd>@(((DateTime?)ViewBag.LastInquiry)?.ToString("dd MMM yyyy") ?? "Not available")</dd></div>
+                    <div><dt>Pipeline Value</dt><dd>PKR @(((decimal?)ViewBag.PipelineValue ?? 0).ToString("N0"))</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="CRM" asp-action="Index" asp-route-tab="leads" asp-route-search="@Model.CustomerCode"><i class="bi bi-clock-history"></i> View CRM History</a>
+                    @if (Model.CanManage)
+                    {
+                        <a class="admin-action-button" asp-controller="CRM" asp-action="CreateLead" asp-route-customerId="@Model.Id"><i class="bi bi-plus-lg"></i> Create Lead</a>
+                    }
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Personal Information</h2><p>Identity and classification details.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Full Name</dt><dd>@Model.FullName</dd></div>
+                    <div><dt>Preferred Name</dt><dd>@TextOrFallback(Model.PreferredName)</dd></div>
+                    <div><dt>Gender</dt><dd>@Model.Gender.GetDisplayName()</dd></div>
+                    <div><dt>Date of Birth</dt><dd>@DateOrFallback(Model.DateOfBirth)</dd></div>
+                    <div><dt>Calculated Age</dt><dd>@(Model.CalculatedAge?.ToString() ?? "Not available")</dd></div>
+                    <div><dt>National ID / Passport</dt><dd>@TextOrFallback(Model.NationalIdNumber)</dd></div>
+                    <div><dt>Occupation</dt><dd>@TextOrFallback(Model.Occupation)</dd></div>
+                    <div><dt>Organization</dt><dd>@TextOrFallback(Model.OrganizationName)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-telephone"></i><div><h2>Contact Information</h2><p>Primary communication channels.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Primary Phone</dt><dd>@Model.PrimaryPhone</dd></div>
+                    <div><dt>Secondary Phone</dt><dd>@TextOrFallback(Model.SecondaryPhone)</dd></div>
+                    <div><dt>WhatsApp</dt><dd>@TextOrFallback(Model.WhatsAppNumber)</dd></div>
+                    <div><dt>Email</dt><dd>@TextOrFallback(Model.Email)</dd></div>
+                    <div><dt>Preferred Contact</dt><dd>@Model.PreferredContactMethod.GetDisplayName()</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-geo-alt"></i><div><h2>Address</h2><p>Customer location and postal information.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Address Line 1</dt><dd>@TextOrFallback(Model.AddressLine1)</dd></div>
+                    <div><dt>Address Line 2</dt><dd>@TextOrFallback(Model.AddressLine2)</dd></div>
+                    <div><dt>City</dt><dd>@TextOrFallback(Model.City)</dd></div>
+                    <div><dt>State / Province</dt><dd>@TextOrFallback(Model.StateProvince)</dd></div>
+                    <div><dt>Postal Code</dt><dd>@TextOrFallback(Model.PostalCode)</dd></div>
+                    <div><dt>Country</dt><dd>@Model.Country</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-heart-pulse"></i><div><h2>Emergency Contact</h2><p>Fallback contact for urgent situations.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Name</dt><dd>@TextOrFallback(Model.EmergencyContactName)</dd></div>
+                    <div><dt>Phone</dt><dd>@TextOrFallback(Model.EmergencyContactPhone)</dd></div>
+                    <div><dt>Relationship</dt><dd>@TextOrFallback(Model.EmergencyContactRelation)</dd></div>
+                </dl>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card membership-card admin-reveal">
+                <header><i class="bi bi-person-badge"></i><h2>Membership</h2></header>
+                <strong>@Model.MembershipStatus</strong>
+                <p>@(Model.IsMember ? "Premium membership profile" : "No active membership plan")</p>
+                <dl>
+                    <div><dt>Number</dt><dd>@TextOrFallback(Model.MembershipNumber)</dd></div>
+                    <div><dt>Start</dt><dd>@DateOrFallback(Model.MembershipStartDate)</dd></div>
+                    <div><dt>Expiry</dt><dd>@DateOrFallback(Model.MembershipExpiryDate)</dd></div>
+                    <div><dt>Days Remaining</dt><dd>@(daysRemaining.HasValue ? (daysRemaining.Value >= 0 ? $"{daysRemaining.Value} days" : "Expired") : "Not available")</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-wallet2"></i><h2>Credit and Loyalty</h2></header>
+                <dl>
+                    <div><dt>Allow Credit</dt><dd>@(Model.AllowCredit ? "Enabled" : "Disabled")</dd></div>
+                    <div><dt>Credit Limit</dt><dd>PKR @((Model.CreditLimit ?? 0).ToString("N0"))</dd></div>
+                    <div><dt>Outstanding</dt><dd>PKR @Model.OutstandingBalance.ToString("N0")</dd></div>
+                    <div><dt>Loyalty Points</dt><dd>@Model.LoyaltyPoints points</dd></div>
+                </dl>
+                <div class="customer-progress"><span style="width:@Math.Min(Model.LoyaltyPoints, 100)%"></span></div>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-bell"></i><h2>Communication Preferences</h2></header>
+                <div class="customer-preference-list">
+                    <span class="@(Model.ReceiveBookingReminders ? "is-on" : "")"><i class="bi @(Model.ReceiveBookingReminders ? "bi-check-circle" : "bi-x-circle")"></i> Booking reminders</span>
+                    <span class="@(Model.ReceiveMarketingMessages ? "is-on" : "")"><i class="bi @(Model.ReceiveMarketingMessages ? "bi-check-circle" : "bi-x-circle")"></i> Marketing messages</span>
+                    <span class="is-on"><i class="bi bi-chat-dots"></i> @Model.PreferredContactMethod.GetDisplayName()</span>
+                </div>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-trophy"></i><h2>Preferred Sports</h2></header>
+                @if (sports.Any())
+                {
+                    <div class="customer-chip-list">
+                        @foreach (var sport in sports)
+                        {
+                            <span><i class="bi @IconForSport(sport)"></i>@sport</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="customer-empty-copy">No preferred sports selected.</p>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-tags"></i><h2>Customer Tags</h2></header>
+                @if (tags.Any())
+                {
+                    <div class="customer-chip-list">
+                        @foreach (var tag in tags)
+                        {
+                            <span><i class="bi bi-tag"></i>@tag</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="customer-empty-copy">No tags assigned yet.</p>
+                }
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-notes-card admin-reveal">
+        <header><i class="bi bi-journal-text"></i><div><h2>Internal Notes</h2><span>Internal Use Only</span></div></header>
+        <p>@(string.IsNullOrWhiteSpace(Model.InternalNotes) ? "No internal notes available for this customer." : Model.InternalNotes)</p>
+    </article>
+
+    <section class="customer-activity-card admin-reveal" data-customer-tabs>
+        <div class="card-heading">
+            <div>
+                <h2>Related Activity</h2>
+                <p>Future customer activity will appear here as ERP modules are connected.</p>
+            </div>
+        </div>
+        <div class="customer-tab-list" role="tablist" aria-label="Customer activity sections">
+            <button class="active" type="button" data-customer-tab="bookings">Recent Bookings</button>
+            <button type="button" data-customer-tab="payments">Payment History</button>
+            <button type="button" data-customer-tab="membership">Membership History</button>
+            <button type="button" data-customer-tab="feedback">Feedback</button>
+        </div>
+        <div class="customer-tab-panel active" data-customer-panel="bookings"><i class="bi bi-calendar2-week"></i><h2>No booking history available yet.</h2><p>Booking activity will appear here once the booking module is connected.</p><span>Future Module</span></div>
+        <div class="customer-tab-panel" data-customer-panel="payments"><i class="bi bi-credit-card"></i><h2>No payment history available yet.</h2><p>Payment records will appear here once finance workflows are connected.</p><span>Future Module</span></div>
+        <div class="customer-tab-panel" data-customer-panel="membership"><i class="bi bi-person-badge"></i><h2>No membership history available yet.</h2><p>Membership plan changes will appear here in a future module.</p><span>Future Module</span></div>
+        <div class="customer-tab-panel" data-customer-panel="feedback"><i class="bi bi-chat-heart"></i><h2>No feedback history available yet.</h2><p>Customer feedback will appear here once feedback tracking is connected.</p><span>Future Module</span></div>
+    </section>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-clock-history"></i><div><h2>Account Information</h2><p>Audit metadata and account state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Customer ID</span><strong>@Model.Id</strong></div>
+            <div><span>Customer Code</span><strong>@Model.CustomerCode</strong></div>
+            <div><span>Created At</span><strong>@Model.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Updated At</span><strong>@DateTimeOrFallback(Model.UpdatedAt)</strong></div>
+            <div><span>Last Visit</span><strong>@DateTimeOrFallback(Model.LastVisitAt)</strong></div>
+            <div><span>Account Status</span><strong>@(Model.IsActive ? "Active" : "Inactive")</strong></div>
+            <div><span>Blacklist Status</span><strong>@(Model.IsBlacklisted ? "Requires Review" : "Clear")</strong></div>
+        </div>
+    </article>
+</section>
+
+@Html.AntiForgeryToken()
+<div class="modal fade customer-modal" id="customerConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p data-confirm-message>Are you sure?</p><textarea class="form-control d-none" data-blacklist-reason placeholder="Reason for blacklisting"></textarea></div>
+            <div class="modal-footer"><button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button><button type="button" class="admin-action-button" data-confirm-submit>Confirm</button></div>
+        </div>
+    </div>
+</div>

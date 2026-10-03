@@ -1,0 +1,229 @@
+.quotation-preview-page {
+    width: 100%;
+    max-width: 100%;
+    padding: clamp(16px, 2vw, 28px);
+    display: grid;
+    gap: 18px;
+    overflow-wrap: anywhere;
+}
+
+.quotation-actions {
+    width: min(1040px, 100%);
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.quotation-document,
+.quotation-document * {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.quotation-document {
+    width: min(1040px, 100%);
+    max-width: 100%;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid rgba(214, 166, 82, .28);
+    border-radius: 26px;
+    padding: clamp(18px, 3vw, 34px);
+    box-shadow: 0 28px 80px rgba(17, 16, 14, .12);
+    color: #171614;
+    overflow-wrap: anywhere;
+}
+
+.quotation-document header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 20px;
+    border-bottom: 2px solid #eadfce;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+}
+
+.quotation-brand {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    min-width: 0;
+}
+
+.quotation-brand > span {
+    flex: 0 0 auto;
+    width: 58px;
+    height: 58px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #f7d989, #d6a652);
+    display: grid;
+    place-items: center;
+    font-weight: 950;
+    font-size: 1.8rem;
+}
+
+.quotation-brand strong {
+    display: block;
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    overflow-wrap: anywhere;
+}
+
+.quotation-brand small {
+    display: block;
+    color: #6d6458;
+    font-weight: 850;
+}
+
+.quotation-document h1 {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    font-weight: 950;
+}
+
+.quotation-document h2 {
+    font-size: 1.05rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    color: #9a6c20;
+}
+
+.quotation-document p {
+    overflow-wrap: anywhere;
+}
+
+.quotation-party-grid,
+.quotation-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin: 22px 0;
+}
+
+.quotation-party-grid > div,
+.quotation-footer-grid > div {
+    padding: 16px;
+    border-radius: 18px;
+    background: #fff8ee;
+    overflow-wrap: anywhere;
+}
+
+.quotation-items {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin: 24px 0;
+}
+
+.quotation-items th {
+    background: #171614;
+    color: #f7d989;
+    text-align: left;
+}
+
+.quotation-items th,
+.quotation-items td {
+    padding: 11px;
+    border-bottom: 1px solid #eadfce;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+
+.quotation-items th:nth-child(1) { width: 6%; }
+.quotation-items th:nth-child(2) { width: 30%; }
+.quotation-items th:nth-child(3) { width: 10%; }
+.quotation-items th:nth-child(4) { width: 10%; }
+.quotation-items th:nth-child(n+5) { width: 11%; }
+
+.quotation-total-wrap {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.quotation-document footer {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid #eadfce;
+    text-align: center;
+    color: #6d6458;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .admin-sidebar,
+    .admin-navbar,
+    .admin-footer,
+    .quotation-actions,
+    .customer-site-header,
+    .customer-site-footer,
+    .toast-container {
+        display: none !important;
+    }
+
+    .admin-main,
+    .admin-workspace,
+    .quotation-preview-page,
+    .customer-account-page {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+    }
+
+    .quotation-document {
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        max-width: none;
+        width: 100%;
+        padding: 0;
+    }
+
+    .quotation-document header,
+    .quotation-party-grid > div,
+    .quotation-footer-grid > div,
+    .quotation-items tr,
+    .quotation-total-wrap,
+    .quotation-footer-grid {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .quotation-items thead {
+        display: table-header-group;
+    }
+}
+
+@media (max-width: 760px) {
+    .quotation-actions {
+        justify-content: stretch;
+    }
+
+    .quotation-actions > * {
+        flex: 1 1 150px;
+    }
+
+    .quotation-document header,
+    .quotation-party-grid,
+    .quotation-footer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quotation-items {
+        font-size: clamp(.68rem, 2.6vw, .82rem);
+    }
+
+    .quotation-items th,
+    .quotation-items td {
+        padding: 8px 6px;
+    }
+}

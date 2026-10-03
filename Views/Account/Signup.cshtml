@@ -1,0 +1,99 @@
+@model CustomerSignupViewModel
+@{
+    ViewData["Title"] = "Create Account";
+    Layout = "_CustomerLayout";
+}
+
+<section class="account-hero">
+    <div class="account-bg"></div>
+    <div class="container account-shell">
+        <div class="account-copy">
+            <span class="eyebrow-pill"><i class="bi bi-stars"></i> Customer Access</span>
+            <h1>Create your GameHub account</h1>
+            <p>Create your player profile, verify your email, and start booking courts online right away.</p>
+        </div>
+        <form asp-action="Signup" method="post" class="account-card" data-account-form data-email-check-url="@Url.Action("CheckEmail", "Account")" data-phone-check-url="@Url.Action("CheckPhone", "Account")">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+            <div class="form-grid two">
+                <div class="form-floating">
+                    <input asp-for="FirstName" class="form-control" placeholder="First name" />
+                    <label asp-for="FirstName">First Name</label>
+                    <span asp-validation-for="FirstName" class="text-danger small"></span>
+                </div>
+                <div class="form-floating">
+                    <input asp-for="LastName" class="form-control" placeholder="Last name" />
+                    <label asp-for="LastName">Last Name</label>
+                    <span asp-validation-for="LastName" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="form-floating">
+                <input asp-for="Email" class="form-control" placeholder="email@gamehub.pk" data-check-email />
+                <label asp-for="Email">Email Address</label>
+                <span class="field-hint" data-email-result></span>
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+            <div class="form-grid two">
+                <div class="form-floating">
+                    <input asp-for="PrimaryPhone" class="form-control" placeholder="03000000000" data-check-phone />
+                    <label asp-for="PrimaryPhone">Primary Phone</label>
+                    <span class="field-hint" data-phone-result></span>
+                    <span asp-validation-for="PrimaryPhone" class="text-danger small"></span>
+                </div>
+                <div class="form-floating">
+                    <input asp-for="WhatsAppNumber" class="form-control" placeholder="03000000000" />
+                    <label asp-for="WhatsAppNumber">WhatsApp Number</label>
+                    <span asp-validation-for="WhatsAppNumber" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="form-grid two">
+                <div class="form-floating">
+                    <input asp-for="DateOfBirth" class="form-control" type="date" />
+                    <label asp-for="DateOfBirth">Date of Birth</label>
+                    <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
+                </div>
+                <div class="form-floating">
+                    <select asp-for="Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()"></select>
+                    <label asp-for="Gender">Gender</label>
+                    <span asp-validation-for="Gender" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="form-grid two">
+                <div class="password-wrap">
+                    <div class="form-floating">
+                        <input asp-for="Password" class="form-control" placeholder="Password" data-password-input />
+                        <label asp-for="Password">Password</label>
+                    </div>
+                    <button class="password-toggle" type="button" data-password-toggle><i class="bi bi-eye"></i></button>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <div class="password-wrap">
+                    <div class="form-floating">
+                        <input asp-for="ConfirmPassword" class="form-control" placeholder="Confirm password" data-confirm-password />
+                        <label asp-for="ConfirmPassword">Confirm Password</label>
+                    </div>
+                    <button class="password-toggle" type="button" data-password-toggle><i class="bi bi-eye"></i></button>
+                    <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="password-meter" data-password-meter><span></span></div>
+            <p class="field-hint" data-password-text>Use at least 8 characters with uppercase, lowercase, number and symbol.</p>
+            <label class="premium-check">
+                <input asp-for="AcceptTerms" />
+                <span></span>
+                I accept GameHub terms and booking policies.
+            </label>
+            <span asp-validation-for="AcceptTerms" class="text-danger small"></span>
+            <div class="preference-row">
+                <label class="premium-switch"><input asp-for="ReceiveBookingReminders" /><span></span> Booking reminders</label>
+                <label class="premium-switch"><input asp-for="ReceiveMarketingMessages" /><span></span> Offers and updates</label>
+            </div>
+            <button class="btn-premium account-submit" type="submit" data-loading-button><i class="bi bi-person-plus"></i> Create Account</button>
+            <p class="account-switch">Already have an account? <a asp-action="Login">Sign in</a></p>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

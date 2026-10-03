@@ -1,0 +1,33 @@
+@model SalesQuotationPreviewViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var q = Model.Quotation;
+    ViewData["Title"] = q.QuotationNumber;
+    Layout = "_AdminLayout";
+}
+<section class="quotation-preview-page sales-cycle-page sales-cycle-document-page">
+    <div class="quotation-actions sales-cycle-document-actions">
+        <a class="admin-secondary-button" asp-action="QuotationDetails" asp-route-id="@q.Id"><i class="bi bi-arrow-left"></i> Back</a>
+        <button class="admin-secondary-button" type="button" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+        <button class="admin-action-button" type="button" data-print-document><i class="bi bi-file-earmark-pdf"></i> Download / Save PDF</button>
+        <button class="admin-secondary-button" type="button" disabled><i class="bi bi-share"></i> Share</button>
+    </div>
+    <article class="quotation-document" id="quotationDocument">
+        <header>
+            <div class="quotation-brand"><span>G</span><div><strong>@Model.Settings.ArenaName</strong><small>@Model.Settings.Address</small><small>@Model.Settings.Phone - @Model.Settings.Email</small></div></div>
+            <div><span class="membership-status-badge @q.Status.Modifier()"><i></i>@q.Status.GetDisplayName()</span><h1>Quotation</h1><p>@q.QuotationNumber</p><p>Date: @q.QuotationDate.ToString("MMM dd, yyyy")</p><p>Valid until: @q.ValidUntil.ToString("MMM dd, yyyy")</p></div>
+        </header>
+        <section class="quotation-party-grid">
+            <div><h2>Customer</h2><p><strong>@q.Customer.FullName</strong></p><p>@q.Customer.CustomerCode</p><p>@(q.Customer.OrganizationName ?? "Individual")</p><p>@(q.Customer.Email ?? "-")</p><p>@q.Customer.PrimaryPhone</p><p>@q.Customer.AddressLine1 @q.Customer.City</p></div>
+            <div><h2>Opportunity</h2><p><strong>@q.Opportunity.OpportunityNumber</strong></p><p>@q.Opportunity.Name</p><p>@(q.Opportunity.CustomerRequirement ?? "Requirement not recorded.")</p></div>
+        </section>
+        <section><h2>@(q.Subject ?? "Commercial Quotation")</h2><p>@(q.Introduction ?? "Thank you for your interest in GameHub Arena services.")</p></section>
+        <table class="quotation-items"><thead><tr><th>#</th><th>Description</th><th>Quantity</th><th>Unit</th><th>Rate</th><th>Discount</th><th>Tax</th><th>Total</th></tr></thead><tbody>@foreach (var item in q.Items.OrderBy(x => x.DisplayOrder)) { <tr><td>@item.LineNumber</td><td>@item.Description<br /><small>@item.ItemType.GetDisplayName()</small></td><td>@item.Quantity</td><td>@item.UnitOfMeasure</td><td>@q.CurrencySymbol @item.UnitPrice.ToString("N2")</td><td>@q.CurrencySymbol @item.DiscountAmount.ToString("N2")</td><td>@q.CurrencySymbol @item.TaxAmount.ToString("N2")</td><td>@q.CurrencySymbol @item.LineTotal.ToString("N2")</td></tr> }</tbody></table>
+        <section class="quotation-total-wrap"><div class="sales-cycle-totals"><span>Subtotal <strong>@q.CurrencySymbol @q.Subtotal.ToString("N2")</strong></span><span>Discount <strong>@q.CurrencySymbol @q.DiscountTotal.ToString("N2")</strong></span><span>Tax <strong>@q.CurrencySymbol @q.TaxTotal.ToString("N2")</strong></span><span class="grand">Grand Total <strong>@q.CurrencySymbol @q.GrandTotal.ToString("N2")</strong></span></div></section>
+        <section class="quotation-footer-grid"><div><h2>Terms and Conditions</h2><p>@(q.TermsAndConditions ?? "Standard GameHub quotation terms apply.")</p><p>This quotation is valid until @q.ValidUntil.ToString("MMMM dd, yyyy").</p></div><div><h2>Customer Acceptance</h2><p>Name: ____________________</p><p>Signature: ________________</p><p>Date: ____________________</p></div></section>
+        <footer><p>Prepared by GameHub Arena. For support contact @Model.Settings.Phone or @Model.Settings.Email.</p><strong>Thank you for choosing GameHub Arena.</strong></footer>
+    </article>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/quotation-document.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/quotation-document.js" asp-append-version="true"></script> }

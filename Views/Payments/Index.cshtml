@@ -1,0 +1,263 @@
+@model PaymentIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@using System.Net
+@{
+    ViewData["Title"] = "Payments";
+    Layout = "_AdminLayout";
+
+    var start = Model.TotalRecords == 0 ? 0 : (Model.CurrentPage - 1) * Model.PageSize + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 2);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 4);
+    pageStart = Math.Max(1, pageEnd - 4);
+
+    var invoiceCount = Model.Items.Select(x => x.InvoiceNumber).Distinct().Count();
+    var pageTotal = Model.Items.Sum(x => x.Amount);
+
+    var activeFilterCount = new[] { "method", "status" }.Count(x => !string.IsNullOrWhiteSpace(Q(x)));
+    var hasFilters = !string.IsNullOrWhiteSpace(Model.Search) || activeFilterCount > 0;
+
+    string Q(string key) => Context.Request.Query[key].ToString();
+    string PageUrl(int page)
+    {
+        var pairs = new List<string>();
+        foreach (var item in Context.Request.Query)
+        {
+            if (item.Key.Equals("page", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var value in item.Value) if (!string.IsNullOrWhiteSpace(value)) pairs.Add($"{WebUtility.UrlEncode(item.Key)}={WebUtility.UrlEncode(value)}");
+        }
+        pairs.Add($"page={page}");
+        return $"{Context.Request.Path}?{string.Join("&", pairs)}";
+    }
+    string MethodIcon(InvoicePaymentMethod method) => method switch
+    {
+        InvoicePaymentMethod.Cash => "bi-cash-coin",
+        InvoicePaymentMethod.CreditCard => "bi-credit-card-2-front",
+        InvoicePaymentMethod.DebitCard => "bi-credit-card-2-back",
+        InvoicePaymentMethod.BankTransfer => "bi-bank",
+        InvoicePaymentMethod.OnlinePayment => "bi-globe",
+        InvoicePaymentMethod.Cheque => "bi-file-earmark-text",
+        _ => "bi-cash-stack"
+    };
+}
+
+<section class="arena-page sales-cycle-page payment-index-page">
+    <header class="arena-header admin-reveal">
+        <div>
+            <span class="admin-label">Finance Management</span>
+            <h1>Payment Management</h1>
+            <p>Record invoice payments, track outstanding balances and issue customer receipts.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanRecord)
+            {
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-plus-circle"></i> Record Payment</a>
+            }
+            <a class="admin-secondary-button" asp-controller="Invoices" asp-action="Index"><i class="bi bi-receipt"></i> Invoices</a>
+        </div>
+    </header>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-wallet2"></i><span>Payments in register</span><strong data-counter>@Model.TotalRecords</strong></article>
+        <article><i class="bi bi-search"></i><span>Invoices covered</span><strong data-counter>@invoiceCount</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Page total</span><strong>@pageTotal.ToString("N0")</strong></article>
+        <article><i class="bi bi-shield-check"></i><span>Audit ready</span><strong>Traceable</strong></article>
+    </div>
+
+    <section class="arena-card">
+        <form class="arena-toolbar" method="get" asp-action="Index">
+            <div class="arena-search">
+                <i class="bi bi-search"></i>
+                <input name="search" value="@Model.Search" placeholder="Search payment, invoice or customer..." aria-label="Search payments" autocomplete="off" data-sales-search />
+            </div>
+
+            <button class="admin-secondary-button" type="button" data-sales-filter-toggle aria-controls="paymentFilterDrawer" aria-expanded="false">
+                <i class="bi bi-sliders"></i> Filters
+                <span class="membership-status-badge @(activeFilterCount > 0 ? "active" : "pending")" data-sales-filter-count @(activeFilterCount == 0 ? "hidden" : "")><i></i>@activeFilterCount</span>
+            </button>
+
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Clear</a>
+
+            <select name="sortBy" data-sales-filter aria-label="Sort payments">
+                <option value="newest" selected="@(Model.SortBy == "newest")">Newest</option>
+                <option value="oldest" selected="@(Model.SortBy == "oldest")">Oldest</option>
+                <option value="amount" selected="@(Model.SortBy == "amount")">Highest Amount</option>
+            </select>
+
+            <select name="pageSize" data-sales-filter aria-label="Page size">
+                @foreach (var size in new[] { 10, 25, 50 })
+                {
+                    <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                }
+            </select>
+        </form>
+
+        <div class="sales-cycle-chips">
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <span>Search: @Model.Search</span>
+            }
+            @if (Model.Method.HasValue)
+            {
+                <span>Method: @Model.Method.Value.GetDisplayName()</span>
+            }
+            @if (Model.Status.HasValue)
+            {
+                <span>Status: @Model.Status.Value.GetDisplayName()</span>
+            }
+            @if (hasFilters)
+            {
+                <a asp-action="Index"><i class="bi bi-x"></i> Clear All</a>
+            }
+        </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi bi-wallet2"></i>
+                <h2>@(hasFilters ? "No Matching Payments" : "No Payments Yet")</h2>
+                <p>@(hasFilters ? "Try changing or clearing your filters." : "Record the first payment against an issued invoice to begin the customer ledger.")</p>
+                @if (hasFilters)
+                {
+                    <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-counterclockwise"></i> Clear Filters</a>
+                }
+                else if (Model.CanRecord)
+                {
+                    <a class="admin-action-button" asp-action="Create"><i class="bi bi-plus-lg"></i> Record Payment</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="arena-table-wrap">
+                <table class="arena-table sales-cycle-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Payment</th>
+                            <th scope="col">Invoice</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Received By</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var payment in Model.Items)
+                        {
+                            var initials = string.Join("", (payment.CustomerName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                            <tr>
+                                <td data-label="Payment">
+                                    <strong title="@payment.PaymentNumber">@payment.PaymentNumber</strong>
+                                    <small>Recorded payment</small>
+                                </td>
+                                <td data-label="Invoice">
+                                    <strong title="@payment.InvoiceNumber">@payment.InvoiceNumber</strong>
+                                    <small>Invoice allocation</small>
+                                </td>
+                                <td data-label="Customer">
+                                    <div class="user-cell membership-name-cell">
+                                        <span class="user-avatar membership-table-avatar">@(initials.Length == 0 ? "C" : initials)</span>
+                                        <div>
+                                            <strong title="@payment.CustomerName">@payment.CustomerName</strong>
+                                            <small>@payment.CustomerCode</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Date">
+                                    <strong>@payment.PaymentDate.ToString("dd MMM yyyy")</strong>
+                                </td>
+                                <td data-label="Method">
+                                    <span class="membership-status-badge @StatusBadgeHelper.Modifier(payment.PaymentMethod switch { InvoicePaymentMethod.BankTransfer => "confirmed", InvoicePaymentMethod.Cheque => "pending", _ => "active" })"><i class="bi @MethodIcon(payment.PaymentMethod)"></i>@payment.PaymentMethod.GetDisplayName()</span>
+                                </td>
+                                <td data-label="Amount">
+                                    <strong>@payment.CurrencySymbol @payment.Amount.ToString("N2")</strong>
+                                </td>
+                                <td data-label="Status">
+                                    <span class="membership-status-badge active"><i></i>@payment.Status.GetDisplayName()</span>
+                                </td>
+                                <td data-label="Received By">
+                                    <strong>@payment.ReceivedBy</strong>
+                                </td>
+                                <td data-label="Actions">
+                                    <div class="gamehub-table-action-menu">
+                                        <a class="membership-icon-button" asp-action="Details" asp-route-id="@payment.Id" aria-label="View @payment.PaymentNumber" data-tooltip="View"><i class="bi bi-eye"></i></a>
+                                        <a class="membership-icon-button" asp-action="Receipt" asp-route-id="@payment.Id" aria-label="Receipt for @payment.PaymentNumber" data-tooltip="Receipt"><i class="bi bi-receipt"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="arena-pagination">
+            <span>Showing @start-@end of @Model.TotalRecords payments</span>
+            <nav aria-label="Payment pagination">
+                <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : PageUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                {
+                    <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@PageUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                }
+                <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : PageUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+            </nav>
+        </div>
+    </section>
+
+    <div class="sales-cycle-filter-drawer" data-sales-filter-drawer aria-hidden="true">
+        <div class="sales-cycle-filter-panel" id="paymentFilterDrawer" role="dialog" aria-label="Payment filters">
+            <div class="sales-cycle-filter-head">
+                <div>
+                    <span class="admin-label">Payment Filters</span>
+                    <h2>Refine the register</h2>
+                </div>
+                <button class="membership-icon-button" type="button" data-sales-filter-close aria-label="Close filters"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <form method="get" asp-action="Index">
+                @if (!string.IsNullOrWhiteSpace(Model.Search))
+                {
+                    <input type="hidden" name="search" value="@Model.Search" />
+                }
+                @if (Model.SortBy != "newest")
+                {
+                    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                }
+                @if (Model.PageSize != 10)
+                {
+                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                }
+                <div class="sales-cycle-filter-grid">
+                    <label>Payment Method
+                        <select name="method" data-sales-filter-input>
+                            <option value="">All Methods</option>
+                            @foreach (InvoicePaymentMethod value in Enum.GetValues<InvoicePaymentMethod>())
+                            {
+                                <option value="@value" selected="@(Q("method") == value.ToString())">@value.GetDisplayName()</option>
+                            }
+                        </select>
+                    </label>
+                    <label>Status
+                        <select name="status" data-sales-filter-input>
+                            <option value="">All Statuses</option>
+                            @foreach (PaymentRecordStatus value in Enum.GetValues<PaymentRecordStatus>())
+                            {
+                                <option value="@value" selected="@(Q("status") == value.ToString())">@value.GetDisplayName()</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+                <div class="sales-cycle-filter-actions">
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                    <a class="admin-secondary-button" asp-action="Index">Clear All</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/payments.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/sales.js" asp-append-version="true"></script><script src="~/js/memberships.js" asp-append-version="true"></script> }

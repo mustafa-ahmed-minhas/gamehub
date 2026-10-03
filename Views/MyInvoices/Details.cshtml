@@ -1,0 +1,795 @@
+@model object
+@{
+    ViewData["Title"] = "Invoice Details";
+    Layout = "_CustomerLayout";
+    var isMembership = ViewBag.IsMembership is true;
+    var bookingInvoice = Model as BookingInvoice;
+    var membershipInvoice = Model as MembershipInvoice;
+    var customer = (bookingInvoice?.Customer ?? membershipInvoice?.Customer);
+    var arenaName = bookingInvoice?.ArenaName ?? membershipInvoice?.ArenaName ?? "GameHub Arena";
+    var invoiceNumber = bookingInvoice?.InvoiceNumber ?? membershipInvoice?.InvoiceNumber ?? string.Empty;
+    var invoiceDate = bookingInvoice?.InvoiceDate ?? membershipInvoice?.InvoiceDate ?? DateTime.UtcNow;
+    var isPaid = bookingInvoice?.IsPaid ?? membershipInvoice?.IsPaid ?? false;
+    var currency = bookingInvoice?.CurrencySymbol ?? membershipInvoice?.CurrencySymbol ?? "Rs";
+    var subtotal = bookingInvoice?.Subtotal ?? membershipInvoice?.Subtotal ?? 0;
+    var discount = bookingInvoice?.DiscountAmount ?? 0;
+    var tax = bookingInvoice?.TaxAmount ?? membershipInvoice?.TaxAmount ?? 0;
+    var total = bookingInvoice?.TotalAmount ?? membershipInvoice?.TotalAmount ?? 0;
+    var paid = bookingInvoice?.PaidAmount ?? membershipInvoice?.PaidAmount ?? 0;
+    var balance = bookingInvoice?.BalanceAmount ?? membershipInvoice?.BalanceAmount ?? 0;
+    var customerName = bookingInvoice?.CustomerName ?? membershipInvoice?.CustomerName ?? string.Empty;
+    var customerEmail = bookingInvoice?.CustomerEmail ?? membershipInvoice?.CustomerEmail;
+    var customerPhone = bookingInvoice?.CustomerPhone ?? membershipInvoice?.CustomerPhone;
+    var customerAddress = string.Join(", ", new[] { customer?.AddressLine1, customer?.AddressLine2, customer?.City, customer?.Country }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    var membershipNumber = membershipInvoice?.MembershipNumber;
+    var statusLabel = isPaid ? "Paid" : "Balance Due";
+    var referenceLabel = isMembership ? "Membership Number" : "Booking Number";
+    var referenceNumber = bookingInvoice?.BookingNumber ?? membershipInvoice?.MembershipNumber ?? string.Empty;
+    var currencyCode = bookingInvoice?.Currency ?? membershipInvoice?.Currency ?? string.Empty;
+    var planDescription = membershipInvoice?.PlanDescription;
+    var operation = membershipInvoice?.Operation;
+    var previousPlanName = membershipInvoice?.PreviousPlanName;
+    var paymentReference = membershipInvoice?.PaymentTransactionId;
+}
+<section class="my-bookings-page">
+    <div class="container document-preview-shell">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-receipt"></i> Billing</span>
+            <h1>Invoice Details</h1>
+            <p class="section-subtitle">Charges, payment status and documents for this invoice.</p>
+        </div>
+
+        <div class="document-preview-page">
+            <div class="document-toolbar no-print">
+                <a class="btn-ghost-light" asp-controller="MyInvoices" asp-action="Index"><i class="bi bi-arrow-left"></i> All Invoices</a>
+                <div>
+                    <button class="btn-ghost-light" type="button" data-doc-share><i class="bi bi-share"></i> Share</button>
+                    <button class="btn-ghost-light" type="button" data-doc-print data-document-id="invoiceDocument"><i class="bi bi-printer"></i> Print</button>
+                    <button class="btn-premium" type="button" data-doc-download data-document-id="invoiceDocument"><i class="bi bi-file-earmark-pdf"></i> Download / Save PDF</button>
+                </div>
+            </div>
+
+            <article id="invoiceDocument" class="accounting-document invoice-document document-print-root" data-document-preview>
+                <header class="doc-hero">
+                    <div class="doc-hero-top">
+                        <div class="doc-brand">
+                            <span class="doc-logo">G</span>
+                            <div>
+                                <strong>@arenaName</strong>
+                                <small>Premium Sports Arena</small>
+                            </div>
+                        </div>
+                        <div class="doc-title-block">
+                            <span class="doc-kicker">@(isMembership ? "Membership Invoice" : "Invoice")</span>
+                            <h1>@invoiceNumber</h1>
+                            <span class="doc-status paid-@isPaid.ToString().ToLowerInvariant()">@statusLabel</span>
+                        </div>
+                    </div>
+                    <div class="doc-hero-meta">
+                        <div><span>Issued On</span><strong>@invoiceDate.ToString("MMM dd, yyyy")</strong></div>
+                        <div><span>Currency</span><strong>@currencyCode</strong></div>
+                    </div>
+                </header>
+
+                <section class="doc-meta-grid">
+                    <div class="doc-card">
+                        <span>From</span>
+                        <h2>@arenaName</h2>
+                        <p>@((bookingInvoice?.ArenaAddress ?? membershipInvoice?.ArenaAddress) ?? "GameHub Arena")</p>
+                        <p><i class="bi bi-telephone"></i> @((bookingInvoice?.ArenaPhone ?? membershipInvoice?.ArenaPhone) ?? "Support")</p>
+                        <p><i class="bi bi-envelope"></i> @((bookingInvoice?.ArenaEmail ?? membershipInvoice?.ArenaEmail) ?? "support@gamehub.pk")</p>
+                    </div>
+                    <div class="doc-card">
+                        <span>Bill To</span>
+                        <h2>@customerName</h2>
+                        <dl class="doc-mini-list">
+                            <div><dt>Customer Code</dt><dd>@(customer?.CustomerCode ?? $"CUST-{(bookingInvoice?.CustomerId ?? membershipInvoice?.CustomerId)}")</dd></div>
+                            <div><dt>Email</dt><dd>@(string.IsNullOrWhiteSpace(customerEmail) ? "Not provided" : customerEmail)</dd></div>
+                            <div><dt>Phone</dt><dd>@(string.IsNullOrWhiteSpace(customerPhone) ? "Not provided" : customerPhone)</dd></div>
+                            <div><dt>Membership</dt><dd>@(membershipNumber ?? customer?.MembershipNumber ?? "No membership applied")</dd></div>
+                            <div><dt>Billing Address</dt><dd>@(string.IsNullOrWhiteSpace(customerAddress) ? "Not provided" : customerAddress)</dd></div>
+                        </dl>
+                    </div>
+                </section>
+
+                <section class="doc-section-grid">
+                    <div class="doc-card">
+                        <span>Invoice Summary</span>
+                        <dl class="doc-mini-list">
+                            <div><dt>Invoice Type</dt><dd>@(isMembership ? "Membership" : "Court Booking")</dd></div>
+                            <div><dt>@referenceLabel</dt><dd>@referenceNumber</dd></div>
+                            <div><dt>Payment Status</dt><dd>@statusLabel</dd></div>
+                            <div><dt>Currency</dt><dd>@currencyCode</dd></div>
+                            @if (paymentReference.HasValue)
+                            {
+                                <div><dt>Payment Reference</dt><dd>@paymentReference.Value</dd></div>
+                            }
+                        </dl>
+                    </div>
+
+                    @if (bookingInvoice != null)
+                    {
+                        <div class="doc-card">
+                            <span>Booking Details</span>
+                            <dl class="doc-mini-list">
+                                <div><dt>Sport</dt><dd>@bookingInvoice.SportName</dd></div>
+                                <div><dt>Court</dt><dd>@bookingInvoice.CourtName</dd></div>
+                                <div><dt>Date</dt><dd>@bookingInvoice.BookingDate.ToString("dddd, MMM dd yyyy")</dd></div>
+                                <div><dt>Time</dt><dd>@bookingInvoice.StartTime.ToString("hh\\:mm tt") - @bookingInvoice.EndTime.ToString("hh\\:mm tt")</dd></div>
+                            </dl>
+                        </div>
+                    }
+                    else if (membershipInvoice != null)
+                    {
+                        <div class="doc-card">
+                            <span>Membership Details</span>
+                            <dl class="doc-mini-list">
+                                <div><dt>Plan</dt><dd>@membershipInvoice.PlanName</dd></div>
+                                <div><dt>Plan Code</dt><dd>@membershipInvoice.PlanCode</dd></div>
+                                @if (!string.IsNullOrWhiteSpace(operation))
+                                {
+                                    <div><dt>Operation</dt><dd>@operation</dd></div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(previousPlanName))
+                                {
+                                    <div><dt>Previous Plan</dt><dd>@previousPlanName</dd></div>
+                                }
+                                <div><dt>Duration</dt><dd>@membershipInvoice.DurationMonths month(s)</dd></div>
+                                <div><dt>Valid From</dt><dd>@membershipInvoice.StartDate.ToString("MMM dd, yyyy")</dd></div>
+                                <div><dt>Valid Until</dt><dd>@membershipInvoice.ExpiryDate.ToString("MMM dd, yyyy")</dd></div>
+                            </dl>
+                        </div>
+                    }
+                </section>
+
+                <section class="doc-card doc-table-card">
+                    <span>Charges</span>
+                    <table class="doc-money-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                @if (bookingInvoice != null)
+                                {
+                                    <th>Discount</th>
+                                }
+                                <th>Tax</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    @if (bookingInvoice != null)
+                                    {
+                                        <strong>@bookingInvoice.CourtName booking</strong>
+                                        <small>@bookingInvoice.BookingDate.ToString("MMM dd, yyyy") · @bookingInvoice.StartTime.ToString("hh\\:mm tt") - @bookingInvoice.EndTime.ToString("hh\\:mm tt")</small>
+                                    }
+                                    else
+                                    {
+                                        <strong>@membershipInvoice!.PlanName membership</strong>
+                                        <small>@membershipInvoice.StartDate.ToString("MMM dd, yyyy") - @membershipInvoice.ExpiryDate.ToString("MMM dd, yyyy")</small>
+                                    }
+                                </td>
+                                <td>@currency @subtotal.ToString("N0")</td>
+                                @if (bookingInvoice != null)
+                                {
+                                    <td>@currency @discount.ToString("N0")</td>
+                                }
+                                <td>@currency @tax.ToString("N0")</td>
+                                <td>@currency @total.ToString("N0")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    @if (!string.IsNullOrWhiteSpace(planDescription))
+                    {
+                        <p class="doc-note"><i class="bi bi-info-circle"></i> @planDescription</p>
+                    }
+                </section>
+
+                <section class="doc-card doc-summary">
+                    <span>Financial Summary</span>
+                    <div class="doc-summary-bar">
+                        <div class="doc-summary-rows">
+                            <div><span>Subtotal</span><strong>@currency @subtotal.ToString("N0")</strong></div>
+                            @if (bookingInvoice != null)
+                            {
+                                <div><span>Discount</span><strong>@currency @discount.ToString("N0")</strong></div>
+                            }
+                            <div><span>Tax</span><strong>@currency @tax.ToString("N0")</strong></div>
+                        </div>
+                        <div class="doc-grand">
+                            <span>Grand Total</span>
+                            <strong>@currency @total.ToString("N0")</strong>
+                        </div>
+                        <div class="doc-focus-amount @(isPaid ? "is-paid" : "is-due")">
+                            <span>@(isPaid ? "Paid In Full" : "Balance Due")</span>
+                            <strong>@currency @((isPaid ? paid : balance).ToString("N0"))</strong>
+                        </div>
+                        <div class="doc-focus-meta">
+                            <div><span>Amount Paid</span><strong>@currency @paid.ToString("N0")</strong></div>
+                            <div><span>Outstanding</span><strong>@currency @balance.ToString("N0")</strong></div>
+                        </div>
+                    </div>
+                </section>
+
+                <footer class="doc-footer">
+                    <div>
+                        <h2>Terms & Conditions</h2>
+                        <p>This invoice was generated automatically by GameHub Arena. Please contact support for billing questions.</p>
+                        <p class="thank-you">Thank you for choosing GameHub Arena.</p>
+                    </div>
+                </footer>
+            </article>
+        </div>
+    </div>
+</section>
+
+@section Styles {
+    @* my-bookings.css first: it owns the page surface and the light-surface eyebrow
+       scope used by the header; customer-documents.css then keeps sole ownership of
+       the invoice document (.doc-card, .doc-hero, print geometry) inside the preview. *@
+    <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-documents.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-documents-print.css" asp-append-version="true" media="print" />
+    <style>
+        /* ==================================================================
+           Invoice detail layout. Page-scoped only; no shared stylesheet edits.
+
+           1. Viewport fit: .my-bookings-page and .document-preview-page both
+              carry min-height: calc(100vh - 76px) in the shared sheets, which
+              forces a scrollbar before any content is added. Both are
+              neutralised here and the vertical rhythm is driven by
+              viewport-relative clamps, so the document fits a desktop screen.
+           2. Collision safety: every label/value track is minmax(0, ...) with
+              min-width: 0 and wrapping, so long names, references, addresses
+              and amounts wrap instead of overlapping their neighbours.
+           ================================================================== */
+
+        /* --- Page shell + top bar --------------------------------------- */
+        .my-bookings-page {
+            padding: clamp(14px, 2vh, 22px) 0;
+            min-height: 0;
+        }
+
+        .my-bookings-page .section-heading {
+            margin-bottom: clamp(10px, 1.4vh, 16px);
+        }
+
+        .my-bookings-page .section-heading h1 {
+            margin: 6px 0 4px;
+            font-size: clamp(1.9rem, 3.4vw, 2.7rem);
+            line-height: 1;
+        }
+
+        .my-bookings-page .section-heading p {
+            font-size: clamp(.86rem, 1.1vw, .98rem);
+        }
+
+        .document-preview-page {
+            min-height: 0;
+            padding: clamp(12px, 1.6vh, 18px) 0 clamp(14px, 2vh, 20px);
+        }
+
+        /* --- Document shell --------------------------------------------- */
+        .accounting-document {
+            min-width: 0;
+            padding: clamp(14px, 1.9vh, 22px);
+            border-radius: 26px;
+        }
+
+        .accounting-document .doc-card,
+        .accounting-document .doc-meta-grid,
+        .accounting-document .doc-section-grid,
+        .accounting-document .doc-summary-bar,
+        .accounting-document .doc-table-card {
+            min-width: 0;
+        }
+
+        .accounting-document .doc-card {
+            padding: clamp(12px, 1.5vh, 17px);
+        }
+
+        .accounting-document .doc-meta-grid,
+        .accounting-document .doc-section-grid {
+            gap: clamp(10px, 1.2vh, 14px);
+            margin-top: clamp(10px, 1.2vh, 14px);
+        }
+
+        /* --- 1. Invoice header ------------------------------------------ */
+        .accounting-document .doc-hero {
+            flex-direction: column;
+            gap: clamp(12px, 1.6vh, 18px);
+            padding: clamp(14px, 1.8vh, 20px) clamp(16px, 2vw, 24px);
+            border-radius: 22px;
+        }
+
+        .doc-hero-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .doc-brand {
+            min-width: 0;
+            gap: 12px;
+        }
+
+        .doc-logo {
+            flex: none;
+            width: 46px;
+            height: 46px;
+            border-radius: 16px;
+            font-size: 1.6rem;
+        }
+
+        .doc-brand strong {
+            font-size: 1.1rem;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-brand small {
+            font-size: .78rem;
+            line-height: 1.3;
+        }
+
+        .doc-title-block {
+            flex: none;
+            max-width: 58%;
+            text-align: right;
+        }
+
+        .doc-kicker {
+            font-size: .68rem;
+        }
+
+        .doc-title-block h1 {
+            margin: 2px 0 8px;
+            font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+            line-height: 1.05;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-status {
+            padding: 6px 11px;
+            font-size: .7rem;
+        }
+
+        .doc-hero-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+            min-width: 0;
+            padding-top: clamp(10px, 1.3vh, 14px);
+            border-top: 1px solid rgba(255, 255, 255, .16);
+        }
+
+        .doc-hero-meta > div {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .doc-hero-meta span {
+            font-size: .68rem;
+            letter-spacing: .1em;
+        }
+
+        .doc-hero-meta strong {
+            color: #fff;
+            font-size: .95rem;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        /* --- 2/3. Label + value lists ----------------------------------- */
+        .doc-mini-list {
+            gap: clamp(5px, .8vh, 8px);
+            margin-top: 10px;
+        }
+
+        .doc-mini-list div {
+            display: grid;
+            grid-template-columns: minmax(0, 124px) minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+        }
+
+        .doc-mini-list dt {
+            min-width: 0;
+            color: #6d6458;
+            font-size: .7rem;
+            font-weight: 900;
+            line-height: 1.35;
+            letter-spacing: .04em;
+            overflow-wrap: anywhere;
+            text-transform: uppercase;
+        }
+
+        .doc-mini-list dd {
+            min-width: 0;
+            margin: 0;
+            color: #171614;
+            font-size: .88rem;
+            font-weight: 900;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .accounting-document .doc-card > span {
+            margin-bottom: 2px;
+            font-size: .68rem;
+        }
+
+        .accounting-document .doc-card h2 {
+            margin: 0 0 6px;
+            font-size: 1.12rem;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .accounting-document .doc-card p {
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        /* --- 4. Charges -------------------------------------------------- */
+        .accounting-document .doc-table-card {
+            margin-top: clamp(10px, 1.2vh, 14px);
+        }
+
+        .doc-money-table {
+            width: 100%;
+            margin-top: 8px;
+            table-layout: fixed;
+            border-radius: 14px;
+        }
+
+        .doc-money-table th,
+        .doc-money-table td {
+            padding: clamp(8px, 1vh, 11px) clamp(8px, 1vw, 12px);
+            border-bottom: 1px solid #eadfce;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .doc-money-table th:first-child,
+        .doc-money-table td:first-child {
+            width: 44%;
+            text-align: left;
+        }
+
+        .doc-money-table thead th {
+            font-size: .68rem;
+            letter-spacing: .05em;
+        }
+
+        .doc-money-table td {
+            font-size: .88rem;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-money-table td:not(:first-child) {
+            white-space: nowrap;
+        }
+
+        .doc-money-table td strong {
+            font-size: .92rem;
+            line-height: 1.3;
+        }
+
+        .doc-money-table td small {
+            margin-top: 2px;
+            font-size: .74rem;
+            line-height: 1.35;
+        }
+
+        .doc-money-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        /* --- 5. Financial summary: one horizontal band, equal-height cells - */
+        .doc-summary {
+            margin-top: clamp(10px, 1.2vh, 14px);
+        }
+
+        .doc-summary-bar {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1.25fr)
+                minmax(0, 1fr)
+                minmax(0, 1.15fr)
+                minmax(0, 1.1fr);
+            gap: clamp(8px, 1vw, 12px);
+            align-items: stretch;
+            margin-top: 8px;
+        }
+
+        .doc-summary-bar > * {
+            min-width: 0;
+        }
+
+        .doc-summary-rows {
+            display: grid;
+            gap: 4px;
+            align-content: center;
+            padding: clamp(9px, 1.2vh, 13px) clamp(10px, 1.1vw, 14px);
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #eadfce;
+        }
+
+        .doc-summary-rows > div {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 4px 12px;
+            align-items: baseline;
+            min-width: 0;
+        }
+
+        .doc-summary-rows span {
+            min-width: 0;
+            color: #6d6458;
+            font-size: .7rem;
+            font-weight: 900;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        .doc-summary-rows strong {
+            color: #171614;
+            font-size: .92rem;
+            font-weight: 950;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .doc-grand {
+            display: grid;
+            gap: 4px;
+            align-content: center;
+            padding: clamp(9px, 1.2vh, 13px) clamp(10px, 1.1vw, 14px);
+            border-radius: 14px;
+            background: #fff3d9;
+            box-shadow: inset 0 0 0 1px rgba(214, 166, 82, .4);
+        }
+
+        .doc-grand span {
+            color: #6b5518;
+            font-size: .7rem;
+            font-weight: 950;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .doc-grand strong {
+            color: #171614;
+            font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+            font-weight: 950;
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-focus-amount {
+            display: grid;
+            gap: 5px;
+            align-content: center;
+            padding: clamp(10px, 1.3vh, 14px) clamp(11px, 1.2vw, 15px);
+            border-radius: 14px;
+            color: #fff;
+        }
+
+        .doc-focus-amount.is-paid {
+            background: linear-gradient(135deg, #16794a, #0d3f27);
+        }
+
+        .doc-focus-amount.is-due {
+            background: linear-gradient(135deg, #9c4a19, #58260b);
+        }
+
+        .doc-focus-amount span {
+            color: rgba(255, 255, 255, .74);
+            font-size: .66rem;
+            font-weight: 950;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+        .doc-focus-amount strong {
+            color: #fff;
+            font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+            font-weight: 950;
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-focus-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            align-content: center;
+        }
+
+        .doc-focus-meta > div {
+            display: grid;
+            gap: 3px;
+            align-content: center;
+            min-width: 0;
+            padding: clamp(8px, 1.1vh, 12px) clamp(9px, 1vw, 12px);
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #eadfce;
+        }
+
+        .doc-focus-meta span {
+            color: #6d6458;
+            font-size: .64rem;
+            font-weight: 950;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        .doc-focus-meta strong {
+            color: #171614;
+            font-size: .88rem;
+            font-weight: 950;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+
+        /* --- 6. Notes and terms ------------------------------------------ */
+        .doc-note {
+            display: flex;
+            gap: 9px;
+            align-items: flex-start;
+            min-width: 0;
+            margin: 10px 0 0;
+            padding: 9px 12px;
+            border-radius: 12px;
+            color: #6b5518;
+            background: #fff3d9;
+            font-size: .8rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-note i {
+            flex: none;
+            line-height: 1.45;
+        }
+
+        .doc-footer {
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            margin-top: clamp(10px, 1.2vh, 14px);
+            padding: clamp(12px, 1.5vh, 16px) clamp(14px, 1.6vw, 20px);
+            border-radius: 18px;
+        }
+
+        .doc-footer > div {
+            min-width: 0;
+        }
+
+        .doc-footer h2 {
+            margin: 0 0 4px;
+            font-size: .95rem;
+        }
+
+        .doc-footer p {
+            max-width: none;
+            font-size: .8rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .doc-footer .thank-you {
+            margin-top: 4px;
+            font-size: .82rem;
+        }
+
+        /* --- Responsive: below the desktop breakpoint natural scrolling is
+               expected, so the layout returns to a single comfortable column. */
+        @@media (max-width: 1080px) {
+            .doc-summary-bar {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @@media (max-width: 900px) {
+            .doc-hero-top {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .doc-title-block {
+                max-width: none;
+                text-align: left;
+            }
+
+            .doc-hero-meta,
+            .doc-summary-bar,
+            .doc-focus-meta {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 640px) {
+            .document-preview-page {
+                padding: 16px 0 26px;
+            }
+
+            .doc-money-table {
+                white-space: nowrap;
+            }
+        }
+
+        /* Short desktop viewports: one more notch of tightening. */
+        @@media (min-width: 901px) and (max-height: 900px) {
+            .my-bookings-page {
+                padding: 12px 0;
+            }
+
+            .my-bookings-page .section-heading h1 {
+                font-size: 1.8rem;
+            }
+
+            .accounting-document .doc-hero {
+                padding: 12px 16px;
+            }
+
+            .accounting-document .doc-card {
+                padding: 11px 13px;
+            }
+
+            .doc-mini-list {
+                gap: 4px;
+            }
+        }
+
+        /* Print must stay the invoice only: drop the page shell and header so the
+           document keeps the exact A4 geometry owned by customer-documents-print.css. */
+        @@media print {
+            .my-bookings-page {
+                padding: 0 !important;
+                min-height: 0 !important;
+                background: #fff !important;
+            }
+
+            .my-bookings-page .section-heading {
+                display: none !important;
+            }
+
+            .doc-hero,
+            .doc-hero-top,
+            .doc-hero-meta,
+            .doc-note,
+            .doc-footer,
+            .doc-summary,
+            .doc-summary-bar,
+            .doc-summary-bar > *,
+            .doc-summary-rows > div,
+            .doc-grand,
+            .doc-focus-amount,
+            .doc-focus-meta {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+
+            .doc-hero {
+                gap: 14px !important;
+            }
+        }
+    </style>
+}
+@section Scripts {
+    <script src="~/js/document-print.js" asp-append-version="true"></script>
+}

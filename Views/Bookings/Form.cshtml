@@ -1,0 +1,99 @@
+@model BookingFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Booking" : "Create Booking";
+    Layout = "_AdminLayout";
+    var action = Model.IsEditMode ? "Edit" : "Create";
+}
+
+<section class="booking-form-page">
+    <header class="booking-hero">
+        <div><span class="admin-label">GUIDED RESERVATION</span><h1>@(Model.IsEditMode ? "Edit Booking" : "Create Booking")</h1><p>Select a customer, court, date, slot, and let GameHub calculate availability and pricing.</p></div>
+        <a class="booking-btn booking-btn-secondary" asp-action="Index"><i class="bi bi-arrow-left"></i><span>Back to Bookings</span></a>
+    </header>
+
+    <form class="booking-form-grid" asp-action="@action" asp-route-id="@Model.Id" method="post" data-booking-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <main class="booking-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="booking-stepper"><span class="active">Customer</span><span>Court</span><span>Slot</span><span>Pricing</span></div>
+
+            <section class="booking-form-card">
+                <h2><i class="bi bi-person"></i> Customer</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field span-two"><span>Customer</span><select asp-for="CustomerId" asp-items="Model.Customers" data-customer-select><option value="">Select customer</option></select><small asp-validation-for="CustomerId"></small></label>
+                </div>
+                <div class="booking-summary-panel" data-customer-summary><i class="bi bi-person-badge"></i><p>Select a customer to preview profile, membership status, loyalty points, and blacklist warnings.</p></div>
+            </section>
+
+            <section class="booking-form-card">
+                <h2><i class="bi bi-grid"></i> Sport and Court</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field"><span>Sport</span><select asp-for="SportId" asp-items="Model.Sports" data-sport-select><option value="">Select sport</option></select><small asp-validation-for="SportId"></small></label>
+                    <label class="booking-field"><span>Facility</span><select asp-for="FacilityId" asp-items="Model.Facilities" data-facility-select><option value="">Select facility</option></select><small asp-validation-for="FacilityId"></small></label>
+                    <label class="booking-field span-two"><span>Court</span><select asp-for="CourtId" asp-items="Model.Courts" data-court-select><option value="">Select court</option></select><small asp-validation-for="CourtId"></small></label>
+                </div>
+            </section>
+
+            <section class="booking-form-card">
+                <h2><i class="bi bi-calendar-range"></i> Date and Duration</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field"><span>Booking Date</span><input asp-for="BookingDate" type="date" data-booking-date /><small asp-validation-for="BookingDate"></small></label>
+                    <label class="booking-field"><span>Duration</span><input asp-for="DurationMinutes" type="number" min="1" data-duration /><small asp-validation-for="DurationMinutes"></small></label>
+                    <label class="booking-field"><span>Player Count</span><input asp-for="PlayerCount" type="number" min="1" /><small asp-validation-for="PlayerCount"></small></label>
+                    <label class="booking-field"><span>Start Time</span><input asp-for="StartTime" type="time" data-start-time /><small asp-validation-for="StartTime"></small></label>
+                    <label class="booking-field"><span>End Time</span><input asp-for="EndTime" type="time" data-end-time readonly /><small asp-validation-for="EndTime"></small></label>
+                </div>
+                <div class="booking-slot-grid" data-slot-grid><div class="booking-slot-empty">Choose a court and date to load available slots.</div></div>
+            </section>
+
+            <section class="booking-form-card">
+                <h2><i class="bi bi-journal-text"></i> Booking Information</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field"><span>Source</span><select asp-for="Source" asp-items="Html.GetEnumSelectList<BookingSource>()"></select></label>
+                    <label class="booking-switch"><input asp-for="IsWalkIn" type="checkbox" /><span></span><strong>Walk-in booking</strong></label>
+                    <label class="booking-field span-two"><span>Reference Number</span><input asp-for="ReferenceNumber" /></label>
+                    <label class="booking-field span-two"><span>Customer Notes</span><textarea asp-for="CustomerNotes"></textarea></label>
+                    <label class="booking-field span-two"><span>Special Request</span><textarea asp-for="SpecialRequest"></textarea></label>
+                    <label class="booking-field span-two"><span>Internal Notes</span><textarea asp-for="InternalNotes"></textarea></label>
+                </div>
+            </section>
+
+            <section class="booking-form-card">
+                <h2><i class="bi bi-cash-stack"></i> Pricing and Discount</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field"><span>Manual Discount</span><input asp-for="ManualDiscountAmount" type="number" min="0" step="0.01" data-manual-discount readonly="@(!Model.CanManualDiscount)" /></label>
+                    <label class="booking-field"><span>Paid Amount</span><input asp-for="PaidAmount" type="number" min="0" step="0.01" data-paid-amount /></label>
+                    <label class="booking-field"><span>Status</span><select asp-for="Status" asp-items="Html.GetEnumSelectList<BookingStatus>()"></select></label>
+                </div>
+                <div class="booking-price-panel" data-price-panel>
+                    <div><span>Base</span><strong>@Model.CurrencySymbol @Model.PriceSummary.BaseAmount.ToString("N0")</strong></div>
+                    <div><span>Membership Discount</span><strong>@Model.CurrencySymbol @Model.PriceSummary.MembershipDiscountAmount.ToString("N0")</strong></div>
+                    <div><span>Tax</span><strong>@Model.CurrencySymbol @Model.PriceSummary.TaxAmount.ToString("N0")</strong></div>
+                    <div><span>Total</span><strong>@Model.CurrencySymbol @Model.PriceSummary.TotalAmount.ToString("N0")</strong></div>
+                </div>
+            </section>
+
+            <div class="booking-save-bar"><a class="booking-btn booking-btn-secondary" asp-action="Index">Cancel</a><button class="booking-btn booking-btn-primary" type="submit"><i class="bi bi-check2-circle"></i><span>Save Booking</span></button></div>
+        </main>
+
+        <aside class="booking-live-summary" data-live-summary>
+            <span>@Model.ArenaName</span>
+            <h2>@(Model.BookingNumber ?? "New Booking")</h2>
+            <p>Complete the booking details to preview the reservation.</p>
+            <dl>
+                <div><dt>Customer</dt><dd data-summary-customer>Not selected</dd></div>
+                <div><dt>Sport</dt><dd data-summary-sport>Not selected</dd></div>
+                <div><dt>Court</dt><dd data-summary-court>Not selected</dd></div>
+                <div><dt>Date</dt><dd data-summary-date>@Model.BookingDate.ToString("dd MMM yyyy")</dd></div>
+                <div><dt>Time</dt><dd data-summary-time>@Model.StartTime.ToString("HH:mm") - @Model.EndTime.ToString("HH:mm")</dd></div>
+                <div><dt>Total</dt><dd data-summary-total>@Model.CurrencySymbol @Model.PriceSummary.TotalAmount.ToString("N0")</dd></div>
+                <div><dt>Status</dt><dd>@Model.Status.GetDisplayName()</dd></div>
+            </dl>
+        </aside>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

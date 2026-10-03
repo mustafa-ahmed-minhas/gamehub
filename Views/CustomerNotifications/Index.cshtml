@@ -1,0 +1,247 @@
+@model IReadOnlyList<CustomerNotification>
+@{
+    ViewData["Title"] = "Notifications";
+    Layout = "_CustomerLayout";
+
+    var filter = (string?)ViewBag.Filter ?? "all";
+    var now = DateTime.UtcNow;
+
+    var total = Model.Count;
+    var unread = Model.Count(item => !item.IsRead);
+    var read = total - unread;
+    var actionable = Model.Count(item => !string.IsNullOrWhiteSpace(item.ActionUrl));
+
+    // Tone and icon are derived from the stored notification type, so a row always
+    // matches the event that produced it without inventing any content.
+    string NotificationTone(CustomerNotificationType type) => type switch
+    {
+        CustomerNotificationType.BookingConfirmed or CustomerNotificationType.RescheduleApproved => "tone-success",
+        CustomerNotificationType.PaymentSuccessful => "tone-success",
+        CustomerNotificationType.BookingReminder or CustomerNotificationType.BookingUpdated => "tone-info",
+        CustomerNotificationType.PaymentFailed => "tone-danger",
+        CustomerNotificationType.BookingCancelled or CustomerNotificationType.RescheduleRejected => "tone-danger",
+        CustomerNotificationType.MembershipExpiring => "tone-warn",
+        _ => "tone-muted"
+    };
+
+    string NotificationIcon(CustomerNotificationType type) => type switch
+    {
+        CustomerNotificationType.BookingConfirmed => "bi-calendar-check",
+        CustomerNotificationType.BookingReminder => "bi-alarm",
+        CustomerNotificationType.BookingUpdated => "bi-pencil-square",
+        CustomerNotificationType.BookingCancelled => "bi-calendar-x",
+        CustomerNotificationType.RescheduleApproved => "bi-arrow-repeat",
+        CustomerNotificationType.RescheduleRejected => "bi-arrow-repeat",
+        CustomerNotificationType.PaymentSuccessful => "bi-credit-card-2-front",
+        CustomerNotificationType.PaymentFailed => "bi-exclamation-octagon",
+        CustomerNotificationType.MembershipExpiring => "bi-stars",
+        _ => "bi-bell"
+    };
+
+    string NotificationLabel(CustomerNotificationType type) => type switch
+    {
+        CustomerNotificationType.BookingConfirmed => "Booking Confirmed",
+        CustomerNotificationType.BookingReminder => "Booking Reminder",
+        CustomerNotificationType.BookingUpdated => "Booking Updated",
+        CustomerNotificationType.BookingCancelled => "Booking Cancelled",
+        CustomerNotificationType.RescheduleApproved => "Reschedule Approved",
+        CustomerNotificationType.RescheduleRejected => "Reschedule Rejected",
+        CustomerNotificationType.PaymentSuccessful => "Payment Successful",
+        CustomerNotificationType.PaymentFailed => "Payment Failed",
+        CustomerNotificationType.MembershipExpiring => "Membership Expiring",
+        _ => "General Update"
+    };
+
+    // CreatedAt is stored in UTC, so a short relative stamp is safe to derive here.
+    // Anything older than a week falls back to the calendar date.
+    string RelativeTime(DateTime createdAt)
+    {
+        var span = now - createdAt;
+        if (span.TotalSeconds < 60)
+        {
+            return "Just now";
+        }
+
+        if (span.TotalMinutes < 60)
+        {
+            return $"{(int)span.TotalMinutes} min ago";
+        }
+
+        if (span.TotalHours < 24)
+        {
+            return $"{(int)span.TotalHours} hr ago";
+        }
+
+        if (span.TotalDays < 7)
+        {
+            var days = (int)span.TotalDays;
+            return days == 1 ? "Yesterday" : $"{days} days ago";
+        }
+
+        return createdAt.ToString("MMM dd, yyyy");
+    }
+}
+<section class="notifications-page portal-page">
+    <div class="container">
+
+        <header class="portal-head">
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-bell"></i> Customer Updates</span>
+                <h1>Notifications</h1>
+                <p class="portal-head__lead">Booking, payment and membership updates sent to your account.</p>
+            </div>
+            <div class="portal-head__actions">
+                <form asp-action="MarkAllRead" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn-premium" type="submit" disabled="@(filter == "all" && unread == 0)">
+                        <i class="bi bi-check2-all"></i> Mark All Read
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <div class="portal-stats">
+            <article class="portal-stat tone-warn">
+                <span class="portal-stat__icon"><i class="bi bi-envelope-exclamation"></i></span>
+                <span class="portal-stat__value">@unread</span>
+                <span class="portal-stat__label">Unread</span>
+            </article>
+            <article class="portal-stat tone-info">
+                <span class="portal-stat__icon"><i class="bi bi-check2-circle"></i></span>
+                <span class="portal-stat__value">@read</span>
+                <span class="portal-stat__label">Read</span>
+            </article>
+            <article class="portal-stat tone-muted">
+                <span class="portal-stat__icon"><i class="bi bi-collection"></i></span>
+                <span class="portal-stat__value">@total</span>
+                <span class="portal-stat__label">Showing</span>
+            </article>
+            <article class="portal-stat tone-gold">
+                <span class="portal-stat__icon"><i class="bi bi-box-arrow-up-right"></i></span>
+                <span class="portal-stat__value">@actionable</span>
+                <span class="portal-stat__label">With Link</span>
+            </article>
+        </div>
+
+        <div class="portal-tabs">
+            <a class="@(filter == "all" ? "active" : string.Empty)" asp-action="Index" asp-route-filter="all">
+                All @if (filter == "all") { <span class="portal-tab-count">@total</span> }
+            </a>
+            <a class="@(filter == "unread" ? "active" : string.Empty)" asp-action="Index" asp-route-filter="unread">
+                Unread @if (filter == "unread") { <span class="portal-tab-count">@total</span> }
+            </a>
+            <a class="@(filter == "booking" ? "active" : string.Empty)" asp-action="Index" asp-route-filter="booking">
+                Bookings @if (filter == "booking") { <span class="portal-tab-count">@total</span> }
+            </a>
+            <a class="@(filter == "payment" ? "active" : string.Empty)" asp-action="Index" asp-route-filter="payment">
+                Payments @if (filter == "payment") { <span class="portal-tab-count">@total</span> }
+            </a>
+            <a class="@(filter == "membership" ? "active" : string.Empty)" asp-action="Index" asp-route-filter="membership">
+                Membership @if (filter == "membership") { <span class="portal-tab-count">@total</span> }
+            </a>
+        </div>
+
+        <div class="portal-notification-list">
+            @foreach (var notification in Model)
+            {
+                var tone = NotificationTone(notification.Type);
+                var isExpired = notification.ExpiresAt.HasValue && notification.ExpiresAt.Value <= now;
+
+                <article class="portal-notification @tone @(notification.IsRead ? "is-read" : "is-unread")">
+                    <span class="portal-notification__icon"><i class="bi @NotificationIcon(notification.Type)"></i></span>
+
+                    <div class="portal-notification__main">
+                        <div class="portal-notification__top">
+                            <span class="portal-notification__kind">@NotificationLabel(notification.Type)</span>
+                            @if (notification.BookingId.HasValue)
+                            {
+                                <span class="portal-notification__ref">Booking #@notification.BookingId</span>
+                            }
+                        </div>
+                        <h2 class="portal-notification__title">@notification.Title</h2>
+                        <p class="portal-notification__message">@notification.Message</p>
+                        <div class="portal-notification__meta">
+                            <span title="@notification.CreatedAt.ToString("MMM dd, yyyy hh:mm tt")">
+                                <i class="bi bi-clock"></i> @RelativeTime(notification.CreatedAt)
+                            </span>
+                            @if (isExpired)
+                            {
+                                <span class="portal-notification__meta--warn"><i class="bi bi-hourglass-bottom"></i> Expired</span>
+                            }
+                            @if (notification.IsRead && notification.ReadAt.HasValue)
+                            {
+                                <span><i class="bi bi-check2"></i> Read @notification.ReadAt.Value.ToString("MMM dd, yyyy hh:mm tt")</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="portal-notification__state">
+                        @if (notification.IsRead)
+                        {
+                            <span class="portal-badge tone-muted"><i class="bi bi-check2"></i> Read</span>
+                        }
+                        else
+                        {
+                            <span class="portal-badge tone-warn"><i class="bi bi-circle-fill"></i> Unread</span>
+                        }
+                        @if (isExpired)
+                        {
+                            <span class="portal-badge tone-muted">Expired</span>
+                        }
+                    </div>
+
+                    <div class="portal-notification__actions">
+                        @if (!notification.IsRead)
+                        {
+                            <form asp-action="MarkRead" asp-route-id="@notification.Id" method="post">
+                                @Html.AntiForgeryToken()
+                                <button class="btn-ghost-light btn-compact" type="submit"><i class="bi bi-check2"></i> Mark Read</button>
+                            </form>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(notification.ActionUrl))
+                        {
+                            <a class="btn-premium btn-compact" href="@notification.ActionUrl"><i class="bi bi-box-arrow-up-right"></i> Open</a>
+                        }
+                    </div>
+                </article>
+            }
+
+            @if (total == 0)
+            {
+                var emptyTitle = filter switch
+                {
+                    "unread" => "You're all caught up",
+                    "booking" => "No booking notifications",
+                    "payment" => "No payment notifications",
+                    "membership" => "No membership notifications",
+                    _ => "No notifications yet"
+                };
+                var emptyHint = filter switch
+                {
+                    "unread" => "Every notification on your account has been read.",
+                    "booking" => "Booking confirmations, reminders and changes appear here.",
+                    "payment" => "Payment results and failures appear here.",
+                    "membership" => "Membership activity such as renewal reminders appears here.",
+                    _ => "Updates about your bookings, payments and membership will appear here."
+                };
+                <div class="portal-empty">
+                    <span class="portal-empty__icon"><i class="bi bi-bell"></i></span>
+                    <h2>@emptyTitle</h2>
+                    <p>@emptyHint</p>
+                    @if (filter != "all")
+                    {
+                        <a class="btn-ghost-light" asp-action="Index" asp-route-filter="all"><i class="bi bi-collection"></i> View All</a>
+                    }
+                    else
+                    {
+                        <a class="btn-ghost-light" asp-controller="MyBookings" asp-action="Index"><i class="bi bi-calendar-check"></i> My Bookings</a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-notifications.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}

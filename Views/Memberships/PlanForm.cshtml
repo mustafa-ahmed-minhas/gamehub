@@ -1,0 +1,43 @@
+@model MembershipPlanFormViewModel
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Plan" : "Create Plan";
+    Layout = "_AdminLayout";
+    var formAction = Model.IsEditMode ? "EditPlan" : "CreatePlan";
+}
+<section class="users-page membership-form-page">
+    <header class="users-header membership-page-header"><div><span class="admin-label">Membership Plan</span><h1>@(Model.IsEditMode ? "Edit Plan" : "Create Plan")</h1><p>Configure fees, duration, sports access, and membership benefits.</p></div><a class="membership-btn membership-btn-secondary" asp-action="Index" asp-route-tab="plans"><i class="bi bi-arrow-left"></i> <span>Back</span></a></header>
+    <form class="membership-form-grid" asp-action="@formAction" asp-route-id="@Model.Id" method="post" data-membership-form>
+        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+        <main class="membership-form-main users-form-card">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <fieldset><legend><i class="bi bi-card-heading"></i> Plan Identity</legend><div class="form-grid-two">
+                <div class="premium-field"><label>Name <span>*</span></label><div><i class="bi bi-type"></i><input asp-for="Name" data-plan-name /></div><small asp-validation-for="Name"></small></div>
+                <div class="premium-field"><label>Code <span>*</span></label><div><i class="bi bi-upc"></i><input asp-for="Code" /></div><small asp-validation-for="Code"></small></div>
+                <div class="premium-field"><label>Type</label><div><i class="bi bi-layers"></i><select asp-for="PlanType" asp-items="Html.GetEnumSelectList<MembershipPlanType>()" data-plan-type></select></div></div>
+                <div class="premium-field"><label>Display Order</label><div><i class="bi bi-sort-numeric-down"></i><input asp-for="DisplayOrder" type="number" min="0" /></div></div>
+                <div class="premium-field span-two"><label>Description</label><div><i class="bi bi-text-paragraph"></i><input asp-for="Description" /></div></div>
+            </div></fieldset>
+            <fieldset><legend><i class="bi bi-cash-stack"></i> Duration and Fees</legend><div class="form-grid-two">
+                <div class="premium-field"><label>Duration Months</label><div><i class="bi bi-calendar-range"></i><input asp-for="DurationMonths" type="number" min="1" data-plan-duration /></div></div>
+                <div class="premium-field"><label>Joining Fee</label><div><i class="bi bi-cash"></i><input asp-for="JoiningFee" type="number" min="0" step="0.01" data-plan-joining /></div></div>
+                <div class="premium-field"><label>Renewal Fee</label><div><i class="bi bi-wallet2"></i><input asp-for="RenewalFee" type="number" min="0" step="0.01" data-plan-renewal /></div></div>
+                <div class="premium-field"><label>Discount %</label><div><i class="bi bi-percent"></i><input asp-for="DiscountPercentage" type="number" min="0" max="100" data-plan-discount /></div></div>
+            </div></fieldset>
+            <fieldset><legend><i class="bi bi-stars"></i> Booking Benefits</legend><div class="form-grid-two">
+                <div class="premium-field"><label>Included Hours</label><div><i class="bi bi-clock"></i><input asp-for="IncludedBookingHours" type="number" min="0" data-plan-hours /></div></div>
+                <div class="premium-field"><label>Priority Booking Days</label><div><i class="bi bi-calendar-plus"></i><input asp-for="PriorityBookingDays" type="number" min="0" /></div></div>
+                <label class="premium-toggle-field"><input asp-for="AllowPeakHours" type="checkbox" /><strong>Peak Hours Allowed</strong><span>Permit prime-time bookings.</span></label>
+                <label class="premium-toggle-field"><input asp-for="AllowOffPeakHours" type="checkbox" /><strong>Off-Peak Hours Allowed</strong><span>Permit standard slots.</span></label>
+            </div></fieldset>
+            <fieldset><legend><i class="bi bi-trophy"></i> Sports Access</legend>
+                <label class="premium-toggle-field"><input asp-for="AllSports" type="checkbox" data-all-sports /><strong>All Sports</strong><span>Allow every active sport.</span></label>
+                <div class="membership-chip-picker" data-sports-box>@foreach (var sport in Model.AvailableSports) { <label><input type="checkbox" name="SelectedSportCodes" value="@sport.Value" checked="@sport.Selected" /> @sport.Text</label> }</div>
+            </fieldset>
+            <fieldset><legend><i class="bi bi-gift"></i> Benefits and Status</legend><div class="form-grid-two"><div class="premium-field span-two"><label>Benefits</label><div><i class="bi bi-list-check"></i><input asp-for="Benefits" data-plan-benefits /></div></div><label class="premium-toggle-field"><input asp-for="IsActive" type="checkbox" data-plan-active /><strong>Active Plan</strong><span>Available for assignment.</span></label></div></fieldset>
+            <div class="form-actions membership-save-actions"><a class="membership-btn membership-btn-secondary" asp-action="Index" asp-route-tab="plans">Cancel</a><button class="membership-btn membership-btn-primary" type="submit" data-loading-button><i class="bi bi-check2-circle"></i><span>Save Plan</span></button></div>
+        </main>
+        <aside class="membership-preview-card"><span>@Model.ArenaName</span><h2 data-preview-plan>@(Model.Name ?? "Membership Plan")</h2><p data-preview-type>@Model.PlanType</p><strong data-preview-fee>@Model.CurrencySymbol @Model.JoiningFee.ToString("N0")</strong><div class="membership-preview-grid"><div><span>Duration</span><b data-preview-duration>@Model.DurationMonths months</b></div><div><span>Discount</span><b data-preview-discount>@Model.DiscountPercentage%</b></div><div><span>Hours</span><b data-preview-hours>@Model.IncludedBookingHours</b></div><div><span>Status</span><b data-preview-status>@(Model.IsActive ? "Active" : "Inactive")</b></div></div></aside>
+    </form>
+</section>
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/memberships.js" asp-append-version="true"></script> }

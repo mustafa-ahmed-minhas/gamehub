@@ -1,0 +1,148 @@
+@using GameHub.Models.Enums
+@{
+    var screen = (ViewData["CrmGuidance"] as string ?? Context.Request.Query["tab"].ToString() ?? "overview").ToLowerInvariant();
+    var title = screen switch
+    {
+        "leads" or "lead" => "How to Qualify a Lead",
+        "opportunities" or "opportunity" => "Move Opportunities Forward",
+        "followups" => "Follow-up Best Practices",
+        _ => "CRM Operating Rhythm"
+    };
+    var icon = screen switch
+    {
+        "leads" or "lead" => "bi-person-lines-fill",
+        "opportunities" or "opportunity" => "bi-graph-up-arrow",
+        "followups" => "bi-alarm-fill",
+        _ => "bi-stars"
+    };
+    var steps = screen switch
+    {
+        "leads" or "lead" => new[] { "Verify contact information", "Confirm service interest", "Understand the requirement", "Assign the correct owner", "Schedule follow-up", "Qualify or disqualify" },
+        "opportunities" or "opportunity" => new[] { "Confirm customer requirement", "Set realistic expected value", "Define close date", "Maintain probability", "Record stage movement", "Prepare for quotation" },
+        "followups" => new[] { "Complete overdue actions first", "Record the outcome", "Set the next follow-up", "Keep ownership clear", "Close completed activities" },
+        _ => new[] { "Capture every inquiry", "Keep follow-ups current", "Qualify only verified demand", "Move real deals forward", "Keep pipeline data clean" }
+    };
+    var tip = screen switch
+    {
+        "leads" or "lead" => "Convert only after the requirement and contact details are verified.",
+        "opportunities" or "opportunity" => "Update stage and probability after every meaningful customer interaction.",
+        "followups" => "Every open lead and opportunity should have a clear next action.",
+        _ => "A healthy CRM has clear owners, current follow-ups and realistic close dates."
+    };
+    var fullWidth = ViewData["CrmGuidanceRail"] is false;
+}
+
+@if (!fullWidth)
+{
+    <aside class="crm-guidance-panel" data-crm-guidance>
+        <button class="crm-guidance-toggle" type="button" data-crm-guidance-toggle aria-expanded="true" aria-label="Collapse CRM guidance">
+            <i class="bi bi-layout-sidebar-inset-reverse"></i>
+        </button>
+        <div class="crm-guidance-inner">
+            <div class="crm-guidance-icon"><i class="bi @icon"></i></div>
+            <span class="admin-kicker">CRM Guidance</span>
+            <h2>@title</h2>
+            <ol>
+                @foreach (var step in steps)
+                {
+                    <li>@step</li>
+                }
+            </ol>
+            <div class="crm-guidance-tip">
+                <i class="bi bi-lightbulb"></i>
+                <span>@tip</span>
+            </div>
+            <div class="crm-guidance-metrics">
+                @if (screen is "leads" or "lead")
+                {
+                    <span><strong>@(ViewData["UnassignedLeads"] ?? "0")</strong> Unassigned</span>
+                    <span><strong>@(ViewData["NoFollowUpLeads"] ?? "0")</strong> Without follow-up</span>
+                    <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                }
+                else if (screen is "opportunities" or "opportunity")
+                {
+                    <span><strong>@(ViewData["UnassignedOpportunities"] ?? "0")</strong> Without owner</span>
+                    <span><strong>@(ViewData["OverdueOpportunities"] ?? "0")</strong> Overdue close</span>
+                    <span><strong>@(ViewData["NegotiationValue"] ?? "0")</strong> Negotiation</span>
+                }
+                else if (screen == "followups")
+                {
+                    <span><strong>@(ViewData["DueToday"] ?? "0")</strong> Due today</span>
+                    <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                    <span><strong>@(ViewData["CompletionRate"] ?? "0%")</strong> Completion</span>
+                }
+                else
+                {
+                    <span><strong>@(ViewData["OpenLeads"] ?? "0")</strong> Open leads</span>
+                    <span><strong>@(ViewData["OpenOpportunities"] ?? "0")</strong> Opportunities</span>
+                    <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                }
+            </div>
+            <button class="crm-guide-link" type="button" data-crm-guide-open>
+                <i class="bi bi-journal-text"></i> Open CRM Guide
+            </button>
+        </div>
+    </aside>
+}
+
+<div class="modal fade crm-guide-modal" id="crmGuideModal" tabindex="-1" aria-labelledby="crmGuideTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="admin-kicker">CRM Playbook</span>
+                    <h5 class="modal-title" id="crmGuideTitle">GameHub CRM Guide</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="crm-guide-section">
+                    <div class="crm-guidance-icon"><i class="bi @icon"></i></div>
+                    <h6>@title</h6>
+                    <ol>
+                        @foreach (var step in steps)
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                    <div class="crm-guidance-tip">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>@tip</span>
+                    </div>
+                    <div class="crm-guidance-metrics">
+                        @if (screen is "leads" or "lead")
+                        {
+                            <span><strong>@(ViewData["UnassignedLeads"] ?? "0")</strong> Unassigned</span>
+                            <span><strong>@(ViewData["NoFollowUpLeads"] ?? "0")</strong> Without follow-up</span>
+                            <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                        }
+                        else if (screen is "opportunities" or "opportunity")
+                        {
+                            <span><strong>@(ViewData["UnassignedOpportunities"] ?? "0")</strong> Without owner</span>
+                            <span><strong>@(ViewData["OverdueOpportunities"] ?? "0")</strong> Overdue close</span>
+                            <span><strong>@(ViewData["NegotiationValue"] ?? "0")</strong> Negotiation</span>
+                        }
+                        else if (screen == "followups")
+                        {
+                            <span><strong>@(ViewData["DueToday"] ?? "0")</strong> Due today</span>
+                            <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                            <span><strong>@(ViewData["CompletionRate"] ?? "0%")</strong> Completion</span>
+                        }
+                        else
+                        {
+                            <span><strong>@(ViewData["OpenLeads"] ?? "0")</strong> Open leads</span>
+                            <span><strong>@(ViewData["OpenOpportunities"] ?? "0")</strong> Opportunities</span>
+                            <span><strong>@(ViewData["OverdueFollowUps"] ?? "0")</strong> Overdue</span>
+                        }
+                    </div>
+                </div>
+                <div class="crm-playbook-grid">
+                    <section><i class="bi bi-person-check"></i><strong>Lead lifecycle</strong><span>New, contacted, follow-up, qualified, converted.</span></section>
+                    <section><i class="bi bi-kanban"></i><strong>Opportunity lifecycle</strong><span>Qualification through proposal, negotiation and close.</span></section>
+                    <section><i class="bi bi-alarm"></i><strong>Follow-up rule</strong><span>No active record should be left without a next action.</span></section>
+                    <section><i class="bi bi-shield-check"></i><strong>Qualification</strong><span>Confirm contact, need, owner and next step before conversion.</span></section>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

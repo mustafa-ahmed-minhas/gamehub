@@ -1,0 +1,1 @@
+(function(){let printing=false;document.querySelector('[data-print-document]')?.addEventListener('click',()=>{if(printing)return;printing=true;window.print();setTimeout(()=>printing=false,1000)});window.addEventListener('afterprint',()=>printing=false)})();

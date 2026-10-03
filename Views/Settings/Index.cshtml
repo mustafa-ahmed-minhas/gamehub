@@ -1,0 +1,211 @@
+@model SystemSettingsViewModel
+@{
+    ViewData["Title"] = "System Settings";
+    Layout = "_AdminLayout";
+}
+
+<section class="settings-page" data-settings-page>
+    <div class="settings-header admin-reveal">
+        <div>
+            <span class="admin-label">System Configuration</span>
+            <h1>Settings</h1>
+            <p>Configure arena identity, booking rules, financial defaults, and ERP security behavior.</p>
+        </div>
+        <span class="settings-version"><i class="bi bi-code-square"></i> Version @(Model.Version ?? "1.0.0")</span>
+    </div>
+
+    <form class="settings-shell" method="post" asp-controller="Settings" asp-action="Index" data-settings-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        <aside class="settings-nav admin-reveal" aria-label="Settings sections">
+            <a href="#arena"><i class="bi bi-building"></i><span>Arena</span></a>
+            <a href="#business"><i class="bi bi-clock"></i><span>Business</span></a>
+            <a href="#booking"><i class="bi bi-calendar-check"></i><span>Booking</span></a>
+            <a href="#finance"><i class="bi bi-cash-stack"></i><span>Finance</span></a>
+            <a href="#security"><i class="bi bi-shield-lock"></i><span>Security</span></a>
+            <a href="#about"><i class="bi bi-info-circle"></i><span>About</span></a>
+        </aside>
+
+        <div class="settings-content">
+            <div asp-validation-summary="ModelOnly" class="settings-validation"></div>
+
+            <section class="settings-card admin-reveal" id="arena">
+                <div class="settings-card-heading">
+                    <div><h2>Arena Information</h2><p>Public identity and contact details for GameHub Arena.</p></div>
+                    <i class="bi bi-building"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field wide">
+                        <span>Arena Name <em>*</em></span>
+                        <input asp-for="ArenaName" placeholder="GameHub Arena" data-arena-name />
+                        <small asp-validation-for="ArenaName"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Phone <em>*</em></span>
+                        <input asp-for="Phone" placeholder="+92 300 1234567" />
+                        <small asp-validation-for="Phone"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Email <em>*</em></span>
+                        <input asp-for="Email" placeholder="info@gamehub.pk" />
+                        <small asp-validation-for="Email"></small>
+                    </label>
+                    <label class="settings-field wide">
+                        <span>Address</span>
+                        <textarea asp-for="Address" rows="3" placeholder="123 Sports Avenue, Lahore"></textarea>
+                        <small asp-validation-for="Address"></small>
+                    </label>
+                    <div class="settings-field logo-field">
+                        <label>
+                            <span>Logo URL</span>
+                            <input asp-for="Logo" placeholder="/images/logo/gamehub.png" data-logo-input />
+                            <small asp-validation-for="Logo"></small>
+                        </label>
+                        <div class="logo-preview" data-logo-preview>
+                            <span>G</span>
+                            <strong data-logo-name>@Model.ArenaName</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="settings-card admin-reveal" id="business">
+                <div class="settings-card-heading">
+                    <div><h2>Business</h2><p>Daily operating schedule and court timing behavior.</p></div>
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field">
+                        <span>Opening Time <em>*</em></span>
+                        <input asp-for="OpeningTime" type="time" />
+                        <small asp-validation-for="OpeningTime"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Closing Time <em>*</em></span>
+                        <input asp-for="ClosingTime" type="time" />
+                        <small asp-validation-for="ClosingTime"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Slot Duration Minutes</span>
+                        <input asp-for="SlotDurationMinutes" type="number" min="1" />
+                        <small asp-validation-for="SlotDurationMinutes"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Buffer Minutes</span>
+                        <input asp-for="BufferMinutes" type="number" min="1" />
+                        <small asp-validation-for="BufferMinutes"></small>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card admin-reveal" id="booking">
+                <div class="settings-card-heading">
+                    <div><h2>Booking</h2><p>Core booking availability and channel controls.</p></div>
+                    <i class="bi bi-calendar2-check"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field">
+                        <span>Advance Booking Days</span>
+                        <input asp-for="AdvanceBookingDays" type="number" min="0" />
+                        <small asp-validation-for="AdvanceBookingDays"></small>
+                    </label>
+                    <label class="settings-toggle">
+                        <input asp-for="AllowWalkIn" />
+                        <span><strong>Allow Walk-In</strong><small>Front-desk users can register walk-in bookings.</small></span>
+                    </label>
+                    <label class="settings-toggle">
+                        <input asp-for="AllowOnlineBooking" />
+                        <span><strong>Allow Online Booking</strong><small>Future customer-facing booking flows can be enabled.</small></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card admin-reveal" id="finance">
+                <div class="settings-card-heading">
+                    <div><h2>Finance</h2><p>Currency, tax, and document numbering defaults.</p></div>
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field">
+                        <span>Currency <em>*</em></span>
+                        <input asp-for="Currency" placeholder="PKR" />
+                        <small asp-validation-for="Currency"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Currency Symbol</span>
+                        <input asp-for="CurrencySymbol" placeholder="Rs" />
+                        <small asp-validation-for="CurrencySymbol"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Tax Percentage</span>
+                        <input asp-for="TaxPercentage" type="number" step="0.01" min="0" max="100" />
+                        <small asp-validation-for="TaxPercentage"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Booking Prefix <em>*</em></span>
+                        <input asp-for="BookingPrefix" placeholder="BK" />
+                        <small asp-validation-for="BookingPrefix"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Invoice Prefix <em>*</em></span>
+                        <input asp-for="InvoicePrefix" placeholder="INV" />
+                        <small asp-validation-for="InvoicePrefix"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Receipt Prefix <em>*</em></span>
+                        <input asp-for="ReceiptPrefix" placeholder="RCPT" />
+                        <small asp-validation-for="ReceiptPrefix"></small>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card admin-reveal" id="security">
+                <div class="settings-card-heading">
+                    <div><h2>Security</h2><p>Session and password policy values used by ERP configuration.</p></div>
+                    <i class="bi bi-shield-lock"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field">
+                        <span>Session Timeout Minutes</span>
+                        <input asp-for="SessionTimeoutMinutes" type="number" min="5" />
+                        <small asp-validation-for="SessionTimeoutMinutes"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Password Minimum Length <em>*</em></span>
+                        <input asp-for="PasswordMinLength" type="number" min="6" />
+                        <small asp-validation-for="PasswordMinLength"></small>
+                    </label>
+                    <label class="settings-toggle">
+                        <input asp-for="RequireStrongPassword" />
+                        <span><strong>Require Strong Password</strong><small>Uppercase, lowercase, number, and special character.</small></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card admin-reveal" id="about">
+                <div class="settings-card-heading">
+                    <div><h2>About</h2><p>Build information for this FYP ERP application.</p></div>
+                    <i class="bi bi-info-circle"></i>
+                </div>
+                <div class="settings-grid">
+                    <label class="settings-field">
+                        <span>Version</span>
+                        <input asp-for="Version" placeholder="1.0.0" />
+                        <small asp-validation-for="Version"></small>
+                    </label>
+                    <label class="settings-field">
+                        <span>Build Date</span>
+                        <input asp-for="BuildDate" type="datetime-local" value="@Model.BuildDate.ToLocalTime().ToString("yyyy-MM-ddTHH:mm")" />
+                        <small asp-validation-for="BuildDate"></small>
+                    </label>
+                </div>
+            </section>
+        </div>
+
+        <div class="settings-action-bar">
+            <a class="admin-secondary-button" asp-controller="Settings" asp-action="Index" data-settings-cancel><i class="bi bi-x-lg"></i> Cancel</a>
+            <button class="admin-action-button" type="submit" data-settings-submit><i class="bi bi-check2-circle"></i> <span>Save Changes</span></button>
+        </div>
+    </form>
+</section>

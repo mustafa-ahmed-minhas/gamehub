@@ -1,0 +1,16 @@
+/* ==========================================================================
+   payments.css
+   Thin Sales Cycle layer.
+
+   The shared visual language for the Sales Cycle (Quotations, Sales Orders,
+   Invoices and Payments) now lives in sales.css: the arena-* page primitives,
+   the customer-* form, detail and side card components, and the
+   sales-cycle-* workspace, filter drawer, line item and summary components.
+
+   This file only carries rules that have no shared equivalent. Add a rule
+   here only when this module genuinely needs its own presentation, never a
+   duplicate of a shared primitive.
+   ========================================================================== */
+
+/* The currency prefixed amount input is defined once in sales-orders.css and
+   is shared by the payment form. Nothing module specific is required yet. */

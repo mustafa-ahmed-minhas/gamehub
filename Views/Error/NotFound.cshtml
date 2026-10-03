@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "Page Not Found";
+    Layout = "_ErrorLayout";
+}
+
+<main class="error-shell">
+    <div class="court-lines" aria-hidden="true"></div>
+    <section class="error-panel">
+        <a class="error-brand" asp-controller="Home" asp-action="Index" aria-label="GameHub home">
+            <span>G</span>
+            <strong>GameHub</strong>
+        </a>
+        <span class="error-label">GameHub</span>
+        <div class="error-number">404</div>
+        <h1>This Page Is Out of Play</h1>
+        <p>The page you're looking for is unavailable, has moved, or you don't have access to it.</p>
+        <div class="error-actions">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="error-primary" asp-controller="Dashboard" asp-action="Index"><i class="bi bi-speedometer2"></i> Go to Dashboard</a>
+            }
+            <a class="error-secondary" asp-controller="Home" asp-action="Index"><i class="bi bi-house"></i> Return Home</a>
+            <button type="button" class="error-secondary" onclick="if (history.length > 1) { history.back(); } else { location.href = '/'; }">
+                <i class="bi bi-arrow-left"></i> Go Back
+            </button>
+        </div>
+    </section>
+</main>

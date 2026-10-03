@@ -1,0 +1,15 @@
+@model bool
+@{
+    ViewData["Title"] = Model ? "Email Verified" : "Verification Failed";
+    Layout = "_CustomerLayout";
+}
+
+<section class="account-result">
+    <div class="container result-card">
+        <i class="bi @(Model ? "bi-patch-check-fill" : "bi-exclamation-triangle-fill")"></i>
+        <span class="eyebrow-pill">Email Verification</span>
+        <h1>@(Model ? "Email verified" : "Verification link expired")</h1>
+        <p>@(Model ? "Your email is verified. You are ready for the next booking phase." : "The verification link is invalid or expired. Please request a new one from the sign in flow.")</p>
+        <a class="btn-premium" asp-action="Login"><i class="bi bi-box-arrow-in-right"></i> Continue to Login</a>
+    </div>
+</section>

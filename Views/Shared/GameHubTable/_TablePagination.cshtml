@@ -1,0 +1,17 @@
+@model GameHub.Models.ViewModels.GameHubTable.GameHubTablePaginationViewModel
+@{
+    var totalPages = Math.Max(1, Model.TotalPages);
+    var currentPage = Math.Clamp(Model.CurrentPage, 1, totalPages);
+    string UrlFor(int page) => Model.PageUrl?.Invoke(page) ?? "#";
+}
+<div class="users-pagination gamehub-table-pagination">
+    <span>@Model.Summary</span>
+    <nav aria-label="Table pagination">
+        <a class="page-link @(currentPage <= 1 ? "disabled" : "")" href="@UrlFor(Math.Max(1, currentPage - 1))">Prev</a>
+        @for (var i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+        {
+            <a class="page-link @(i == currentPage ? "active" : "")" href="@UrlFor(i)">@i</a>
+        }
+        <a class="page-link @(currentPage >= totalPages ? "disabled" : "")" href="@UrlFor(Math.Min(totalPages, currentPage + 1))">Next</a>
+    </nav>
+</div>

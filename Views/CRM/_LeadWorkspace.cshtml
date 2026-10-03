@@ -1,0 +1,235 @@
+@model CrmIndexViewModel
+@using GameHub.Helpers
+@using Microsoft.AspNetCore.Html
+@using System.Net
+@{
+    var activeFilters = new[] { "status", "source", "priority", "temperature", "serviceInterest", "assignedToUserId", "sportId" }.Count(x => !string.IsNullOrWhiteSpace(Q(x)));
+    var stages = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Converted, LeadStatus.Lost, LeadStatus.Disqualified };
+    var hasFilters = !string.IsNullOrWhiteSpace(Model.Search) || activeFilters > 0;
+    var start = Model.Leads.Count == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 3);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 6);
+    pageStart = Math.Max(1, pageEnd - 6);
+}
+
+<section class="arena-card crm-leads-card">
+    <form class="arena-toolbar" method="get" data-crm-toolbar>
+        <input type="hidden" name="tab" value="leads" />
+        <input type="hidden" name="viewMode" value="@Model.ViewMode" />
+        <div class="arena-search">
+            <i class="bi bi-search"></i>
+            <input name="search" value="@Model.Search" placeholder="Search lead number, customer, email or phone..." aria-label="Search leads" autocomplete="off" data-crm-search />
+        </div>
+        <button class="admin-secondary-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#leadFilters">
+            <i class="bi bi-sliders"></i> Filters <span>@activeFilters</span>
+        </button>
+        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="leads" asp-route-viewMode="@Model.ViewMode"><i class="bi bi-x-circle"></i> Clear</a>
+        <select name="sortBy" data-crm-filter aria-label="Sort leads">
+            <option value="newest" selected="@(Q("sortBy") is "" or "newest")">Newest</option>
+            <option value="oldest" selected="@(Q("sortBy") == "oldest")">Oldest</option>
+            <option value="name" selected="@(Q("sortBy") == "name")">Name</option>
+            <option value="priority" selected="@(Q("sortBy") == "priority")">Priority</option>
+            <option value="temperature" selected="@(Q("sortBy") == "temperature")">Temperature</option>
+            <option value="followup" selected="@(Q("sortBy") == "followup")">Follow-up</option>
+            <option value="status" selected="@(Q("sortBy") == "status")">Status</option>
+        </select>
+        <select name="pageSize" data-crm-filter aria-label="Page size">
+            @foreach (var size in new[] { 10, 25, 50 })
+            {
+                <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+            }
+        </select>
+        @if (Model.CanManageLeads)
+        {
+            <a class="admin-action-button" asp-action="CreateLead"><i class="bi bi-plus-lg"></i> Add Lead</a>
+        }
+
+        <div class="offcanvas offcanvas-end crm-filter-panel" tabindex="-1" id="leadFilters">
+            <div class="offcanvas-header">
+                <div><span class="admin-kicker">Lead Filters</span><h5>Refine pipeline</h5></div>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <label>Status<select name="status">@(FilterOptions<LeadStatus>("status"))</select></label>
+                <label>Source<select name="source">@(FilterOptions<LeadSource>("source"))</select></label>
+                <label>Priority<select name="priority">@(FilterOptions<LeadPriority>("priority"))</select></label>
+                <label>Temperature<select name="temperature">@(FilterOptions<LeadTemperature>("temperature"))</select></label>
+                <label>Service<select name="serviceInterest">@(FilterOptions<LeadServiceInterest>("serviceInterest"))</select></label>
+                <label>Owner<select name="assignedToUserId"><option value="">All Owners</option>@foreach (var item in Model.UserOptions) { <option value="@item.Value" selected="@(Q("assignedToUserId") == item.Value)">@item.Text</option> }</select></label>
+                <label>Sport<select name="sportId"><option value="">All Sports</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value" selected="@(Q("sportId") == item.Value)">@item.Text</option> }</select></label>
+                <div class="crm-filter-actions">
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                    <a class="admin-secondary-button" asp-action="Index" asp-route-tab="leads">Clear All</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="crm-active-filters">
+        @foreach (var key in new[] { "status", "source", "priority", "temperature", "serviceInterest", "assignedToUserId", "sportId" })
+        {
+            if (!string.IsNullOrWhiteSpace(Q(key)))
+            {
+                <span class="crm-filter-chip">@key: @Q(key)</span>
+            }
+        }
+    </div>
+
+    @if (Model.ViewMode == "kanban")
+    {
+        <div class="crm-pipeline-summary">
+            @foreach (var status in stages)
+            {
+                var count = Model.Leads.Count(x => x.Status == status);
+                <span><i></i>@status.GetDisplayName() <strong>@count</strong></span>
+            }
+        </div>
+        <div class="crm-kanban crm-kanban-pro">
+            @foreach (var status in stages)
+            {
+                var items = Model.Leads.Where(x => x.Status == status).ToList();
+                var percentage = Model.Leads.Count == 0 ? 0 : (int)Math.Round(items.Count * 100m / Model.Leads.Count);
+                <section class="crm-stage-column">
+                    <header><div><strong>@status.GetDisplayName()</strong><small>@percentage% of page pipeline</small></div><span>@items.Count</span></header>
+                    @foreach (var lead in items)
+                    {
+                        <article class="crm-kanban-card crm-lead-card">
+                            <a asp-action="LeadDetails" asp-route-id="@lead.Id" class="crm-card-main">
+                                <strong>@lead.CustomerName</strong>
+                                <span>@lead.LeadNumber</span>
+                                <em>@lead.ServiceInterest.GetDisplayName()</em>
+                            </a>
+                            <div class="crm-card-meta">
+                                <span class="crm-badge source">@lead.Source.GetDisplayName()</span>
+                                <span class="crm-badge priority-@lead.Priority.ToString().ToLowerInvariant()">@lead.Priority.GetDisplayName()</span>
+                                <span class="crm-badge temp-@lead.Temperature.ToString().ToLowerInvariant()">@lead.Temperature.GetDisplayName()</span>
+                            </div>
+                            <div class="crm-card-footer">
+                                <span><i class="bi bi-person-circle"></i> @(lead.AssignedTo ?? "Unassigned")</span>
+                                <span class="@(lead.NextFollowUpAt.HasValue && lead.NextFollowUpAt.Value < DateTime.UtcNow ? "crm-overdue-text" : "")"><i class="bi bi-alarm"></i> @(lead.NextFollowUpAt?.ToString("MMM dd") ?? "No follow-up")</span>
+                                <span><i class="bi bi-hourglass"></i> @lead.DaysOpen days</span>
+                            </div>
+                            <div class="crm-card-actions">
+                                <a asp-action="LeadDetails" asp-route-id="@lead.Id" aria-label="View lead"><i class="bi bi-eye"></i></a>
+                                @if (Model.CanManageLeads || !Model.IsReadOnly) { <a asp-action="EditLead" asp-route-id="@lead.Id" aria-label="Edit lead"><i class="bi bi-pencil"></i></a> }
+                            </div>
+                        </article>
+                    }
+                    @if (!items.Any()) { <div class="crm-empty-stage"><i class="bi bi-inboxes"></i><strong>No leads</strong><span>Leads entering @status.GetDisplayName() appear here.</span></div> }
+                </section>
+            }
+        </div>
+    }
+    else
+    {
+        @if (!Model.Leads.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi bi-person-lines-fill"></i>
+                <h2>@(hasFilters ? "No Matching Leads" : "No Leads Yet")</h2>
+                <p>@(hasFilters ? "Try changing or clearing your filters." : "Create your first lead or capture a customer inquiry to begin the CRM pipeline.")</p>
+                @if (hasFilters)
+                {
+                    <a class="admin-secondary-button" asp-action="Index" asp-route-tab="leads"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                }
+                else if (Model.CanManageLeads)
+                {
+                    <a class="admin-action-button" asp-action="CreateLead"><i class="bi bi-plus-lg"></i> Add Lead</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="arena-table-wrap crm-leads-table-wrap">
+                <table class="arena-table crm-table crm-leads-table">
+                    <thead><tr><th>Lead</th><th>Contact</th><th>Interest</th><th>Source</th><th>Owner</th><th>Priority</th><th>Temperature</th><th>Status</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    @foreach (var lead in Model.Leads)
+                    {
+                        var initials = string.Join("", lead.CustomerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                        var overdue = lead.NextFollowUpAt.HasValue && lead.NextFollowUpAt.Value < DateTime.UtcNow;
+                        var ownerInitials = string.IsNullOrWhiteSpace(lead.AssignedTo) ? "U" : string.Join("", lead.AssignedTo.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+                        <tr>
+                            <td data-label="Lead"><div class="user-cell membership-name-cell crm-person-cell"><span class="user-avatar membership-table-avatar crm-mini-avatar">@initials</span><div><strong>@lead.CustomerName</strong><small>@lead.LeadNumber</small>@if (!string.IsNullOrWhiteSpace(lead.OrganizationName)) { <em>@lead.OrganizationName</em> }@if (lead.IsWebsiteInquiry) { <span class="crm-inline-indicator"><i class="bi bi-globe2"></i> Website inquiry</span> }</div></div></td>
+                            <td data-label="Contact"><span>@(lead.Email ?? "No email")</span><small>@(lead.Phone ?? "No phone")</small>@if (!string.IsNullOrWhiteSpace(lead.WhatsAppNumber)) { <em><i class="bi bi-whatsapp"></i> @lead.WhatsAppNumber</em> }</td>
+                            <td data-label="Interest"><strong>@lead.ServiceInterest.GetDisplayName()</strong><small>@(lead.SportName ?? "Any sport")</small></td>
+                            <td data-label="Source"><span class="membership-code crm-source-code">@lead.Source.GetDisplayName()</span></td>
+                            <td data-label="Owner"><div class="user-cell membership-name-cell crm-owner-cell"><span class="user-avatar membership-table-avatar">@ownerInitials</span><div><strong>@(lead.AssignedTo ?? "Unassigned")</strong>@if (string.IsNullOrWhiteSpace(lead.AssignedTo)) { <small class="crm-overdue-text">Needs owner</small> }</div></div></td>
+                            <td data-label="Priority"><span class="membership-status-badge crm-lead-badge priority-@lead.Priority.ToString().ToLowerInvariant()"><i></i>@lead.Priority.GetDisplayName()</span></td>
+                            <td data-label="Temperature"><span class="membership-status-badge crm-lead-badge temp-@lead.Temperature.ToString().ToLowerInvariant()"><i></i>@lead.Temperature.GetDisplayName()</span></td>
+                            <td data-label="Status"><span class="membership-status-badge crm-lead-badge status-@lead.Status.ToString().ToLowerInvariant()"><i></i>@lead.Status.GetDisplayName()</span></td>
+                            <td data-label="Next Follow-up"><span class="crm-followup @(overdue ? "overdue" : "")">@(lead.NextFollowUpAt?.ToString("MMM dd, hh:mm tt") ?? "Not scheduled")</span>@if (overdue) { <small class="crm-overdue-text">Overdue</small> }</td>
+                            <td data-label="Actions">
+                                <div class="membership-action-menu crm-lead-actions">
+                                    <a class="membership-icon-button" asp-action="LeadDetails" asp-route-id="@lead.Id" aria-label="View lead" data-tooltip="View"><i class="bi bi-eye"></i></a>
+                                    @if (Model.CanManageLeads || !Model.IsReadOnly)
+                                    {
+                                        <a class="membership-icon-button" asp-action="EditLead" asp-route-id="@lead.Id" aria-label="Edit lead" data-tooltip="Edit"><i class="bi bi-pencil"></i></a>
+                                        <a class="membership-icon-button" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions" aria-label="Add activity" data-tooltip="Activity"><i class="bi bi-chat-dots"></i></a>
+                                        <div class="dropdown">
+                                            <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-tooltip="More"><i class="bi bi-three-dots"></i></button>
+                                            <div class="dropdown-menu crm-lead-more-menu">
+                                                <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-patch-check"></i> Qualify</a>
+                                                <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-x-circle"></i> Disqualify</a>
+                                                @if (lead.Status == LeadStatus.Qualified && !lead.IsConverted)
+                                                {
+                                                    <a class="dropdown-item" asp-action="ConvertToOpportunity" asp-route-id="@lead.Id"><i class="bi bi-arrow-right-circle"></i> Convert</a>
+                                                }
+                                                <a class="dropdown-item" asp-action="EditLead" asp-route-id="@lead.Id"><i class="bi bi-person-gear"></i> Reassign</a>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+
+    @if (Model.Leads.Any())
+    {
+        <div class="arena-pagination">
+            <span>Showing @start-@end of @Model.TotalRecords leads</span>
+            <nav>
+                <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : PageUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                {
+                    <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@PageUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                }
+                <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : PageUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+            </nav>
+        </div>
+    }
+</section>
+
+@functions {
+    string Q(string key) => Context.Request.Query[key].ToString();
+    IHtmlContent FilterOptions<TEnum>(string key) where TEnum : struct, Enum
+    {
+        var html = new System.Text.StringBuilder("<option value=\"\">All</option>");
+        foreach (var item in Enum.GetValues<TEnum>())
+        {
+            var selected = Q(key) == item.ToString() ? " selected" : "";
+            html.Append($"<option value=\"{item}\"{selected}>{item.GetDisplayName()}</option>");
+        }
+        return new HtmlString(html.ToString());
+    }
+    string PageUrl(int page)
+    {
+        var pairs = new List<string>();
+        foreach (var item in Context.Request.Query)
+        {
+            if (item.Key.Equals("page", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (var value in item.Value)
+            {
+                if (!string.IsNullOrWhiteSpace(value)) pairs.Add($"{WebUtility.UrlEncode(item.Key)}={WebUtility.UrlEncode(value)}");
+            }
+        }
+        pairs.Add($"page={page}");
+        return $"{Context.Request.Path}?{string.Join("&", pairs)}";
+    }
+}

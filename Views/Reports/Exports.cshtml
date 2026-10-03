@@ -1,0 +1,9 @@
+@model ReportPageViewModel
+@{ ViewData["Title"]="Report Export Center"; Layout="_AdminLayout"; }
+<main class="reports-page">
+    <header class="reports-hero admin-reveal"><div><a asp-action="Index" class="reports-back"><i class="bi bi-arrow-left"></i> Reports Overview</a><span class="reports-kicker">REPORT DELIVERY</span><h1>Export Center</h1><p>Open a report, choose its scope, then export the filtered records to CSV, Excel, print or PDF.</p></div></header>
+    <section class="reports-module-panel admin-reveal"><div class="reports-section-heading"><div><span>AVAILABLE REPORTS</span><h2>Choose a report</h2></div></div><div class="reports-module-grid">
+        @foreach(var module in Model.Modules.Where(x=>x.Available && x.Action!="Exports")){<a asp-action="@module.Action" class="report-module-card"><span><i class="bi @module.Icon"></i></span><div><h3>@module.Title</h3><p>@module.Description</p></div><i class="bi bi-arrow-up-right"></i></a>}
+    </div></section>
+</main>
+@section Styles { <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" /> }

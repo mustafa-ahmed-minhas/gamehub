@@ -1,0 +1,17 @@
+@model PaymentTransaction
+@{
+    ViewData["Title"] = "Payment Failed";
+    Layout = "_CustomerLayout";
+}
+<section class="payment-result failed">
+    <div class="container result-panel">
+        <i class="bi bi-x-circle-fill"></i>
+        <h1>Payment was not completed</h1>
+        <p>@(Model.CustomerSafeMessage ?? "No booking was created and the selected slot is not secured.")</p>
+        <div class="result-actions">
+            <a class="btn-premium" asp-action="Retry">Retry Payment</a>
+            <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index">Change Booking</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

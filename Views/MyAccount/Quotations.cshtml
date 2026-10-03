@@ -1,0 +1,47 @@
+@model List<SalesQuotation>
+@using GameHub.Helpers
+@using GameHub.Models.ViewModels.GameHubTable
+@{
+    ViewData["Title"] = "My Quotations";
+    Layout = "_CustomerLayout";
+}
+<section class="customer-account-page gamehub-table-page">
+    <header class="customer-page-header">
+        <div><span class="customer-kicker">Customer Portal</span><h1>My Quotations</h1><p>Review commercial proposals shared by GameHub Arena.</p></div>
+    </header>
+    <section class="users-card gamehub-table-shell customer-document-list">
+        @if (!Model.Any())
+        {
+            <partial name="GameHubTable/_TableEmptyState" model="@(new GameHubTableEmptyStateViewModel { IconClass = "bi bi-file-earmark-text", Title = "No quotations yet", Description = "Accepted proposals and quotations from GameHub will appear here." })" />
+        }
+        else
+        {
+            <div class="users-table-wrap gamehub-table-wrap">
+                <table class="users-table gamehub-table customer-quotation-table">
+                    <thead>
+                        <tr>
+                            <th>Quotation</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Valid Until</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td data-label="Quotation"><strong>@item.QuotationNumber</strong><span>@(item.Subject ?? item.Opportunity.Name)</span></td>
+                                <td data-label="Amount"><strong>@item.CurrencySymbol @item.GrandTotal.ToString("N0")</strong></td>
+                                <td data-label="Status"><span class="sales-status status-@item.Status.ToString().ToLowerInvariant()">@item.Status.GetDisplayName()</span></td>
+                                <td data-label="Valid Until">@item.ValidUntil.ToString("MMM dd, yyyy")</td>
+                                <td data-label="Actions"><div class="user-actions"><a class="customer-primary-button" asp-action="QuotationDetails" asp-route-id="@item.Id">View Quotation</a></div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }

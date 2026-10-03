@@ -1,0 +1,170 @@
+@model OnlineBookingStartViewModel
+@{
+    ViewData["Title"] = "Book a Court";
+    Layout = "_CustomerLayout";
+}
+
+<section class="booking-hero">
+    <div class="container booking-hero-grid">
+        <div>
+            <span class="eyebrow-pill"><i class="bi bi-calendar2-check"></i> Online Court Booking</span>
+            <h1>Choose Your Perfect Time to Play</h1>
+            <p>Select your date, duration and available court time. Your booking is confirmed only after full payment.</p>
+        </div>
+        <article class="selected-court-card">
+            <div class="selected-court-image" style="background-image:url('@(Model.CourtImageUrl ?? "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=1200")')"></div>
+            <div>
+                <span>@Model.SportName · @Model.FacilityName</span>
+                <h2>@Model.CourtName</h2>
+                <p>@Model.Capacity players · @(Model.StartingPrice.HasValue ? $"From {Model.CurrencySymbol} {Model.StartingPrice:N0}" : "Pricing varies by time")</p>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="booking-workspace" data-online-booking data-court-id="@Model.CourtId" data-sport-id="@Model.SportId" data-availability-url="@Url.Action("Availability", "OnlineBooking")" data-calculate-url="@Url.Action("Calculate", "OnlineBooking")" data-customer-url="@Url.Action("CustomerSummary", "OnlineBooking")" data-membership-url="@Url.Action("MembershipSummary", "OnlineBooking")">
+    <div class="container booking-grid">
+        <form asp-action="Review" method="post" class="booking-flow-card" data-booking-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CourtId" value="@Model.CourtId" />
+            <input type="hidden" name="StartTime" data-selected-start />
+            <input type="hidden" name="DurationMinutes" data-duration-hidden value="@Model.DurationOptions.FirstOrDefault()" />
+
+            <div class="booking-steps">
+                <span class="active">1 Court</span>
+                <span>2 Date</span>
+                <span>3 Time</span>
+                <span>4 Review</span>
+                <span>5 Checkout</span>
+            </div>
+
+            <section class="booking-section">
+                <h2>Select date</h2>
+                <p>Bookings are available from @Model.MinDate.ToString("MMM dd") to @Model.MaxDate.ToString("MMM dd, yyyy").</p>
+                <div class="quick-date-row">
+                    <button type="button" data-quick-date="@Model.MinDate.ToString("yyyy-MM-dd")">Today</button>
+                    <button type="button" data-quick-date="@Model.Tomorrow.ToString("yyyy-MM-dd")">Tomorrow</button>
+                    <button type="button" data-quick-date="@Model.WeekendDate.ToString("yyyy-MM-dd")">This Weekend</button>
+                </div>
+                <input class="booking-date-input" type="date" name="BookingDate" min="@Model.MinDate.ToString("yyyy-MM-dd")" max="@Model.MaxDate.ToString("yyyy-MM-dd")" value="@Model.MinDate.ToString("yyyy-MM-dd")" data-booking-date />
+            </section>
+
+            <section class="booking-section">
+                <h2>Select duration</h2>
+                <div class="duration-grid" data-duration-grid>
+                    @foreach (var duration in Model.DurationOptions)
+                    {
+                        <button class="duration-card @(duration == Model.DurationOptions.FirstOrDefault() ? "selected" : "")" type="button" data-duration="@duration">
+                            <strong>@duration</strong>
+                            <span>minutes</span>
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <section class="booking-section">
+                <h2>Choose available time</h2>
+                <div class="slot-state" data-slot-state>Choose a date and duration to load live slots.</div>
+                <div class="slot-grid" data-slot-grid></div>
+            </section>
+
+            <section class="booking-section">
+                <h2>Your account</h2>
+                @if (Model.IsCustomerSignedIn)
+                {
+                    <div class="customer-summary-panel" data-customer-panel>
+                        <span class="loading-line">Loading customer summary...</span>
+                    </div>
+                    @if (!Model.EmailVerified)
+                    {
+                        <div class="verification-required">
+                            <i class="bi bi-envelope-exclamation"></i>
+                            <div>
+                                <strong>Email verification required</strong>
+                                <p>Please verify your email before continuing to checkout.</p>
+                                <button type="submit" form="resend-verification-form" class="btn-ghost-light">Resend Verification</button>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="guest-account-panel">
+                        <i class="bi bi-person-lock"></i>
+                        <div>
+                            <h3>Sign in to continue</h3>
+                            <p>Secure checkout, booking history, membership discounts, payment receipts and reminders require a customer account.</p>
+                            <a class="btn-premium" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Start", "OnlineBooking", new { id = Model.CourtId })">Sign In</a>
+                            <a class="btn-ghost-light" asp-controller="Account" asp-action="Signup">Create Account</a>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            <section class="booking-section">
+                <h2>Player and booking details</h2>
+                <div class="form-grid two">
+                    <div class="form-floating">
+                        <input class="form-control" type="number" min="1" max="@Model.Capacity" value="1" name="PlayerCount" data-player-count />
+                        <label>Player Count</label>
+                    </div>
+                    <div class="form-floating">
+                        <input class="form-control" name="SpecialRequest" maxlength="500" placeholder="Special request" />
+                        <label>Special Request</label>
+                    </div>
+                </div>
+                <div class="form-floating">
+                    <textarea class="form-control" name="CustomerNotes" maxlength="500" placeholder="Notes" style="height: 110px"></textarea>
+                    <label>Customer Notes</label>
+                </div>
+                <label class="premium-policy-check">
+                    <input type="checkbox" name="AcceptBookingPolicy" value="true" />
+                    <span></span>
+                    I understand the booking is not confirmed until 100% payment succeeds.
+                </label>
+                <label class="premium-policy-check">
+                    <input type="checkbox" name="AcceptCancellationPolicy" value="true" />
+                    <span></span>
+                    I accept GameHub cancellation and schedule policies.
+                </label>
+            </section>
+
+            <button class="btn-premium booking-submit" type="submit" @(Model.IsCustomerSignedIn && Model.EmailVerified ? "" : "disabled") data-review-submit>
+                <i class="bi bi-credit-card"></i> Review and Continue
+            </button>
+        </form>
+
+        <aside class="live-summary-card" data-live-summary>
+            <span class="eyebrow-pill">@Model.ArenaName</span>
+            <h2>Booking Summary</h2>
+            <dl>
+                <dt>Court</dt><dd>@Model.CourtName</dd>
+                <dt>Sport</dt><dd>@Model.SportName</dd>
+                <dt>Facility</dt><dd>@Model.FacilityName</dd>
+                <dt>Date</dt><dd data-summary-date>Not selected</dd>
+                <dt>Time</dt><dd data-summary-time>Choose a slot</dd>
+                <dt>Players</dt><dd data-summary-players>1</dd>
+                <dt>Pricing</dt><dd data-summary-pricing>Awaiting slot</dd>
+                <dt>Base</dt><dd data-summary-base>-</dd>
+                <dt>Membership</dt><dd data-summary-discount>-</dd>
+                <dt>Tax</dt><dd data-summary-tax>-</dd>
+                <dt>Total payable</dt><dd class="summary-total" data-summary-total>-</dd>
+            </dl>
+            <div class="race-notice">
+                <i class="bi bi-info-circle"></i>
+                <p>100% payment is required to confirm this booking. Availability is rechecked before payment is completed.</p>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<form id="resend-verification-form" asp-controller="Account" asp-action="ResendVerification" method="post" class="d-none" aria-hidden="true">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/online-booking.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/online-booking.js" asp-append-version="true"></script>
+}

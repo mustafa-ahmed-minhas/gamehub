@@ -1,0 +1,354 @@
+@using GameHub.Models.ViewModels
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_AdminLayout";
+    var currency = Model.CurrencySymbol;
+}
+
+<script id="dashboard-data" type="application/json">
+@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+{
+    revenueLabels = Model.RevenueLabels,
+    revenueData = Model.RevenueData,
+    sportLabels = Model.SportLabels,
+    sportData = Model.SportData,
+    bookingStatusLabels = Model.BookingStatusLabels,
+    bookingStatusData = Model.BookingStatusData,
+    bookingStatusTotal = Model.BookingStatusTotal,
+    currencySymbol = currency
+}))
+</script>
+
+<section class="dashboard-page">
+    <div class="dashboard-header admin-reveal">
+        <div>
+            <span class="admin-label">GameHub Control Center</span>
+            <h1>@Model.Greeting, @Model.FirstName</h1>
+            <p>Here's what is happening across your arena today.</p>
+            <div class="operational-status"><span></span> All Systems Operational</div>
+        </div>
+        <div class="dashboard-header-actions">
+            <div class="range-tabs" aria-label="Date range visual selector">
+                <button type="button" class="active">Today</button>
+                <button type="button">This Week</button>
+                <button type="button">This Month</button>
+            </div>
+            <a href="@Url.Action("Index", "Reports")" class="admin-secondary-button"><i class="bi bi-download"></i> Export Report</a>
+            <a href="@Url.Action("Index", "Bookings", new { view = "list" })" class="admin-action-button"><i class="bi bi-plus-lg"></i> Add Booking</a>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-calendar-check"></i></span>
+            </div>
+            <h2>@Model.TodaysBookings</h2>
+            <p>Today's Bookings</p>
+            <div class="kpi-bottom"><span>Active today</span></div>
+        </article>
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-cash-stack"></i></span>
+            </div>
+            <h2>@currency @Model.TodaysRevenue.ToString("N0")</h2>
+            <p>Today's Revenue</p>
+            <div class="kpi-bottom"><span>Collected today</span></div>
+        </article>
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-activity"></i></span>
+                <span class="trend-pill neutral">Live</span>
+            </div>
+            <h2>@Model.CourtOccupancyPercent%</h2>
+            <p>Court Occupancy</p>
+            <div class="kpi-bottom"><span>Current utilization</span></div>
+        </article>
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-people"></i></span>
+            </div>
+            <h2>@Model.ActiveCustomers.ToString("N0")</h2>
+            <p>Active Customers</p>
+            <div class="kpi-bottom"><span>Total active</span></div>
+        </article>
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-wallet2"></i></span>
+                @if (Model.PendingPaymentsCount > 0)
+                {
+                    <span class="trend-pill warn">Review</span>
+                }
+            </div>
+            <h2>@currency @Model.PendingPaymentsTotal.ToString("N0")</h2>
+            <p>Pending Payments</p>
+            <div class="kpi-bottom"><span>@Model.PendingPaymentsCount outstanding</span></div>
+        </article>
+        <article class="kpi-widget admin-reveal">
+            <div class="kpi-topline">
+                <span class="kpi-icon"><i class="bi bi-grid"></i></span>
+                <span class="trend-pill neutral">Live</span>
+            </div>
+            <h2>@Model.CourtsAvailable / @Model.CourtsTotal</h2>
+            <p>Courts Available</p>
+            <div class="kpi-bottom"><span>@(Model.CourtsTotal - Model.CourtsAvailable) currently occupied</span></div>
+        </article>
+    </div>
+
+    <div class="dashboard-grid charts-row">
+        <article class="admin-card chart-card revenue-card admin-reveal" aria-label="Revenue overview chart">
+            <div class="card-heading">
+                <div>
+                    <h2>Revenue Overview</h2>
+                    <p>Daily revenue for the last 7 days</p>
+                </div>
+                <div class="chart-controls">
+                    <button type="button" class="active">Revenue</button>
+                    <button type="button">Bookings</button>
+                    <select aria-label="Revenue period visual selector">
+                        <option>Last 7 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-wrap large-chart">
+                @if (Model.RevenueData.Any(x => x > 0))
+                {
+                    <canvas id="revenueChart"></canvas>
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:4rem 0;">No revenue data for the last 7 days.</p>
+                }
+            </div>
+        </article>
+
+        <article class="admin-card chart-card admin-reveal" aria-label="Bookings by sport chart">
+            <div class="card-heading">
+                <div>
+                    <h2>Bookings by Sport</h2>
+                    <p>Current month bookings by sport</p>
+                </div>
+            </div>
+            <div class="chart-wrap">
+                @if (Model.SportData.Length > 0)
+                {
+                    <canvas id="sportBookingsChart"></canvas>
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:4rem 0;">No booking data this month.</p>
+                }
+            </div>
+        </article>
+    </div>
+
+    <div class="dashboard-grid mid-row">
+        <article class="admin-card chart-card admin-reveal" aria-label="Booking status chart">
+            <div class="card-heading">
+                <div>
+                    <h2>Booking Status</h2>
+                    <p>Current booking distribution</p>
+                </div>
+            </div>
+            <div class="doughnut-layout">
+                <div class="doughnut-wrap">
+                    @if (Model.BookingStatusTotal > 0)
+                    {
+                        <canvas id="bookingStatusChart"></canvas>
+                        <div class="doughnut-center"><span>Total</span><strong>@Model.BookingStatusTotal</strong></div>
+                    }
+                    else
+                    {
+                        <p style="text-align:center;color:var(--admin-muted);padding:4rem 0;">No bookings yet.</p>
+                    }
+                </div>
+                <div class="chart-legend">
+                    @for (var i = 0; i < Model.BookingStatusLabels.Length && i < Model.BookingStatusData.Length; i++)
+                    {
+                        var pct = Model.BookingStatusTotal == 0 ? 0 : Model.BookingStatusData[i] * 100 / Model.BookingStatusTotal;
+                        var dotClass = Model.BookingStatusLabels[i].ToLowerInvariant() switch
+                        {
+                            "confirmed" => "confirmed",
+                            "pending" => "pending",
+                            "completed" => "completed",
+                            "cancelled" => "cancelled",
+                            _ => "pending"
+                        };
+                        <div><span class="dot @dotClass"></span><strong>@Model.BookingStatusLabels[i]</strong><em>@pct%</em></div>
+                    }
+                </div>
+            </div>
+        </article>
+
+        <article class="admin-card occupancy-card admin-reveal">
+            <div class="card-heading">
+                <div>
+                    <h2>Live Court Occupancy</h2>
+                    <p>Current arena status</p>
+                </div>
+                <a href="@Url.Action("Index", "ArenaSetup", new { tab = "courts" })" class="text-action">View All Courts</a>
+            </div>
+            <div class="court-list">
+                @if (Model.LiveCourts.Count > 0)
+                {
+                    @foreach (var court in Model.LiveCourts)
+                    {
+                        <div class="court-row">
+                            <div>
+                                <strong>@court.Name</strong>
+                                <span>@court.Detail</span>
+                            </div>
+                            <span class="status-badge @court.StatusClass">@court.Status</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">No courts configured.</p>
+                }
+            </div>
+        </article>
+    </div>
+
+    <section class="admin-card schedule-card admin-reveal">
+        <div class="card-heading schedule-heading">
+            <div>
+                <h2>Today's Schedule</h2>
+                <p>Upcoming bookings in chronological order</p>
+            </div>
+            <div class="schedule-filters">
+                <select aria-label="All sports visual filter"><option>All Sports</option></select>
+                <select aria-label="All statuses visual filter"><option>All Statuses</option></select>
+            </div>
+        </div>
+        <div class="schedule-list">
+            @if (Model.TodaySchedule.Count > 0)
+            {
+                @foreach (var item in Model.TodaySchedule)
+                {
+                    <div class="schedule-row">
+                        <time>@item.Time</time>
+                        <div class="customer-cell">
+                            <span class="mini-avatar">@item.Initials</span>
+                            <strong>@item.CustomerName</strong>
+                        </div>
+                        <div class="court-cell"><i class="bi @item.SportIcon"></i> @item.CourtName</div>
+                        <span>@item.Duration</span>
+                        <span class="payment-badge @item.PaymentClass">@item.PaymentStatus</span>
+                        <span class="status-badge @item.StatusClass">@item.BookingStatus</span>
+                        <button type="button" class="icon-button" aria-label="Booking actions"><i class="bi bi-three-dots"></i></button>
+                    </div>
+                }
+            }
+            else
+            {
+                <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">No bookings scheduled for today.</p>
+            }
+        </div>
+    </section>
+
+    <div class="dashboard-grid lower-row">
+        <article class="admin-card activity-card admin-reveal">
+            <div class="card-heading"><div><h2>Recent Activity</h2><p>Latest operational updates</p></div></div>
+            <div class="activity-timeline">
+                @if (Model.RecentActivity.Count > 0)
+                {
+                    @foreach (var item in Model.RecentActivity)
+                    {
+                        <div><i class="bi @item.Icon"></i><strong>@item.Title</strong><span>@item.Detail</span><time>@item.TimeAgo</time></div>
+                    }
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">No recent activity.</p>
+                }
+            </div>
+        </article>
+
+        <article class="admin-card performance-card admin-reveal">
+            <div class="card-heading"><div><h2>Top Performing Courts</h2><p>Ranked by occupancy and revenue (last 30 days)</p></div></div>
+            <div class="rank-list">
+                @if (Model.TopCourts.Count > 0)
+                {
+                    @foreach (var court in Model.TopCourts)
+                    {
+                        <div>
+                            <span>@court.Rank</span>
+                            <i class="bi @court.SportIcon"></i>
+                            <strong>@court.Name<small>@court.OccupancyPercent% occupancy</small></strong>
+                            <progress value="@court.OccupancyPercent" max="100"></progress>
+                            <em>@currency @court.Revenue.ToString("N0")</em>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">No booking data for ranking.</p>
+                }
+            </div>
+        </article>
+    </div>
+
+    <div class="dashboard-grid final-row">
+        <article class="admin-card heatmap-card admin-reveal">
+            <div class="card-heading"><div><h2>Peak Booking Hours</h2><p>Demand heatmap (last 7 days)</p></div></div>
+            <div class="heatmap" aria-label="Peak booking hours heatmap">
+                <span></span>
+                @foreach (var t in Model.HeatmapTimeLabels)
+                {
+                    <strong>@t</strong>
+                }
+                @for (var day = 0; day < 7; day++)
+                {
+                    <strong>@Model.HeatmapDayLabels[day]</strong>
+                    @for (var slot = 0; slot < 6; slot++)
+                    {
+                        var count = Model.HeatmapValues.Length > day && Model.HeatmapValues[day].Length > slot
+                            ? Model.HeatmapValues[day][slot] : 0;
+                        var heatClass = count == 0 ? "low" : count <= 2 ? "mid" : "high";
+                        <span class="heat @heatClass"></span>
+                    }
+                }
+            </div>
+            <div class="heat-legend"><span class="heat low"></span> Low <span class="heat mid"></span> Medium <span class="heat high"></span> High</div>
+        </article>
+
+        <article class="admin-card insights-card admin-reveal">
+            <div class="card-heading"><div><h2>Customer Insights</h2><p>Current month snapshot</p></div></div>
+            <div class="insight-radial" style="--value:@Model.ReturningCustomerPercent%"><strong>@Model.ReturningCustomerPercent%</strong><span>Returning Customers</span></div>
+            <div class="insight-list">
+                <div><span>New Customers</span><strong>@Model.NewCustomers</strong></div>
+                <div><span>Average Booking Value</span><strong>@currency @Model.AvgBookingValue.ToString("N0")</strong></div>
+                <div><span>Membership Renewals</span><strong>@Model.MembershipRenewals</strong></div>
+            </div>
+        </article>
+
+        <article class="admin-card quick-actions-card admin-reveal">
+            <div class="card-heading"><div><h2>Quick Actions</h2><p>Shortcuts</p></div></div>
+            <div class="quick-actions-grid">
+                @foreach (var action in Model.QuickActions)
+                {
+                    <a href="@action.Url"><i class="bi @action.Icon"></i><span>@action.Label</span></a>
+                }
+            </div>
+        </article>
+
+        <article class="admin-card attention-card admin-reveal">
+            <div class="card-heading"><div><h2>Needs Attention</h2><p>Operational alerts</p></div></div>
+            <div class="attention-list">
+                @if (Model.AttentionItems.Count > 0)
+                {
+                    @foreach (var item in Model.AttentionItems)
+                    {
+                        <div class="@item.Tone"><span>@item.Label</span><strong>@item.Message</strong></div>
+                    }
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">All clear.</p>
+                }
+            </div>
+        </article>
+    </div>
+</section>

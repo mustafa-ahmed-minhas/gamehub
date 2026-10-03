@@ -1,0 +1,133 @@
+:root {
+    --color-black: #070707;
+    --color-charcoal: #111211;
+    --color-ink: #191713;
+    --color-gold: #d6a950;
+    --color-gold-soft: #f0cf86;
+    --color-ivory: #f7f1e6;
+    --color-paper: #fffaf1;
+    --color-muted: #7d776b;
+    --color-line: rgba(214, 169, 80, 0.22);
+    --font-heading: "Bebas Neue", "Oswald", sans-serif;
+    --font-body: "Manrope", "Inter", sans-serif;
+    --radius-sm: 14px;
+    --radius-md: 22px;
+    --radius-lg: 34px;
+    --shadow-soft: 0 18px 50px rgba(11, 9, 6, 0.14);
+    --shadow-deep: 0 28px 90px rgba(0, 0, 0, 0.28);
+    --container-pad: clamp(1rem, 3vw, 2rem);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body.public-page {
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+body.public-page a {
+    color: inherit;
+}
+
+body.public-page img {
+    display: block;
+    max-width: 100%;
+}
+
+body.public-page ::selection {
+    background: rgba(214, 169, 80, 0.32);
+}
+
+body.public-page :focus-visible {
+    outline: 3px solid rgba(214, 169, 80, 0.7);
+    outline-offset: 4px;
+}
+
+.section-block {
+    position: relative;
+    padding: clamp(4rem, 8vw, 7rem) 0;
+}
+
+.section-heading {
+    max-width: 780px;
+    margin: 0 auto clamp(2rem, 4vw, 3.2rem);
+    text-align: center;
+}
+
+.section-heading span,
+.section-label {
+    display: inline-block;
+    color: var(--color-gold);
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    margin-bottom: 0.55rem;
+    text-transform: uppercase;
+}
+
+.section-heading h2,
+.facility-copy h2,
+.final-cta h2 {
+    margin: 0;
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: clamp(2.45rem, 6vw, 5rem);
+    letter-spacing: 0.02em;
+    line-height: 0.9;
+    text-transform: uppercase;
+}
+
+.reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.reveal-on-load {
+    animation: heroRise 900ms ease both;
+}
+
+@keyframes heroRise {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    .reveal {
+        opacity: 1;
+        transform: none;
+    }
+}

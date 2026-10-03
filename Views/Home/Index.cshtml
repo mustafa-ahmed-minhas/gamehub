@@ -1,0 +1,353 @@
+@{
+    ViewData["Title"] = "Premium Sports Arena";
+    Layout = "_PublicLayout";
+
+    var sports = new[]
+    {
+        new { Name = "Padel", Icon = "bi-dribbble", Image = "https://images.pexels.com/photos/35646550/pexels-photo-35646550.jpeg?auto=compress&cs=tinysrgb&w=1200", Text = "Fast-paced fun for every skill level." },
+        new { Name = "Badminton", Icon = "bi-feather", Image = "https://images.unsplash.com/photo-1775993167393-f2add1f8eec2?auto=format&fit=crop&q=80&w=1200", Text = "Classic sport with a modern experience." },
+        new { Name = "Football", Icon = "bi-trophy", Image = "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=1200", Text = "Play with your team on premium turf." },
+        new { Name = "Cricket", Icon = "bi-bullseye", Image = "https://images.pexels.com/photos/32349891/pexels-photo-32349891.jpeg?auto=compress&cs=tinysrgb&w=1200", Text = "Professional pitches for serious and casual players." }
+    };
+
+    var gallery = new[]
+    {
+        new { Label = "Padel Court", Image = "https://images.pexels.com/photos/35646550/pexels-photo-35646550.jpeg?auto=compress&cs=tinysrgb&w=1100", Wide = "gallery-wide" },
+        new { Label = "Badminton Hall", Image = "https://images.unsplash.com/photo-1775993167393-f2add1f8eec2?auto=format&fit=crop&q=80&w=900", Wide = "" },
+        new { Label = "Football Turf", Image = "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=900", Wide = "" },
+        new { Label = "Cricket Nets", Image = "https://images.pexels.com/photos/32349891/pexels-photo-32349891.jpeg?auto=compress&cs=tinysrgb&w=900", Wide = "" },
+        new { Label = "Lounge", Image = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=900", Wide = "" },
+        new { Label = "Night Lights", Image = "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=1100", Wide = "gallery-wide" }
+    };
+}
+
+<section class="hero-section" id="home" aria-label="GameHub Arena hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-overlay" aria-hidden="true"></div>
+    <div class="hero-gold-glow" aria-hidden="true"></div>
+
+    <div class="container hero-content">
+        <div class="hero-copy reveal-on-load">
+            <span class="eyebrow-pill"><i class="bi bi-star-fill"></i> Premium Sports Arena</span>
+            <h1>Play More.<span>Live Better.</span></h1>
+            <p>Book your favorite court, enjoy premium facilities, and experience sport like never before.</p>
+
+            <div class="hero-actions">
+                <a class="btn-premium" href="#sports" aria-label="Explore courts">
+                    Explore Courts <i class="bi bi-arrow-right"></i>
+                </a>
+                <button class="btn-ghost-light" type="button" aria-label="Watch GameHub experience preview">
+                    <i class="bi bi-play-fill"></i> Watch Experience
+                </button>
+            </div>
+
+            <div class="hero-proof" aria-label="Social proof">
+                <div class="avatar-stack" aria-hidden="true">
+                    <span>AR</span>
+                    <span>HK</span>
+                    <span>UJ</span>
+                </div>
+                <div>
+                    <strong>2,500+</strong>
+                    <small>Happy Players</small>
+                </div>
+            </div>
+        </div>
+
+        <aside class="timing-card reveal-on-load" aria-label="Opening timing">
+            <i class="bi bi-calendar2-check"></i>
+            <div>
+                <strong>Open Every Day</strong>
+                <span>6:00 AM - 12:00 AM</span>
+                <a href="#facilities">View Timings <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </aside>
+
+        <div class="hero-dots" aria-hidden="true">
+            <span class="active"></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <a class="scroll-cue" href="#features" aria-label="Scroll to highlights">
+            <span></span>
+        </a>
+    </div>
+</section>
+
+<section class="feature-strip" id="features" aria-label="GameHub highlights">
+    <div class="container">
+        <div class="feature-grid">
+            <article class="feature-item reveal">
+                <i class="bi bi-shield-star"></i>
+                <div>
+                    <h2>Premium Facilities</h2>
+                    <p>World-class courts and modern amenities</p>
+                </div>
+            </article>
+            <article class="feature-item reveal">
+                <i class="bi bi-calendar2-check"></i>
+                <div>
+                    <h2>Easy Booking</h2>
+                    <p>Reserve your court in just a few clicks</p>
+                </div>
+            </article>
+            <article class="feature-item reveal">
+                <i class="bi bi-award"></i>
+                <div>
+                    <h2>Top Experience</h2>
+                    <p>Designed for players of all levels</p>
+                </div>
+            </article>
+            <article class="feature-item reveal">
+                <i class="bi bi-people"></i>
+                <div>
+                    <h2>Community</h2>
+                    <p>Join a growing community of sports lovers</p>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="section-block sports-section" id="sports">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Our Sports</span>
+            <h2>Choose Your Game</h2>
+        </div>
+
+        <div class="sports-grid">
+            @foreach (var sport in sports)
+            {
+                <article class="sport-card reveal">
+                    <div class="sport-image">
+                        <img src="@sport.Image" alt="@sport.Name court at GameHub Arena" loading="lazy" />
+                    </div>
+                    <div class="sport-body">
+                        <span class="sport-icon"><i class="bi @sport.Icon"></i></span>
+                        <h3>@sport.Name</h3>
+                        <p>@sport.Text</p>
+                        <button type="button" class="circle-action" aria-label="@sport.Name visual action">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="stats-strip reveal" aria-label="GameHub statistics">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <i class="bi bi-people-fill"></i>
+                <strong><span class="counter" data-target="2500">0</span>+</strong>
+                <span>Happy Players</span>
+            </div>
+            <div class="stat-item">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+                <strong><span class="counter" data-target="12">0</span>+</strong>
+                <span>Premium Courts</span>
+            </div>
+            <div class="stat-item">
+                <i class="bi bi-calendar-check-fill"></i>
+                <strong><span class="counter" data-target="15">0</span>K+</strong>
+                <span>Bookings Completed</span>
+            </div>
+            <div class="stat-item">
+                <i class="bi bi-star-fill"></i>
+                <strong>4.9/5</strong>
+                <span>Player Rating</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section-block facilities-section" id="facilities">
+    <div class="container">
+        <div class="facilities-panel reveal">
+            <div class="facility-copy">
+                <span class="section-label">Premium Arena</span>
+                <h2>Built For<span>Champions</span></h2>
+                <p>GameHub Arena offers state-of-the-art courts, quality amenities, and a welcoming environment for players to practice, compete, and create unforgettable memories.</p>
+
+                <ul class="premium-list">
+                    <li><i class="bi bi-check-circle-fill"></i> Floodlit Courts</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Comfort & Amenities</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Safe & Secure</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Quality Equipment</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Easy Parking</li>
+                </ul>
+
+                <a class="btn-premium btn-compact" href="#gallery">Explore Facilities <i class="bi bi-arrow-right"></i></a>
+            </div>
+
+            <div class="facility-gallery" aria-label="GameHub facility previews">
+                <div class="gold-dots" aria-hidden="true"></div>
+                <img class="facility-main-img" src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=1500" alt="Premium GameHub arena exterior" loading="lazy" />
+                <div class="facility-thumbs">
+                    <img src="https://images.pexels.com/photos/35646550/pexels-photo-35646550.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Padel court facility" loading="lazy" />
+                    <img src="https://images.unsplash.com/photo-1775993167393-f2add1f8eec2?auto=format&fit=crop&q=80&w=600" alt="Indoor badminton facility" loading="lazy" />
+                    <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=600" alt="Premium lounge area" loading="lazy" />
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section-block why-section" id="membership">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>GameHub Membership</span>
+            <h2>Play More, Pay Less</h2>
+        </div>
+
+        <div class="why-grid">
+            <article class="why-card reveal">
+                <i class="bi bi-percent"></i>
+                <h3>Member Discounts</h3>
+                <p>Every plan carries a booking discount that is applied automatically at checkout.</p>
+            </article>
+            <article class="why-card reveal">
+                <i class="bi bi-hourglass-split"></i>
+                <h3>Included Hours</h3>
+                <p>Use your included booking hours across the month and track your remaining balance any time.</p>
+            </article>
+            <article class="why-card reveal">
+                <i class="bi bi-lightning-charge"></i>
+                <h3>Priority Access</h3>
+                <p>Members book further ahead, so you can lock in peak slots before they fill up.</p>
+            </article>
+        </div>
+
+        <div class="court-detail-actions" style="justify-content:center;margin-top:24px;">
+            <a class="btn-premium" asp-controller="MyMemberships" asp-action="Plans"><i class="bi bi-stars"></i> View Membership Plans</a>
+            <a class="btn-ghost-light" asp-controller="MyMemberships" asp-action="Index"><i class="bi bi-person-check"></i> My Membership</a>
+        </div>
+    </div>
+</section>
+
+<section class="section-block why-section" id="why">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Why GameHub</span>
+            <h2>Designed Around Your Game</h2>
+        </div>
+
+        <div class="why-grid">
+            <article class="why-card reveal">
+                <i class="bi bi-building-check"></i>
+                <h3>Professional Courts</h3>
+                <p>Carefully maintained surfaces, clear markings, and lighting built for serious play.</p>
+            </article>
+            <article class="why-card reveal">
+                <i class="bi bi-clock-history"></i>
+                <h3>Flexible Timings</h3>
+                <p>Morning to midnight access for practice sessions, leagues, and after-work games.</p>
+            </article>
+            <article class="why-card reveal">
+                <i class="bi bi-house-heart"></i>
+                <h3>Family-Friendly Environment</h3>
+                <p>A welcoming destination for players, friends, families, and weekend communities.</p>
+            </article>
+            <article class="why-card reveal">
+                <i class="bi bi-headset"></i>
+                <h3>Trained Support Team</h3>
+                <p>Helpful staff, smooth court coordination, and support from arrival to final point.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="section-block gallery-section" id="gallery">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Gallery</span>
+            <h2>Inside The Arena</h2>
+        </div>
+
+        <div class="gallery-grid">
+            @foreach (var item in gallery)
+            {
+                <figure class="gallery-card @item.Wide reveal">
+                    <img src="@item.Image" alt="@item.Label at GameHub Arena" loading="lazy" />
+                    <figcaption>@item.Label</figcaption>
+                </figure>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section-block testimonials-section" aria-label="Player testimonials">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>What Players Say</span>
+            <h2>Trusted By Players</h2>
+        </div>
+
+        <div class="testimonial-shell reveal">
+            <button class="testimonial-nav" type="button" data-testimonial-prev aria-label="Previous testimonial">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <div class="testimonial-track">
+                <article class="testimonial-card active">
+                    <i class="bi bi-quote"></i>
+                    <p>Amazing courts and a great environment. GameHub is my go-to place for every weekend match.</p>
+                    <div class="testimonial-person">
+                        <span>AR</span>
+                        <div>
+                            <strong>Ali Raza</strong>
+                            <small>Padel Player</small>
+                        </div>
+                    </div>
+                    <div class="stars" aria-label="5 star rating">★★★★★</div>
+                </article>
+                <article class="testimonial-card">
+                    <i class="bi bi-quote"></i>
+                    <p>The best sports arena in town. Super clean, well maintained, and easy to book when needed.</p>
+                    <div class="testimonial-person">
+                        <span>HK</span>
+                        <div>
+                            <strong>Hamza Khan</strong>
+                            <small>Football Captain</small>
+                        </div>
+                    </div>
+                    <div class="stars" aria-label="5 star rating">★★★★★</div>
+                </article>
+                <article class="testimonial-card">
+                    <i class="bi bi-quote"></i>
+                    <p>I love the vibe and the facilities. Perfect place for both casual games and serious players.</p>
+                    <div class="testimonial-person">
+                        <span>UJ</span>
+                        <div>
+                            <strong>Usman Javed</strong>
+                            <small>Cricket Player</small>
+                        </div>
+                    </div>
+                    <div class="stars" aria-label="5 star rating">★★★★★</div>
+                </article>
+            </div>
+
+            <button class="testimonial-nav" type="button" data-testimonial-next aria-label="Next testimonial">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</section>
+
+<section class="final-cta-section">
+    <div class="container">
+        <div class="final-cta reveal">
+            <span class="giant-g" aria-hidden="true">G</span>
+            <div>
+                <h2>Ready To Play?</h2>
+                <p>Book your favorite court and enjoy the ultimate GameHub experience.</p>
+            </div>
+            <a class="btn-premium" href="#sports">Explore Courts <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+</section>

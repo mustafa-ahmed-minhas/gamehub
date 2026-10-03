@@ -1,0 +1,137 @@
+@model MembershipJoinViewModel
+@{
+    ViewData["Title"] = Model.IsRenewal ? "Renew Membership" : "Membership Plans";
+    Layout = "_CustomerLayout";
+    var selected = Model.Plans.FirstOrDefault(p => p.Id == Model.MembershipPlanId) ?? Model.Plans.FirstOrDefault();
+
+    // Comparison aid only: flags the included-hours leader when exactly one plan
+    // leads. No plan is ranked or preferred by business rule.
+    var maxHours = Model.Plans.Count > 1 ? Model.Plans.Max(p => p.IncludedBookingHours) : 0;
+    var hasHoursLeader = Model.Plans.Count > 1 && Model.Plans.Count(p => p.IncludedBookingHours == maxHours) == 1;
+}
+<section class="membership-page portal-page plans-page">
+    <div class="container">
+
+        <header class="portal-head">
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-stars"></i> @Model.ArenaName</span>
+                <h1>@(Model.IsRenewal ? "Renew Your Membership" : "Membership Plans")</h1>
+                <p class="portal-head__lead">Pick a plan, then complete the demo payment to activate it instantly.</p>
+            </div>
+        </header>
+
+        @if (Model.Plans.Count == 0)
+        {
+            <div class="portal-empty plan-empty">
+                <span class="portal-empty__icon"><i class="bi bi-stars"></i></span>
+                <h2>No membership plans available</h2>
+                <p>There are no plans published for this arena right now. Please check back soon.</p>
+                <a class="btn-ghost-light" asp-controller="MyAccount" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to My Account</a>
+            </div>
+        }
+        else
+        {
+            <div class="plan-card-grid">
+                @foreach (var plan in Model.Plans)
+                {
+                    var isSelected = plan.Id == Model.MembershipPlanId;
+                    var isHoursLeader = hasHoursLeader && plan.IncludedBookingHours == maxHours;
+                    <article class="plan-card @(isSelected ? "current" : string.Empty)">
+                        <div class="plan-card__top">
+                            <h3>@plan.Name</h3>
+                            @if (isSelected)
+                            {
+                                <span class="plan-badge">Selected</span>
+                            }
+                            else if (isHoursLeader)
+                            {
+                                <span class="plan-badge plan-badge--soft">Most Hours</span>
+                            }
+                        </div>
+
+                        <p class="plan-price">
+                            <strong>@Model.CurrencySymbol @((Model.IsRenewal ? plan.RenewalFee : plan.JoiningFee).ToString("N0"))</strong>
+                            <span>@(Model.IsRenewal ? "renewal fee" : "joining fee")</span>
+                        </p>
+
+                        <p class="plan-duration"><i class="bi bi-calendar3"></i> @plan.DurationLabel</p>
+
+                        <ul class="plan-features">
+                            <li class="plan-feature--lead"><i class="bi bi-clock-history"></i> <strong>@plan.IncludedBookingHours</strong> included hours</li>
+                            <li><i class="bi bi-percent"></i> @plan.DiscountPercentage.ToString("0.##")% booking discount</li>
+                            <li><i class="bi bi-calendar-check"></i> @plan.PriorityBookingDays day(s) priority access</li>
+                            <li><i class="bi bi-sun"></i> @(plan.AllowPeakHours ? "Includes" : "Excludes") peak hours</li>
+                            <li><i class="bi bi-moon"></i> @(plan.AllowOffPeakHours ? "Includes" : "Excludes") off-peak hours</li>
+                        </ul>
+
+                        @if (!string.IsNullOrWhiteSpace(plan.Description))
+                        {
+                            <p class="plan-note">@plan.Description</p>
+                        }
+
+                        <a class="btn-premium plan-card__cta" asp-action="Plans" asp-route-planId="@plan.Id">@((Model.IsRenewal ? "Renew" : "Select") + " " + plan.Name)</a>
+                    </article>
+                }
+            </div>
+        }
+
+        <div class="membership-join-panel">
+            <form asp-action="@(Model.IsRenewal ? "Renew" : "Join")" method="post">
+                @Html.AntiForgeryToken()
+                <input asp-for="MembershipPlanId" type="hidden" />
+
+                <div class="membership-join-summary">
+                    <span class="eyebrow-pill"><i class="bi bi-receipt"></i> @(Model.IsRenewal ? "Renewal Summary" : "Order Summary")</span>
+                    <h2>@selected?.Name</h2>
+                    <dl>
+                        <div><dt>Plan Code</dt><dd>@selected?.Code</dd></div>
+                        <div><dt>Duration</dt><dd>@selected?.DurationLabel</dd></div>
+                        <div><dt>Included Hours</dt><dd>@selected?.IncludedBookingHours</dd></div>
+                        <div><dt>Booking Discount</dt><dd>@selected?.DiscountPercentage.ToString("0.##")%</dd></div>
+                        <div><dt>Valid From</dt><dd>@Model.StartDate.ToString("MMM dd, yyyy")</dd></div>
+                        <div><dt>Valid Until</dt><dd>@Model.ExpiryDate.ToString("MMM dd, yyyy")</dd></div>
+                        @if (Model.IsRenewal && !string.IsNullOrWhiteSpace(Model.CurrentMembershipNumber))
+                        {
+                            <div><dt>Renewing</dt><dd>@Model.CurrentMembershipNumber</dd></div>
+                        }
+                        <div class="summary-divider"></div>
+                        <div class="total"><dt>@(Model.IsRenewal ? "Renewal Fee" : "Joining Fee")</dt><dd>@Model.CurrencySymbol @Model.FeeAmount.ToString("N0")</dd></div>
+                        <div class="total"><dt>Total Payable</dt><dd>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</dd></div>
+                    </dl>
+                </div>
+
+                <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                <label class="premium-policy-check premium-payment-check terms-check">
+                    <input asp-for="AcceptMembershipTerms" />
+                    <span></span>
+                    I accept the membership terms and the arena's booking and cancellation policies.
+                </label>
+                <span asp-validation-for="AcceptMembershipTerms" class="text-danger small"></span>
+
+                @if (!Model.IsSignedIn)
+                {
+                    <a class="btn-premium" asp-controller="Account" asp-action="Signup" asp-route-returnUrl="@Url.Action("Plans", "MyMemberships", new { planId = Model.MembershipPlanId })">
+                        <i class="bi bi-person-plus"></i> Create an account to continue
+                    </a>
+                }
+                else if (Model.RequiresEmailVerification)
+                {
+                    <button class="btn-premium" type="button" disabled><i class="bi bi-envelope-check"></i> Verify your email first</button>
+                    <p class="membership-renew-hint">Membership checkout requires a verified email address. Check your inbox for the verification link.</p>
+                }
+                else
+                {
+                    <button class="btn-premium" type="submit">
+                        <i class="bi bi-credit-card-2-front"></i> Continue to Secure Payment
+                    </button>
+                }
+            </form>
+        </div>
+    </div>
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

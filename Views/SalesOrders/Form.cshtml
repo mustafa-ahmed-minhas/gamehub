@@ -1,0 +1,157 @@
+@model SalesOrderFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.Id.HasValue;
+    var canEdit = Model.IsEditable;
+    ViewData["Title"] = isEdit ? "Edit Sales Order" : "Create Sales Order";
+    Layout = "_AdminLayout";
+
+    var itemCount = Model.Items.Count;
+    var documentCompleteness = Math.Clamp((int)Math.Round(new[] { !string.IsNullOrWhiteSpace(Model.CustomerLabel), itemCount > 0, Model.OrderDate != default, !string.IsNullOrWhiteSpace(Model.TermsAndConditions) }
+        .Count(x => x) / 4.0 * 100), 0, 100);
+}
+
+<section class="users-page customer-form-page sales-cycle-page sales-order-page">
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Sales Order Management</span>
+            <h1>@(isEdit ? "Edit Sales Order" : "Create Sales Order")</h1>
+            <p>@(isEdit ? "Update a draft or rejected order before resubmitting it for approval." : Model.SalesQuotationId.HasValue ? "Review an approved quotation and convert it into a draft sales order." : "Create a direct sales order with a verified customer and service items.")</p>
+        </div>
+        <div class="arena-actions">
+            @if (isEdit)
+            {
+                <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-eye"></i> Details</a>
+            }
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Cancel</a>
+        </div>
+    </header>
+
+    <form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="customer-form-grid" data-sales-order-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="SalesQuotationId" type="hidden" />
+        <input asp-for="Currency" type="hidden" />
+        <input asp-for="CurrencySymbol" type="hidden" />
+
+        <div class="customer-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-diagram-3"></i> Document Source</h2>
+                @if (Model.SalesQuotationId.HasValue)
+                {
+                    <input asp-for="OpportunityId" type="hidden" />
+                    <input asp-for="CustomerId" type="hidden" />
+                    <label><span>Source Type</span><input value="Quotation" readonly /></label>
+                    <label><span>Approved Quotation</span><input value="@Model.QuotationLabel" readonly /></label>
+                    <label><span>Opportunity</span><input value="@Model.OpportunityLabel" readonly /></label>
+                    <label><span>Customer</span><input value="@Model.CustomerLabel" readonly /></label>
+                }
+                else
+                {
+                    <label><span>Source Type</span><input value="Direct" readonly /></label>
+                    <label><span>Customer *</span><select asp-for="CustomerId" asp-items="Model.CustomerOptions" disabled="@(!canEdit)"><option value="">Select customer</option></select><small asp-validation-for="CustomerId"></small></label>
+                    <label><span>Opportunity</span><select asp-for="OpportunityId" asp-items="Model.OpportunityOptions" disabled="@(!canEdit)"><option value="">No linked opportunity</option></select><small asp-validation-for="OpportunityId"></small></label>
+                }
+                <label><span>Assigned Owner</span><select asp-for="AssignedToUserId" asp-items="Model.UserOptions" disabled="@(!canEdit)"><option value="">Unassigned</option></select></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-calendar2-check"></i> Order Information</h2>
+                <label><span>Order Date *</span><input asp-for="OrderDate" type="date" readonly="@(!canEdit)" /><small asp-validation-for="OrderDate"></small></label>
+                <label><span>Service Start Date</span><input asp-for="ServiceStartDate" type="date" readonly="@(!canEdit)" /><small asp-validation-for="ServiceStartDate"></small></label>
+                <label><span>Service End Date</span><input asp-for="ServiceEndDate" type="date" readonly="@(!canEdit)" /><small asp-validation-for="ServiceEndDate"></small></label>
+                <label><span>Customer PO Number</span><input asp-for="CustomerPurchaseOrderNumber" maxlength="80" readonly="@(!canEdit)" /><small asp-validation-for="CustomerPurchaseOrderNumber"></small></label>
+                <label><span>Customer Reference</span><input asp-for="CustomerReference" maxlength="80" readonly="@(!canEdit)" /><small asp-validation-for="CustomerReference"></small></label>
+                <label><span>Subject</span><input asp-for="Subject" maxlength="180" readonly="@(!canEdit)" /><small asp-validation-for="Subject"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-list-check"></i> Order Items</h2>
+                <div class="sales-cycle-form-lines">
+                    @for (var i = 0; i < Model.Items.Count; i++)
+                    {
+                        <article class="sales-cycle-line">
+                            <input asp-for="Items[i].Id" type="hidden" />
+                            <input asp-for="Items[i].LineNumber" type="hidden" />
+                            <input asp-for="Items[i].DisplayOrder" type="hidden" />
+                            <div class="sales-cycle-line-head">
+                                <strong>Line @Model.Items[i].LineNumber</strong>
+                                <span class="membership-status-badge pending"><i></i>@Model.Items[i].ItemType.GetDisplayName()</span>
+                            </div>
+                            <div class="sales-cycle-line-grid">
+                                <label>Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" disabled="@(!canEdit)"></select></label>
+                                <label class="wide">Description *<input asp-for="Items[i].Description" readonly="@(!canEdit)" /><small asp-validation-for="Items[i].Description"></small></label>
+                                <label>Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label>Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label>Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label>Membership Plan<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label>Unit<input asp-for="Items[i].UnitOfMeasure" readonly="@(!canEdit)" /></label>
+                                <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label>Service Date<input asp-for="Items[i].ServiceDate" type="date" readonly="@(!canEdit)" /></label>
+                                <label>Start Time<input asp-for="Items[i].StartTime" type="time" readonly="@(!canEdit)" /></label>
+                                <label>End Time<input asp-for="Items[i].EndTime" type="time" readonly="@(!canEdit)" /></label>
+                                <label>Line Total<input value="@($"{Model.CurrencySymbol} {Model.Items[i].LineTotal:N2}")" readonly /></label>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-journal-richtext"></i> Terms and Notes</h2>
+                <label><span>Terms and Conditions</span><textarea asp-for="TermsAndConditions" readonly="@(!canEdit)"></textarea><small asp-validation-for="TermsAndConditions"></small></label>
+                <label><span>Customer Notes</span><textarea asp-for="CustomerNotes" readonly="@(!canEdit)"></textarea><small asp-validation-for="CustomerNotes"></small></label>
+                <label><span>Internal Notes</span><textarea asp-for="InternalNotes" readonly="@(!canEdit)"></textarea><small asp-validation-for="InternalNotes"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-calculator"></i> Financial Summary</h2>
+                <div class="sales-cycle-totals">
+                    <span>Subtotal <strong>@Model.CurrencySymbol @Model.Subtotal.ToString("N2")</strong></span>
+                    <span>Discount <strong>@Model.CurrencySymbol @Model.DiscountTotal.ToString("N2")</strong></span>
+                    <span>Tax <strong>@Model.CurrencySymbol @Model.TaxTotal.ToString("N2")</strong></span>
+                    <span class="grand">Grand Total <strong>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</strong></span>
+                </div>
+            </section>
+        </div>
+
+        <aside class="customer-preview-card sales-cycle-live-summary">
+            <span class="admin-label">Live Summary</span>
+            <h2>@(Model.SalesOrderNumber ?? "New Sales Order")</h2>
+            <p>@Model.CustomerLabel</p>
+            <dl>
+                <div><dt>Source</dt><dd>@(Model.SalesQuotationId.HasValue ? "Quotation" : "Direct")</dd></div>
+                <div><dt>Order Date</dt><dd>@Model.OrderDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Items</dt><dd>@itemCount</dd></div>
+                <div><dt>Grand Total</dt><dd>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</dd></div>
+                <div><dt>Status</dt><dd><span class="@Model.Status.Badge()"><i></i>@Model.Status.GetDisplayName()</span></dd></div>
+            </dl>
+            <div class="customer-completeness">
+                <div><span>Order Completeness</span><strong data-complete-value>@documentCompleteness%</strong></div>
+                <meter min="0" max="100" value="@documentCompleteness" data-complete-meter></meter>
+            </div>
+        </aside>
+
+        @if (canEdit)
+        {
+            <div class="customer-save-bar" data-save-bar>
+                <a class="admin-secondary-button" asp-action="Index">Cancel</a>
+                <button class="admin-secondary-button" type="submit" name="submitAction" value="draft" data-loading-button><i class="bi bi-save"></i> Save Draft</button>
+                <button class="admin-action-button" type="submit" name="submitAction" value="submit" data-loading-button><i class="bi bi-send-check"></i> Submit for Approval</button>
+            </div>
+        }
+    </form>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/sales-orders.css" asp-append-version="true" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/sales.js" asp-append-version="true"></script>
+    <script src="~/js/sales-orders.js" asp-append-version="true"></script>
+}

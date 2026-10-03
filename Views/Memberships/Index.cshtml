@@ -1,0 +1,113 @@
+@model GameHub.Models.ViewModels.MembershipIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Membership Management";
+    Layout = "_AdminLayout";
+    var tab = Model.ActiveTab;
+    var createAction = tab == "customers" ? "Assign" : "CreatePlan";
+    var createText = tab == "customers" ? "Assign Membership" : "Add Plan";
+}
+
+<section class="users-page memberships-page" data-memberships-index>
+    <header class="users-header membership-page-header">
+        <div>
+            <span class="admin-label">Customer Retention</span>
+            <h1>Membership Management</h1>
+            <p>Create membership plans, assign benefits, and manage customer membership lifecycles.</p>
+        </div>
+        @if (Model.CanManage)
+        {
+            <a class="membership-btn membership-btn-primary" asp-action="@createAction">
+                <i class="bi bi-plus-lg"></i>
+                <span>@createText</span>
+            </a>
+        }
+    </header>
+
+    <div class="membership-kpi-grid">
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-card-checklist"></i></span><span class="membership-trend">Plan suite</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.ActivePlans</span></div>
+            <p>Active Plans</p><div class="membership-kpi-progress"><span style="width:68%"></span></div><small>Configured member benefits</small>
+        </article>
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-person-badge"></i></span><span class="membership-trend positive">Live base</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.ActiveMembers</span></div>
+            <p>Active Members</p><div class="membership-kpi-progress"><span style="width:82%"></span></div><small>Current customer access</small>
+        </article>
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-hourglass-split"></i></span><span class="membership-trend warning">30 days</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.ExpiringSoon</span></div>
+            <p>Expiring Soon</p><div class="membership-kpi-progress"><span style="width:44%"></span></div><small>Renewal follow-up queue</small>
+        </article>
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-pause-circle"></i></span><span class="membership-trend">Paused</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.FrozenMemberships</span></div>
+            <p>Frozen Memberships</p><div class="membership-kpi-progress"><span style="width:28%"></span></div><small>Temporary holds</small>
+        </article>
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-calendar-x"></i></span><span class="membership-trend warning">Expired</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.ExpiredMemberships</span></div>
+            <p>Expired Memberships</p><div class="membership-kpi-progress"><span style="width:36%"></span></div><small>Needs renewal action</small>
+        </article>
+        <article class="membership-kpi-card">
+            <div class="membership-kpi-top"><span class="membership-kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="membership-trend">@Model.CurrencySymbol</span></div>
+            <div class="membership-kpi-stat"><span data-counter>@Model.EstimatedValue.ToString("N0")</span></div>
+            <p>Estimated Value</p><div class="membership-kpi-progress"><span style="width:74%"></span></div><small>Active membership value</small>
+        </article>
+    </div>
+
+    <nav class="membership-tabs">
+        <a class="@(tab == "plans" ? "active" : "")" asp-action="Index" asp-route-tab="plans"><i class="bi bi-card-list"></i> Membership Plans</a>
+        <a class="@(tab == "customers" ? "active" : "")" asp-action="Index" asp-route-tab="customers"><i class="bi bi-people"></i> Customer Memberships</a>
+    </nav>
+
+    <section class="users-card membership-workspace-card">
+        <div class="membership-table-heading">
+            <div>
+                <span class="admin-label">Workspace</span>
+                <h2>@(tab == "customers" ? "Customer Memberships" : "Membership Plans")</h2>
+            </div>
+            <span class="membership-record-pill">@Model.TotalRecords records</span>
+        </div>
+
+        <form class="users-toolbar memberships-toolbar" method="get" data-membership-filters data-gamehub-table-filters>
+            <input type="hidden" name="tab" value="@tab" />
+            <label class="user-search-field membership-search-field"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search memberships..." data-live-search /></label>
+            @if (tab == "plans")
+            {
+                <select name="planType" data-filter-select><option value="">All Types</option>@foreach (MembershipPlanType value in Enum.GetValues<MembershipPlanType>()) { <option value="@value" selected="@(Model.PlanType == value)">@value.GetDisplayName()</option> }</select>
+                <select name="sportCode" data-filter-select><option value="">All Sports</option>@foreach (var sport in Model.SportOptions) { <option value="@sport.Value" selected="@(Model.SportCode == sport.Value)">@sport.Text</option> }</select>
+            }
+            else
+            {
+                <select name="planId" data-filter-select><option value="">All Plans</option>@foreach (var plan in Model.PlanOptions) { <option value="@plan.Value" selected="@(Model.PlanId?.ToString() == plan.Value)">@plan.Text</option> }</select>
+                <select name="membershipStatus" data-filter-select><option value="">All Statuses</option>@foreach (MembershipStatus value in Enum.GetValues<MembershipStatus>()) { <option value="@value" selected="@(Model.MembershipStatus == value)">@value.GetDisplayName()</option> }</select>
+                <select name="expiryState" data-filter-select><option value="">All Expiry</option><option value="soon" selected="@(Model.ExpiryState == "soon")">Expiring Soon</option><option value="expired" selected="@(Model.ExpiryState == "expired")">Expired</option></select>
+            }
+            <select name="statusFilter" data-filter-select><option value="">All Status</option><option value="active" selected="@(Model.StatusFilter == "active")">Active</option><option value="inactive" selected="@(Model.StatusFilter == "inactive")">Inactive</option></select>
+            <select name="sortBy" data-filter-select><option value="newest" selected="@(Model.SortBy == "newest")">Newest</option><option value="name" selected="@(Model.SortBy == "name")">Name</option><option value="fee" selected="@(Model.SortBy == "fee")">Fee</option><option value="expiry" selected="@(Model.SortBy == "expiry")">Expiry</option></select>
+            <select name="pageSize" data-filter-select>@foreach (var size in new[] { 10, 25, 50 }) { <option value="@size" selected="@(Model.PageSize == size)">@size</option> }</select>
+            <a class="membership-btn membership-btn-secondary" asp-action="Index" asp-route-tab="@tab"><i class="bi bi-x-circle"></i><span>Clear</span></a>
+        </form>
+
+        @if (tab == "plans")
+        {
+            <partial name="_PlansTable" model="Model" />
+        }
+        else
+        {
+            <partial name="_CustomerMembershipsTable" model="Model" />
+        }
+    </section>
+</section>
+
+@Html.AntiForgeryToken()
+<div class="modal fade membership-modal" id="membershipConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Confirm Action</h5><button class="btn-close" data-bs-dismiss="modal" type="button"></button></div><div class="modal-body"><p data-confirm-message>Are you sure?</p><textarea class="form-control d-none" data-action-reason placeholder="Reason or note"></textarea><div class="membership-freeze-fields d-none" data-freeze-fields><input class="form-control mb-2" type="date" data-frozen-from /><input class="form-control" type="date" data-frozen-until /></div></div><div class="modal-footer"><button class="membership-btn membership-btn-secondary" data-bs-dismiss="modal" type="button">Cancel</button><button class="membership-btn membership-btn-primary" type="button" data-confirm-submit>Confirm</button></div></div></div>
+</div>
+
+@section Scripts {
+    <script src="~/js/memberships.js" asp-append-version="true"></script>
+}

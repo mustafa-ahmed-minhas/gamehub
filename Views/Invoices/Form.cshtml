@@ -1,0 +1,189 @@
+@model InvoiceFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Edit Invoice" : "Create Invoice";
+    Layout = "_AdminLayout";
+
+    var completenessChecks = new (string Label, bool Complete)[]
+    {
+        ("Customer linked", Model.CustomerId > 0),
+        ("Invoice date set", Model.InvoiceDate != default),
+        ("Due date set", Model.DueDate != default),
+        ("Payment terms added", !string.IsNullOrWhiteSpace(Model.PaymentTerms)),
+        ("At least one valid line", Model.Items.Any(x => !string.IsNullOrWhiteSpace(x.Description) && x.Quantity > 0)),
+        ("Billing address added", !string.IsNullOrWhiteSpace(Model.BillingAddress))
+    };
+    var completeness = Math.Clamp((int)Math.Round(completenessChecks.Count(x => x.Complete) / (double)completenessChecks.Length * 100), 0, 100);
+    var hasAdjustment = Model.AdjustmentAmount != 0;
+}
+
+<section class="users-page customer-form-page sales-cycle-page">
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Sales Management</span>
+            <h1>@(isEdit ? "Edit Invoice" : "Create Invoice")</h1>
+            <p>@(Model.SalesOrderId.HasValue ? "Review the ready sales order and prepare its invoice." : "Create a direct invoice for an active customer.")</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Invoices</a>
+    </header>
+
+    @if (!Model.IsEditable)
+    {
+        <div class="sales-cycle-alert"><i class="bi bi-lock"></i> This invoice is not editable in its current state. Review the details and use the available workflow actions instead.</div>
+    }
+
+    <form class="customer-form-grid" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" data-sales-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="SalesOrderId" type="hidden" />
+        <input asp-for="SalesQuotationId" type="hidden" />
+        <input asp-for="RowVersion" type="hidden" />
+        <input asp-for="Currency" type="hidden" />
+        <input asp-for="CurrencySymbol" type="hidden" />
+
+        <div class="customer-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-receipt"></i> Source and Customer</h2>
+                @if (Model.SalesOrderId.HasValue)
+                {
+                    <label><span>Source Sales Order</span><input value="@Model.SourceLabel" readonly /></label>
+                    <input asp-for="CustomerId" type="hidden" />
+                    <input asp-for="OpportunityId" type="hidden" />
+                }
+                else
+                {
+                    <label><span>Customer *</span><select asp-for="CustomerId" asp-items="Model.CustomerOptions"><option value="">Select customer</option></select><small asp-validation-for="CustomerId"></small></label>
+                    <label><span>Opportunity</span><select asp-for="OpportunityId" asp-items="Model.OpportunityOptions"><option value="">No linked opportunity</option></select><small asp-validation-for="OpportunityId"></small></label>
+                }
+                <label><span>Assigned Owner</span><select asp-for="AssignedToUserId" asp-items="Model.UserOptions"><option value="">Unassigned</option></select></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-calendar3"></i> Dates and Payment Terms</h2>
+                <label><span>Invoice Date *</span><input asp-for="InvoiceDate" type="date" data-summary-date /><small asp-validation-for="InvoiceDate"></small></label>
+                <label><span>Due Date *</span><input asp-for="DueDate" type="date" data-summary-valid /><small asp-validation-for="DueDate"></small></label>
+                <label><span>Payment Terms *</span><input asp-for="PaymentTerms" placeholder="e.g. Due on receipt, Net 30" data-summary-terms /><small asp-validation-for="PaymentTerms"></small></label>
+                <label><span>Subject</span><input asp-for="Subject" placeholder="Invoice subject" data-summary-subject /><small asp-validation-for="Subject"></small></label>
+                <label><span>Customer PO Number</span><input asp-for="CustomerPurchaseOrderNumber" /><small asp-validation-for="CustomerPurchaseOrderNumber"></small></label>
+                <label><span>Customer Reference</span><input asp-for="CustomerReference" /><small asp-validation-for="CustomerReference"></small></label>
+                <label class="wide"><span>Billing Address</span><textarea asp-for="BillingAddress" placeholder="Billing address shown on the invoice"></textarea><small asp-validation-for="BillingAddress"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <div class="sales-cycle-section-head">
+                    <h2><i class="bi bi-list-check"></i> Line Items</h2>
+                    <div class="sales-cycle-section-actions">
+                        <button class="admin-secondary-button" type="button" data-add-line data-type="CourtBooking"><i class="bi bi-plus"></i> Add Court Service</button>
+                        <button class="admin-secondary-button" type="button" data-add-line data-type="Membership"><i class="bi bi-plus"></i> Add Membership</button>
+                        <button class="admin-action-button" type="button" data-add-line data-type="CustomService"><i class="bi bi-plus-lg"></i> Add Custom Service</button>
+                    </div>
+                </div>
+                <div class="sales-cycle-form-lines" data-sales-lines>
+                    @for (var i = 0; i < Model.Items.Count; i++)
+                    {
+                        <article class="sales-cycle-line" data-sales-line>
+                            <input asp-for="Items[i].LineNumber" type="hidden" />
+                            <div class="sales-cycle-line-head">
+                                <strong>Line @(i + 1)</strong>
+                                <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <div class="sales-cycle-line-grid">
+                                <label>Item Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" data-item-type></select></label>
+                                <label class="wide">Description *<input asp-for="Items[i].Description" data-line-description /><small asp-validation-for="Items[i].Description"></small></label>
+                                <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" data-line-quantity /></label>
+                                <label>Unit<input asp-for="Items[i].UnitOfMeasure" maxlength="30" data-line-unit /></label>
+                                <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" min="0" data-line-price /></label>
+                                <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" min="0" max="100" data-line-discount /></label>
+                                <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" min="0" max="100" data-line-tax /></label>
+                                <label>Service Date<input asp-for="Items[i].ServiceDate" type="date" /></label>
+                                <label>Start Time<input asp-for="Items[i].StartTime" type="time" /></label>
+                                <label>End Time<input asp-for="Items[i].EndTime" type="time" /></label>
+                                <label>Line Total<input readonly data-line-total /></label>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-journal-richtext"></i> Terms and Notes</h2>
+                <label class="wide"><span>Terms and Conditions</span><textarea asp-for="TermsAndConditions"></textarea><small asp-validation-for="TermsAndConditions"></small></label>
+                <label class="wide"><span>Customer Notes</span><textarea asp-for="CustomerNotes"></textarea><small asp-validation-for="CustomerNotes"></small></label>
+                <label class="wide"><span>Internal Notes</span><textarea asp-for="InternalNotes"></textarea><small asp-validation-for="InternalNotes"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-calculator"></i> Adjustment</h2>
+                <label class="sales-cycle-manual-discount">
+                    <span>Adjustment Amount</span>
+                    <input asp-for="AdjustmentAmount" type="number" step="0.01" />
+                    <small>Positive values increase the invoice total.</small>
+                    <small asp-validation-for="AdjustmentAmount"></small>
+                </label>
+            </section>
+        </div>
+
+        <aside class="customer-preview-card sales-cycle-live-summary">
+            <span class="admin-label">Live Invoice Summary</span>
+            <h2>@(Model.SourceLabel ?? "Direct Invoice")</h2>
+            <p>Financial totals are recalculated on the server before saving.</p>
+            <dl>
+                <div><dt>Invoice Date</dt><dd data-summary-date-text>@Model.InvoiceDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Due Date</dt><dd data-summary-valid-text>@Model.DueDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Payment Terms</dt><dd>@Model.PaymentTerms</dd></div>
+                <div><dt>Source</dt><dd>@Model.SourceType.GetDisplayName()</dd></div>
+                <div><dt>Items</dt><dd data-summary-items>@Model.Items.Count</dd></div>
+                <div><dt>Adjustment</dt><dd>@(hasAdjustment ? $"{Model.CurrencySymbol} {Model.AdjustmentAmount:N2}" : "None")</dd></div>
+            </dl>
+            <div class="sales-cycle-completeness">
+                <span class="@(completenessChecks[0].Complete ? "complete" : "")">Customer linked</span>
+                <span class="@(completenessChecks[2].Complete ? "complete" : "")">Due date set</span>
+                <span data-complete-line class="@(completenessChecks[4].Complete ? "complete" : "")">At least one valid line</span>
+                <span data-complete-terms class="@(completenessChecks[3].Complete ? "complete" : "")">Payment terms added</span>
+            </div>
+            <div class="customer-completeness">
+                <div><span>Invoice Completeness</span><strong data-complete-value>@completeness%</strong></div>
+                <meter min="0" max="100" value="@completeness" data-complete-meter></meter>
+            </div>
+        </aside>
+
+        <div class="customer-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Index">Cancel</a>
+            <button class="admin-secondary-button" type="submit" name="submitAction" value="draft" data-loading-button><i class="bi bi-save"></i> Save Draft</button>
+            <button class="admin-action-button" type="submit" name="submitAction" value="submit" data-loading-button><i class="bi bi-send-check"></i> Submit for Approval</button>
+        </div>
+    </form>
+</section>
+
+<template id="salesLineTemplate">
+    <article class="sales-cycle-line" data-sales-line>
+        <input name="Items[__index__].LineNumber" type="hidden" value="__line__" />
+        <div class="sales-cycle-line-head">
+            <strong>Line __line__</strong>
+            <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="sales-cycle-line-grid">
+            <label>Item Type<select name="Items[__index__].ItemType" data-item-type>@foreach (SalesItemType item in Enum.GetValues<SalesItemType>()) { <option value="@item">@item.GetDisplayName()</option> }</select></label>
+            <label class="wide">Description<input name="Items[__index__].Description" data-line-description /></label>
+            <label>Quantity<input name="Items[__index__].Quantity" type="number" step="0.01" min="0.01" value="1" data-line-quantity /></label>
+            <label>Unit<input name="Items[__index__].UnitOfMeasure" value="Unit" maxlength="30" data-line-unit /></label>
+            <label>Unit Price<input name="Items[__index__].UnitPrice" type="number" step="0.01" min="0" value="0" data-line-price /></label>
+            <label>Discount %<input name="Items[__index__].DiscountPercentage" type="number" step="0.01" min="0" max="100" value="0" data-line-discount /></label>
+            <label>Tax %<input name="Items[__index__].TaxPercentage" type="number" step="0.01" min="0" max="100" value="0" data-line-tax /></label>
+            <label>Service Date<input name="Items[__index__].ServiceDate" type="date" /></label>
+            <label>Start Time<input name="Items[__index__].StartTime" type="time" /></label>
+            <label>End Time<input name="Items[__index__].EndTime" type="time" /></label>
+            <label>Line Total<input readonly data-line-total /></label>
+        </div>
+    </article>
+</template>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }
+@section Scripts {
+    <script src="~/js/sales.js" asp-append-version="true"></script>
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,381 @@
+@model SalesOrderDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var order = Model.SalesOrder;
+    ViewData["Title"] = order.SalesOrderNumber;
+    Layout = "_AdminLayout";
+
+    var subject = order.Subject ?? order.Opportunity?.Name ?? "Direct sales order";
+    var initials = string.Join("", (order.Customer.FullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
+    var lineCount = order.Items.Count;
+    var documentCompleteness = Math.Clamp((int)Math.Round(new[] { lineCount > 0, order.Subtotal > 0, order.ServiceStartDate.HasValue || order.OrderDate != default, !string.IsNullOrWhiteSpace(order.TermsAndConditions) }
+        .Count(x => x) / 4.0 * 100), 0, 100);
+    var invoiceBadge = order.InvoiceCreated ? "confirmed" : order.IsReadyForInvoice ? "frozen" : "pending";
+    var invoiceLabel = order.InvoiceCreated ? "Invoice Created" : order.IsReadyForInvoice ? "Ready for Invoice" : "Invoice Pending";
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateOrFallback(DateOnly? value) => value?.ToString("dd MMM yyyy") ?? "Not provided";
+
+    var lifecycleStages = new (string Label, DateTime? At, string Icon)[]
+    {
+        ("Created", order.CreatedAt == default ? null : order.CreatedAt, "bi-plus-circle"),
+        ("Submitted", order.SubmittedAt, "bi-send"),
+        ("Approved", order.ApprovedAt, "bi-check2-circle"),
+        ("Confirmed", order.ConfirmedAt, "bi-person-check"),
+        ("Fulfilled", order.FulfilledAt, "bi-check-all"),
+        ("Closed", order.ClosedAt, "bi-archive"),
+        ("Cancelled", order.CancelledAt, "bi-slash-circle")
+    }.Where(x => x.At.HasValue).ToList();
+}
+
+<section class="users-page customer-details-page customer-profile-page sales-cycle-page sales-order-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Sales Orders</a>
+            <span class="admin-label">Sales Order Details</span>
+            <h1>@order.SalesOrderNumber</h1>
+            <p>@subject</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanEdit)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@order.Id"><i class="bi bi-pencil"></i> Edit</a>
+            }
+            <a class="admin-secondary-button" asp-action="Preview" asp-route-id="@order.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a>
+            <div class="membership-action-menu">
+                <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More sales order actions"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to list</a></li>
+                    <li><a class="dropdown-item" asp-action="Preview" asp-route-id="@order.Id"><i class="bi bi-file-earmark-richtext"></i> Preview</a></li>
+                    @if (Model.CanEdit)
+                    {
+                        <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@order.Id"><i class="bi bi-pencil"></i> Edit Draft</a></li>
+                    }
+                    @if (Model.CanManageLifecycle && order.IsEditable)
+                    {
+                        <li><a class="dropdown-item" asp-action="Edit" asp-route-id="@order.Id"><i class="bi bi-pencil"></i> Edit</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@(initials.Length == 0 ? "S" : initials)</div>
+            <div>
+                <h2>@subject</h2>
+                <p>@order.Customer.FullName</p>
+                <strong class="membership-code">@order.SalesOrderNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="@order.Status.Badge()"><i></i>@order.Status.GetDisplayName()</span>
+                    <span class="membership-status-badge @invoiceBadge"><i></i>@invoiceLabel</span>
+                    <span class="role-badge">@order.SourceType</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-calendar2-check"></i><span>Order Date</span><strong>@order.OrderDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-calendar-range"></i><span>Service Start</span><strong>@DateOrFallback(order.ServiceStartDate)</strong></div>
+            <div><i class="bi bi-calendar-check"></i><span>Service End</span><strong>@DateOrFallback(order.ServiceEndDate)</strong></div>
+            <div><i class="bi bi-receipt"></i><span>Quotation</span><strong>@(order.SalesQuotation?.QuotationNumber ?? "Direct")</strong></div>
+            <div><i class="bi bi-person"></i><span>Owner</span><strong>@(order.AssignedToUser?.FullName ?? "Unassigned")</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@documentCompleteness%">
+                <strong>@documentCompleteness%</strong>
+                <span>Complete</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Grand Total</span><strong>@order.CurrencySymbol @order.GrandTotal.ToString("N0")</strong></div>
+                <div><span>Line Items</span><strong>@lineCount</strong></div>
+                <div><span>Revision</span><strong>@order.RevisionNumber</strong></div>
+                <div><span>Invoice</span><strong>@(order.InvoiceCreated ? "Created" : "Not created")</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    <div class="kpi-grid customer-detail-kpis">
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-list-check"></i></span><span class="trend-pill neutral">Lines</span></div><h2>@lineCount</h2><p>Line Items</p><div class="kpi-bottom"><span>Ordered service lines</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-receipt"></i></span><span class="trend-pill neutral">@order.CurrencySymbol</span></div><h2>@order.Subtotal.ToString("N0")</h2><p>Subtotal</p><div class="kpi-bottom"><span>Before discounts</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-percent"></i></span><span class="trend-pill warn">Discount</span></div><h2>@order.DiscountTotal.ToString("N0")</h2><p>Discount</p><div class="kpi-bottom"><span>Applied discount total</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-bank"></i></span><span class="trend-pill neutral">Tax</span></div><h2>@order.TaxTotal.ToString("N0")</h2><p>Tax</p><div class="kpi-bottom"><span>Applied tax total</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span><span class="trend-pill up">@order.CurrencySymbol</span></div><h2>@order.GrandTotal.ToString("N0")</h2><p>Grand Total</p><div class="kpi-bottom"><span>Payable order value</span></div></article>
+        <article class="kpi-widget admin-reveal"><div class="kpi-topline"><span class="kpi-icon"><i class="bi bi-receipt-cutoff"></i></span><span class="trend-pill @(invoiceBadge == "confirmed" ? "up" : "warn")">Invoice</span></div><h2>@(order.InvoiceCreated ? "Created" : order.IsReadyForInvoice ? "Ready" : "Pending")</h2><p>Invoice</p><div class="kpi-bottom"><span>@invoiceLabel</span></div></article>
+    </div>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Customer Information</h2><p>Account this order belongs to.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Name</dt><dd>@order.Customer.FullName</dd></div>
+                    <div><dt>Code</dt><dd>@order.Customer.CustomerCode</dd></div>
+                    <div><dt>Organization</dt><dd>@TextOrFallback(order.Customer.OrganizationName)</dd></div>
+                    <div><dt>Email</dt><dd>@TextOrFallback(order.Customer.Email)</dd></div>
+                    <div><dt>Phone</dt><dd>@order.Customer.PrimaryPhone</dd></div>
+                    <div><dt>Customer PO</dt><dd>@TextOrFallback(order.CustomerPurchaseOrderNumber)</dd></div>
+                </dl>
+                <div class="customer-detail-actions">
+                    <a class="admin-secondary-button" asp-controller="Customers" asp-action="Details" asp-route-id="@order.CustomerId"><i class="bi bi-person"></i> Open Customer</a>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-diagram-3"></i><div><h2>Document Source</h2><p>Where this order originated from.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Source Type</dt><dd>@order.SourceType</dd></div>
+                    <div>
+                        <dt>Quotation</dt>
+                        <dd>
+                            @if (order.SalesQuotation != null)
+                            {
+                                <a asp-controller="Sales" asp-action="QuotationDetails" asp-route-id="@order.SalesQuotationId">@order.SalesQuotation.QuotationNumber</a>
+                            }
+                            else
+                            {
+                                <text>Direct order</text>
+                            }
+                        </dd>
+                    </div>
+                    <div><dt>Opportunity</dt><dd>@(order.Opportunity == null ? "No linked opportunity" : $"{order.Opportunity.OpportunityNumber} - {order.Opportunity.Name}")</dd></div>
+                    <div><dt>Owner</dt><dd>@(order.AssignedToUser?.FullName ?? "Unassigned")</dd></div>
+                    <div><dt>Order Date</dt><dd>@order.OrderDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Service Dates</dt><dd>@DateOrFallback(order.ServiceStartDate) - @DateOrFallback(order.ServiceEndDate)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-list-check"></i><div><h2>Order Items</h2><p>Confirmed service lines on this order.</p></div></header>
+                <div class="sales-cycle-lines">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Description</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Rate</th>
+                                <th scope="col">Discount</th>
+                                <th scope="col">Tax</th>
+                                <th scope="col">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in order.Items.OrderBy(x => x.DisplayOrder))
+                            {
+                                <tr>
+                                    <td>@item.LineNumber</td>
+                                    <td>@item.Description<small>@item.ItemType.GetDisplayName()</small></td>
+                                    <td>@item.Quantity @item.UnitOfMeasure</td>
+                                    <td>@order.CurrencySymbol @item.UnitPrice.ToString("N2")</td>
+                                    <td>@order.CurrencySymbol @item.DiscountAmount.ToString("N2")</td>
+                                    <td>@order.CurrencySymbol @item.TaxAmount.ToString("N2")</td>
+                                    <td>@order.CurrencySymbol @item.LineTotal.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-calculator"></i><div><h2>Financial Summary</h2><p>Server calculated order totals.</p></div></header>
+                <div class="sales-cycle-totals">
+                    <span>Subtotal <strong>@order.CurrencySymbol @order.Subtotal.ToString("N2")</strong></span>
+                    <span>Discount <strong>@order.CurrencySymbol @order.DiscountTotal.ToString("N2")</strong></span>
+                    <span>Tax <strong>@order.CurrencySymbol @order.TaxTotal.ToString("N2")</strong></span>
+                    <span class="grand">Grand Total <strong>@order.CurrencySymbol @order.GrandTotal.ToString("N2")</strong></span>
+                </div>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-journal-richtext"></i><div><h2>Terms and Notes</h2><p>Commercial terms recorded on this order.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Terms and Conditions</dt><dd>@TextOrFallback(order.TermsAndConditions)</dd></div>
+                    <div><dt>Customer Notes</dt><dd>@TextOrFallback(order.CustomerNotes)</dd></div>
+                    <div><dt>Customer Reference</dt><dd>@TextOrFallback(order.CustomerReference)</dd></div>
+                    <div><dt>Revision Reason</dt><dd>@TextOrFallback(order.LastRevisionReason)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-notes-card admin-reveal">
+                <header><i class="bi bi-journal-text"></i><div><h2>Internal Notes</h2><span>Internal Use Only</span></div></header>
+                <p>@TextOrFallback(order.InternalNotes)</p>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card membership-card admin-reveal">
+                <header><i class="bi bi-arrow-repeat"></i><h2>Lifecycle</h2></header>
+                <strong>@order.Status.GetDisplayName()</strong>
+                <p>Revision @order.RevisionNumber</p>
+                <dl>
+                    <div><dt>Order Date</dt><dd>@order.OrderDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Service Start</dt><dd>@DateOrFallback(order.ServiceStartDate)</dd></div>
+                    <div><dt>Service End</dt><dd>@DateOrFallback(order.ServiceEndDate)</dd></div>
+                    <div><dt>Invoice</dt><dd>@(order.InvoiceCreated ? "Created" : "Not created")</dd></div>
+                </dl>
+            </article>
+
+            @if (Model.CanManageLifecycle)
+            {
+                <article class="customer-side-card admin-reveal">
+                    <header><i class="bi bi-lightning-charge"></i><h2>Next Action</h2></header>
+                    @if (order.IsEditable)
+                    {
+                        <p>Submit this order for internal review.</p>
+                        <form asp-action="SubmitForApproval" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-send-check"></i> Submit for Approval</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.Rejected)
+                    {
+                        <p>Record a revision summary and resubmit this order.</p>
+                        <form asp-action="Resubmit" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <input name="revisionReason" placeholder="Revision summary" required />
+                            <button class="admin-action-button" type="submit"><i class="bi bi-arrow-repeat"></i> Resubmit</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.SubmittedForApproval)
+                    {
+                        <p>Approve or reject this order after review.</p>
+                        <form asp-action="Approve" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Approve</button>
+                        </form>
+                        <form asp-action="Reject" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <input name="rejectionReason" placeholder="Rejection reason" required />
+                            <button class="admin-secondary-button is-danger" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.Approved)
+                    {
+                        <p>Confirm the order to begin delivery tracking.</p>
+                        <form asp-action="Confirm" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Confirm Order</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.Confirmed)
+                    {
+                        <p>Start delivery progress, or move straight to invoice readiness.</p>
+                        <form asp-action="StartProgress" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-play-circle"></i> Start Progress</button>
+                        </form>
+                        <form asp-action="MarkReadyForInvoice" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-secondary-button" type="submit"><i class="bi bi-receipt"></i> Ready for Invoice</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.InProgress)
+                    {
+                        <p>Service is in progress. Mark fulfilled when delivery is complete.</p>
+                        <form asp-action="MarkFulfilled" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-check-all"></i> Mark Fulfilled</button>
+                        </form>
+                    }
+                    @if (order.Status == SalesOrderStatus.Fulfilled)
+                    {
+                        <p>Delivery is complete. Move the order to invoice readiness.</p>
+                        <form asp-action="MarkReadyForInvoice" asp-route-id="@order.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="admin-action-button" type="submit"><i class="bi bi-receipt"></i> Ready for Invoice</button>
+                        </form>
+                    }
+                    @if (order.Status is not (SalesOrderStatus.Draft or SalesOrderStatus.RevisedDraft or SalesOrderStatus.Rejected or SalesOrderStatus.SubmittedForApproval or SalesOrderStatus.Approved or SalesOrderStatus.Confirmed or SalesOrderStatus.InProgress or SalesOrderStatus.Fulfilled))
+                    {
+                        <p class="customer-empty-copy">No further order action is available at this stage.</p>
+                    }
+                </article>
+            }
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-receipt"></i><h2>Invoice</h2></header>
+                @if (order.IsReadyForInvoice && !order.InvoiceCreated)
+                {
+                    <p>The order is complete and can now be converted into a controlled draft invoice.</p>
+                    <a class="admin-action-button" asp-controller="Invoices" asp-action="CreateFromSalesOrder" asp-route-salesOrderId="@order.Id"><i class="bi bi-receipt"></i> Create Invoice</a>
+                }
+                else
+                {
+                    <p class="customer-empty-copy">@(order.InvoiceCreated ? "An invoice has already been created for this sales order." : "The order must be fulfilled and ready for invoice first.")</p>
+                    <button class="admin-secondary-button" type="button" disabled><i class="bi bi-lock"></i> Create Invoice</button>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><h2>Lifecycle Timeline</h2></header>
+                <div class="sales-cycle-timeline">
+                    @foreach (var stage in lifecycleStages)
+                    {
+                        <span><i class="bi @stage.Icon"></i><strong>@stage.Label</strong> @stage.At!.Value.ToString("dd MMM yyyy hh:mm tt")</span>
+                    }
+                </div>
+            </article>
+
+            @if (Model.CanCancel)
+            {
+                <article class="customer-side-card sales-cycle-danger admin-reveal">
+                    <header><i class="bi bi-exclamation-triangle"></i><h2>Cancel Sales Order</h2></header>
+                    <form asp-action="Cancel" asp-route-id="@order.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input name="reason" placeholder="Cancellation reason" required />
+                        <button class="admin-secondary-button is-danger" type="submit">Cancel Order</button>
+                    </form>
+                </article>
+            }
+        </aside>
+    </div>
+
+    <article class="customer-info-card admin-reveal">
+        <header><i class="bi bi-diagram-3"></i><div><h2>Approval &amp; Revision Timeline</h2><p>Complete audit trail for this order.</p></div></header>
+        <div class="sales-cycle-timeline">
+            @foreach (var entry in Model.ApprovalHistory)
+            {
+                <span>
+                    <i class="bi bi-dot"></i><strong>@entry.Action.GetDisplayName()</strong> · Revision @entry.RevisionNumber · @(entry.ActionByUser?.FullName ?? "System") · @entry.ActionAt.ToString("dd MMM yyyy hh:mm tt")
+                    @if (!string.IsNullOrWhiteSpace(entry.RejectionReason))
+                    {
+                        <em>Reason: @entry.RejectionReason</em>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(entry.Comments))
+                    {
+                        <em>@entry.Comments</em>
+                    }
+                </span>
+            }
+            @foreach (var revision in Model.RevisionHistory)
+            {
+                <span><i class="bi bi-dot"></i><strong>Revision @revision.RevisionNumber archived</strong> · @revision.CreatedAt.ToString("dd MMM yyyy hh:mm tt") · @revision.RevisionReason</span>
+            }
+            @if (!Model.ApprovalHistory.Any() && !Model.RevisionHistory.Any())
+            {
+                <span><i class="bi bi-dot"></i><strong>No approval activity recorded yet.</strong></span>
+            }
+        </div>
+    </article>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-shield-check"></i><div><h2>Document Information</h2><p>Audit metadata and document state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Sales Order ID</span><strong>@order.Id</strong></div>
+            <div><span>Sales Order Number</span><strong>@order.SalesOrderNumber</strong></div>
+            <div><span>Revision</span><strong>@order.RevisionNumber</strong></div>
+            <div><span>Currency</span><strong>@order.Currency @order.CurrencySymbol</strong></div>
+            <div><span>Created At</span><strong>@order.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Editable</span><strong>@(order.IsEditable ? "Yes" : "No")</strong></div>
+            <div><span>Order Status</span><strong>@order.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/sales-orders.css" asp-append-version="true" /> }
+@section Scripts { <script src="~/js/sales.js" asp-append-version="true"></script> }

@@ -1,0 +1,17 @@
+@model PaymentTransaction
+@{
+    ViewData["Title"] = "Membership Payment Cancelled";
+    Layout = "_CustomerLayout";
+}
+<section class="payment-result cancelled">
+    <div class="container result-panel">
+        <i class="bi bi-slash-circle-fill"></i>
+        <h1>Payment cancelled</h1>
+        <p>You cancelled the demo payment. No membership was activated and nothing was charged.</p>
+        <div class="result-actions">
+            <a class="btn-premium" asp-controller="MyMemberships" asp-action="Plans">Return to Plans</a>
+            <a class="btn-ghost-light" asp-controller="MyMemberships" asp-action="Index">My Membership</a>
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }

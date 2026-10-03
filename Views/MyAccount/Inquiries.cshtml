@@ -1,0 +1,8 @@
+@model List<Lead>
+@using GameHub.Helpers
+@{
+    ViewData["Title"] = "My Inquiries";
+    Layout = "_CustomerLayout";
+    string SafeStatus(LeadStatus status) => status switch { LeadStatus.New => "Received", LeadStatus.Contacted => "In Review", LeadStatus.FollowUp => "Follow-up Required", LeadStatus.Qualified => "Qualified", _ => "Closed" };
+}
+<section class="my-bookings-page"><div class="container"><div class="section-heading"><span class="eyebrow-pill">Customer Portal</span><h1>My Inquiries</h1><p>Track customer-safe inquiry progress.</p></div><div class="booking-card-list">@foreach (var item in Model) { <article class="customer-booking-card"><div><span>@(item.PublicReferenceNumber ?? item.LeadNumber)</span><h2>@item.InquirySubject</h2><p>@item.ServiceInterest.GetDisplayName() - @item.CreatedAt.ToString("MMM dd, yyyy")</p></div><div><strong>@SafeStatus(item.Status)</strong><span>Last update @((item.UpdatedAt ?? item.CreatedAt).ToString("MMM dd, yyyy"))</span></div><div><span class="status-pill">@SafeStatus(item.Status)</span></div></article> } @if (!Model.Any()) { <article class="customer-booking-card"><div><h2>No inquiries yet</h2><p>Submit an inquiry and it will appear here.</p></div><a class="btn-premium" asp-controller="Inquiry" asp-action="Index">Submit Inquiry</a></article> }</div></div></section>

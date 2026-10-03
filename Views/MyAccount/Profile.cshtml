@@ -1,0 +1,63 @@
+@model CustomerProfileViewModel
+@{
+    ViewData["Title"] = "Edit Profile";
+    Layout = "_CustomerLayout";
+}
+
+<section class="account-editor">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill">Self-Service Profile</span>
+            <h1>Edit Profile</h1>
+            <p>Update only the details that are safe for customer self-service.</p>
+        </div>
+        <form asp-action="Profile" method="post" enctype="multipart/form-data" class="profile-form-card" data-account-form>
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+            <div class="form-section">
+                <h2>Personal Information</h2>
+                <div class="form-grid two">
+                    <div class="form-floating"><input asp-for="FirstName" class="form-control" placeholder="First name" /><label asp-for="FirstName"></label><span asp-validation-for="FirstName" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="LastName" class="form-control" placeholder="Last name" /><label asp-for="LastName"></label><span asp-validation-for="LastName" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="PreferredName" class="form-control" placeholder="Preferred name" /><label asp-for="PreferredName"></label><span asp-validation-for="PreferredName" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="DateOfBirth" type="date" class="form-control" placeholder="Date of birth" /><label asp-for="DateOfBirth"></label><span asp-validation-for="DateOfBirth" class="text-danger small"></span></div>
+                    <div class="form-floating"><select asp-for="Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()"></select><label asp-for="Gender"></label></div>
+                    <div class="form-floating"><select asp-for="PreferredContactMethod" class="form-select" asp-items="Html.GetEnumSelectList<PreferredContactMethod>()"></select><label asp-for="PreferredContactMethod"></label></div>
+                </div>
+            </div>
+            <div class="form-section">
+                <h2>Contact and Address</h2>
+                <div class="form-grid two">
+                    <div class="form-floating"><input asp-for="PrimaryPhone" class="form-control" placeholder="Phone" /><label asp-for="PrimaryPhone"></label><span asp-validation-for="PrimaryPhone" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="WhatsAppNumber" class="form-control" placeholder="WhatsApp" /><label asp-for="WhatsAppNumber"></label><span asp-validation-for="WhatsAppNumber" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="AddressLine1" class="form-control" placeholder="Address line 1" /><label asp-for="AddressLine1"></label></div>
+                    <div class="form-floating"><input asp-for="AddressLine2" class="form-control" placeholder="Address line 2" /><label asp-for="AddressLine2"></label></div>
+                    <div class="form-floating"><input asp-for="City" class="form-control" placeholder="City" /><label asp-for="City"></label></div>
+                    <div class="form-floating"><input asp-for="StateProvince" class="form-control" placeholder="State" /><label asp-for="StateProvince"></label></div>
+                    <div class="form-floating"><input asp-for="PostalCode" class="form-control" placeholder="Postal code" /><label asp-for="PostalCode"></label></div>
+                    <div class="form-floating"><input asp-for="Country" class="form-control" placeholder="Country" /><label asp-for="Country"></label></div>
+                </div>
+            </div>
+            <div class="form-section">
+                <h2>Preferences</h2>
+                <div class="preference-row">
+                    <label class="premium-switch"><input asp-for="ReceiveBookingReminders" /><span></span> Booking reminders</label>
+                    <label class="premium-switch"><input asp-for="ReceiveMarketingMessages" /><span></span> Offers and updates</label>
+                </div>
+                <label class="upload-tile">
+                    <i class="bi bi-image"></i>
+                    <span>Upload profile image</span>
+                    <input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" />
+                </label>
+            </div>
+            <div class="sticky-action-bar">
+                <a class="btn-ghost-light" asp-action="Index">Cancel</a>
+                <button class="btn-premium" type="submit" data-loading-button><i class="bi bi-check2"></i> Save Profile</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

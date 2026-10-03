@@ -1,0 +1,36 @@
+@model SalesOrderPreviewViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var order = Model.SalesOrder;
+    ViewData["Title"] = $"Preview {order.SalesOrderNumber}";
+    Layout = "_AdminLayout";
+}
+<section class="sales-order-preview-page sales-cycle-page sales-cycle-document-page">
+    <div class="sales-cycle-document-actions">
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@order.Id"><i class="bi bi-arrow-left"></i> Back</a>
+        <button class="admin-secondary-button" type="button" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+        <button class="admin-action-button" type="button" onclick="window.print()"><i class="bi bi-download"></i> Download / Save PDF</button>
+    </div>
+    <article class="sales-order-document">
+        <header>
+            <div><h1>@(Model.Settings.ArenaName ?? "GameHub Arena")</h1><p>@Model.Settings.Address<br />@Model.Settings.Phone | @Model.Settings.Email</p></div>
+            <div><span>Sales Order</span><strong>@order.SalesOrderNumber</strong><small class="membership-status-badge @order.Status.Modifier()"><i></i>@order.Status.GetDisplayName()</small></div>
+        </header>
+        <section class="sales-order-doc-grid">
+            <div><span>Customer</span><strong>@order.Customer.FullName</strong><p>@order.Customer.CustomerCode<br />@(order.Customer.Email ?? "-")<br />@order.Customer.PrimaryPhone</p></div>
+            <div><span>Source</span><strong>@(order.SalesQuotation?.QuotationNumber ?? "Direct")</strong><p>@(order.Opportunity == null ? "No linked opportunity" : $"{order.Opportunity.OpportunityNumber}\n{order.Opportunity.Name}")</p></div>
+            <div><span>Order Date</span><strong>@order.OrderDate.ToString("MMM dd, yyyy")</strong><p>Service: @(order.ServiceStartDate?.ToString("MMM dd, yyyy") ?? "-") - @(order.ServiceEndDate?.ToString("MMM dd, yyyy") ?? "-")</p></div>
+        </section>
+        <table class="sales-order-doc-table">
+            <thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Rate</th><th>Discount</th><th>Tax</th><th>Total</th></tr></thead>
+            <tbody>@foreach (var item in order.Items.OrderBy(x => x.DisplayOrder)) { <tr><td>@item.LineNumber</td><td>@item.Description<br /><small>@item.ItemType.GetDisplayName()</small></td><td>@item.Quantity @item.UnitOfMeasure</td><td>@order.CurrencySymbol @item.UnitPrice.ToString("N2")</td><td>@order.CurrencySymbol @item.DiscountAmount.ToString("N2")</td><td>@order.CurrencySymbol @item.TaxAmount.ToString("N2")</td><td>@order.CurrencySymbol @item.LineTotal.ToString("N2")</td></tr> }</tbody>
+        </table>
+        <section class="sales-order-doc-bottom">
+            <div><h2>Terms</h2><p>@(order.TermsAndConditions ?? "Standard GameHub Arena terms apply.")</p><h2>Prepared By</h2><p>@(order.AssignedToUser?.FullName ?? "GameHub Sales Team")</p></div>
+            <div class="sales-cycle-totals"><span>Subtotal <strong>@order.CurrencySymbol @order.Subtotal.ToString("N2")</strong></span><span>Discount <strong>@order.CurrencySymbol @order.DiscountTotal.ToString("N2")</strong></span><span>Tax <strong>@order.CurrencySymbol @order.TaxTotal.ToString("N2")</strong></span><span class="grand">Grand Total <strong>@order.CurrencySymbol @order.GrandTotal.ToString("N2")</strong></span></div>
+        </section>
+        <footer><div><strong>Customer Acceptance</strong><span>Signature / Stamp</span></div><p>Thank you for choosing GameHub Arena. For support, contact @Model.Settings.Phone.</p></footer>
+    </article>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/memberships.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/sales-orders.css" asp-append-version="true" /> }

@@ -1,0 +1,150 @@
+@model IReadOnlyList<Booking>
+@using GameHub.Helpers
+@{
+    ViewData["Title"] = "My Bookings";
+    Layout = "_CustomerLayout";
+    var tab = (string?)ViewBag.Tab ?? "upcoming";
+    var currency = (string?)ViewBag.CurrencySymbol ?? "Rs";
+    var totalSpent = (decimal)ViewBag.TotalSpent;
+    var cancelledAmount = (decimal)ViewBag.CancelledAmount;
+
+    string BookingTone(BookingStatus status) => status switch
+    {
+        BookingStatus.Confirmed or BookingStatus.CheckedIn or BookingStatus.Completed => "tone-success",
+        BookingStatus.Pending or BookingStatus.InProgress => "tone-warn",
+        BookingStatus.Cancelled or BookingStatus.NoShow => "tone-danger",
+        BookingStatus.Rescheduled => "tone-info",
+        _ => "tone-muted"
+    };
+
+    string PaymentTone(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Paid => "tone-success",
+        PaymentStatus.PartiallyPaid => "tone-warn",
+        PaymentStatus.Unpaid => "tone-danger",
+        PaymentStatus.Refunded => "tone-info",
+        _ => "tone-muted"
+    };
+}
+<section class="my-bookings-page portal-page">
+    <div class="container">
+
+        <header class="portal-head">
+            <div class="portal-head__text">
+                <span class="eyebrow-pill"><i class="bi bi-calendar-check"></i> Customer Bookings</span>
+                <h1>My Bookings</h1>
+                <p class="portal-head__lead">Every court session on your account, with payment status and receipts.</p>
+            </div>
+            <div class="portal-head__actions">
+                <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-plus-circle"></i> Book a Court</a>
+            </div>
+        </header>
+
+        <div class="portal-stats">
+            <article class="portal-stat tone-info">
+                <span class="portal-stat__icon"><i class="bi bi-calendar-check"></i></span>
+                <span class="portal-stat__value">@ViewBag.Upcoming</span>
+                <span class="portal-stat__label">Upcoming</span>
+            </article>
+            <article class="portal-stat tone-success">
+                <span class="portal-stat__icon"><i class="bi bi-check2-circle"></i></span>
+                <span class="portal-stat__value">@ViewBag.Completed</span>
+                <span class="portal-stat__label">Completed</span>
+            </article>
+            <article class="portal-stat tone-muted">
+                <span class="portal-stat__icon"><i class="bi bi-clock-history"></i></span>
+                <span class="portal-stat__value">@ViewBag.Past</span>
+                <span class="portal-stat__label">Past Sessions</span>
+            </article>
+            <article class="portal-stat tone-danger">
+                <span class="portal-stat__icon"><i class="bi bi-x-circle"></i></span>
+                <span class="portal-stat__value">@ViewBag.Cancelled</span>
+                <span class="portal-stat__label">Cancelled</span>
+            </article>
+            <article class="portal-stat tone-gold">
+                <span class="portal-stat__icon"><i class="bi bi-wallet2"></i></span>
+                <span class="portal-stat__value">@currency @totalSpent.ToString("N0")</span>
+                <span class="portal-stat__label">Total Spent</span>
+            </article>
+        </div>
+
+        @if (cancelledAmount > 0)
+        {
+            <div class="portal-note">
+                <i class="bi bi-info-circle"></i>
+                <span>Total Spent excludes @currency @cancelledAmount.ToString("N0") from cancelled bookings. Contact the arena for refund eligibility.</span>
+            </div>
+        }
+
+        <div class="portal-tabs">
+            <a class="@(tab == "upcoming" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="upcoming">Upcoming <span class="portal-tab-count">@ViewBag.Upcoming</span></a>
+            <a class="@(tab == "completed" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="completed">Completed <span class="portal-tab-count">@ViewBag.Completed</span></a>
+            <a class="@(tab == "past" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="past">Past <span class="portal-tab-count">@ViewBag.Past</span></a>
+            <a class="@(tab == "cancelled" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="cancelled">Cancelled <span class="portal-tab-count">@ViewBag.Cancelled</span></a>
+            <a class="@(tab == "all" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="all">All <span class="portal-tab-count">@ViewBag.All</span></a>
+        </div>
+
+        <div class="portal-records">
+            @foreach (var booking in Model)
+            {
+                <article class="portal-record @BookingTone(booking.Status)">
+                    <div class="portal-record__main">
+                        <span class="portal-record__ref">@booking.BookingNumber</span>
+                        <h2 class="portal-record__title">@booking.Court?.Name</h2>
+                        <p class="portal-record__meta">@booking.Sport?.Name &middot; @booking.Facility?.Name</p>
+                    </div>
+                    <div class="portal-field">
+                        <span class="portal-field__label">Session</span>
+                        <span class="portal-field__value">@booking.BookingDate.ToString("MMM dd, yyyy")</span>
+                        <span class="portal-record__meta">@booking.StartTime.ToString("hh\\:mm tt") - @booking.EndTime.ToString("hh\\:mm tt")</span>
+                    </div>
+                    <div class="portal-record__badges">
+                        <span class="portal-badge @BookingTone(booking.Status)">@booking.Status.GetDisplayName()</span>
+                        <span class="portal-badge @PaymentTone(booking.PaymentStatus)">@booking.PaymentStatus.GetDisplayName()</span>
+                    </div>
+                    <div class="portal-record__action">
+                        <span class="portal-field__value portal-field__value--amount">@currency @booking.PaidAmount.ToString("N0")</span>
+                        <a class="btn-premium btn-compact" asp-action="Details" asp-route-id="@booking.Id">View Details</a>
+                    </div>
+                </article>
+            }
+
+            @if (!Model.Any())
+            {
+                var emptyTitle = tab switch
+                {
+                    "upcoming" => "No upcoming bookings",
+                    "completed" => "No completed bookings yet",
+                    "past" => "No past sessions yet",
+                    "cancelled" => "No cancelled bookings",
+                    _ => "No bookings yet"
+                };
+                var emptyHint = tab switch
+                {
+                    "upcoming" => "Confirmed future bookings appear here.",
+                    "completed" => "Bookings you complete at the arena appear here.",
+                    "past" => "Sessions you already played or missed appear here.",
+                    "cancelled" => "Bookings you cancel will be listed here.",
+                    _ => "Start by booking a court."
+                };
+                <div class="portal-empty">
+                    <span class="portal-empty__icon"><i class="bi bi-calendar"></i></span>
+                    <h2>@emptyTitle</h2>
+                    <p>@emptyHint</p>
+                    @if (tab != "upcoming")
+                    {
+                        <a class="btn-ghost-light" asp-action="Index" asp-route-tab="upcoming"><i class="bi bi-calendar-check"></i> View Upcoming</a>
+                    }
+                    else
+                    {
+                        <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-plus-circle"></i> Book a Court</a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-portal.css" asp-append-version="true" />
+}

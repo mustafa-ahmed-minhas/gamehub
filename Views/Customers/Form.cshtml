@@ -1,0 +1,150 @@
+@model GameHub.Models.ViewModels.CustomerFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Customer" : "Create Customer";
+    Layout = "_AdminLayout";
+}
+
+<section class="users-page customer-form-page" data-customer-form-page>
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Customer Profile</span>
+            <h1>@(Model.IsEditMode ? "Edit Customer" : "Create Customer")</h1>
+            <p>Maintain a complete ERP customer profile for bookings, memberships, payments, and reports.</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Customers</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="customer-form-grid" data-customer-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="ExistingProfileImageUrl" type="hidden" />
+        <div class="customer-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-person"></i> Personal Information</h2>
+                <label><span>Customer Code</span><input asp-for="CustomerCode" placeholder="Auto generated" readonly /></label>
+                <label><span>First Name *</span><input asp-for="FirstName" data-preview-first /><small asp-validation-for="FirstName"></small></label>
+                <label><span>Last Name *</span><input asp-for="LastName" data-preview-last /><small asp-validation-for="LastName"></small></label>
+                <label><span>Preferred Name</span><input asp-for="PreferredName" data-preview-preferred /></label>
+                <label><span>Gender *</span><select asp-for="Gender" asp-items="Html.GetEnumSelectList<Gender>()"></select></label>
+                <label><span>Date of Birth</span><input asp-for="DateOfBirth" type="date" data-preview-dob /><small asp-validation-for="DateOfBirth"></small></label>
+                <label><span>National ID / Passport</span><input asp-for="NationalIdNumber" data-check-national-id data-current-id="@Model.Id" /><small asp-validation-for="NationalIdNumber"></small><em data-national-id-status></em></label>
+                <label><span>Profile Image</span><input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-input /><small asp-validation-for="ProfileImage"></small></label>
+                @if (!string.IsNullOrWhiteSpace(Model.ExistingProfileImageUrl))
+                {
+                    <label class="customer-toggle"><input asp-for="RemoveProfileImage" type="checkbox" /> Remove existing profile image</label>
+                }
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-telephone"></i> Contact Information</h2>
+                <label><span>Primary Phone *</span><input asp-for="PrimaryPhone" data-preview-phone data-check-phone data-current-id="@Model.Id" /><small asp-validation-for="PrimaryPhone"></small><em data-phone-status></em></label>
+                <label><span>Secondary Phone</span><input asp-for="SecondaryPhone" /><small asp-validation-for="SecondaryPhone"></small></label>
+                <label><span>WhatsApp Number</span><input asp-for="WhatsAppNumber" data-preview-whatsapp data-check-whatsapp data-current-id="@Model.Id" /><small asp-validation-for="WhatsAppNumber"></small><em data-whatsapp-status></em></label>
+                <label class="customer-toggle"><input type="checkbox" data-same-whatsapp /> Same as primary phone</label>
+                <label><span>Email</span><input asp-for="Email" data-preview-email data-check-email data-current-id="@Model.Id" /><small asp-validation-for="Email"></small><em data-email-status></em></label>
+                <label><span>Preferred Contact</span><select asp-for="PreferredContactMethod" asp-items="Html.GetEnumSelectList<PreferredContactMethod>()"></select></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-geo-alt"></i> Address</h2>
+                <label><span>Address Line 1</span><input asp-for="AddressLine1" /></label>
+                <label><span>Address Line 2</span><input asp-for="AddressLine2" /></label>
+                <label><span>City</span><input asp-for="City" data-preview-city /></label>
+                <label><span>State / Province</span><input asp-for="StateProvince" /></label>
+                <label><span>Postal Code</span><input asp-for="PostalCode" /></label>
+                <label><span>Country *</span><input asp-for="Country" data-preview-country /><small asp-validation-for="Country"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-heart-pulse"></i> Emergency Contact</h2>
+                <label><span>Contact Name</span><input asp-for="EmergencyContactName" /><small asp-validation-for="EmergencyContactName"></small></label>
+                <label><span>Phone</span><input asp-for="EmergencyContactPhone" /><small asp-validation-for="EmergencyContactPhone"></small></label>
+                <label><span>Relationship</span><input asp-for="EmergencyContactRelation" /></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-ui-checks-grid"></i> Classification</h2>
+                <label><span>Customer Type *</span><select asp-for="CustomerType" asp-items="Html.GetEnumSelectList<CustomerType>()" data-preview-type></select></label>
+                <label><span>Customer Source *</span><select asp-for="CustomerSource" asp-items="Html.GetEnumSelectList<CustomerSource>()" data-preview-source></select></label>
+                <label data-corporate-field><span>Organization Name</span><input asp-for="OrganizationName" /><small asp-validation-for="OrganizationName"></small></label>
+                <label><span>Occupation</span><input asp-for="Occupation" /></label>
+                <div class="customer-check-list">
+                    <span>Preferred Sports</span>
+                    @foreach (var sport in Model.AvailableSports)
+                    {
+                        <label><input type="checkbox" name="SelectedSportCodes" value="@sport.Value" checked="@sport.Selected" data-sport-choice /> @sport.Text</label>
+                    }
+                </div>
+                <label><span>Customer Tags</span><input asp-for="CustomerTags" data-tags-input placeholder="family, evening-player" /></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-person-badge"></i> Membership</h2>
+                <label class="customer-toggle"><input asp-for="IsMember" type="checkbox" data-membership-toggle /> Is Member</label>
+                <label data-membership-field><span>Membership Number</span><input asp-for="MembershipNumber" /><small asp-validation-for="MembershipNumber"></small></label>
+                <label data-membership-field><span>Start Date</span><input asp-for="MembershipStartDate" type="date" /><small asp-validation-for="MembershipStartDate"></small></label>
+                <label data-membership-field><span>Expiry Date</span><input asp-for="MembershipExpiryDate" type="date" /><small asp-validation-for="MembershipExpiryDate"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-wallet2"></i> Credit and Loyalty</h2>
+                <label class="customer-toggle"><input asp-for="AllowCredit" type="checkbox" data-credit-toggle /> Allow Credit</label>
+                <label data-credit-field><span>Credit Limit</span><input asp-for="CreditLimit" type="number" min="0" step="0.01" /><small asp-validation-for="CreditLimit"></small></label>
+                <label><span>Loyalty Points</span><input asp-for="LoyaltyPoints" type="number" min="0" data-preview-loyalty /><small asp-validation-for="LoyaltyPoints"></small></label>
+                <label><span>Outstanding Balance</span><input asp-for="OutstandingBalance" readonly /></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-bell"></i> Communication and Risk</h2>
+                <label class="customer-toggle"><input asp-for="ReceiveBookingReminders" type="checkbox" /> Receive Booking Reminders</label>
+                <label class="customer-toggle"><input asp-for="ReceiveMarketingMessages" type="checkbox" /> Receive Marketing Messages</label>
+                <label class="customer-toggle"><input asp-for="IsActive" type="checkbox" data-preview-active /> Active Customer</label>
+                <label class="customer-toggle"><input asp-for="IsBlacklisted" type="checkbox" data-blacklist-form-toggle /> Blacklisted</label>
+                <label data-blacklist-field><span>Blacklist Reason</span><textarea asp-for="BlacklistReason"></textarea><small asp-validation-for="BlacklistReason"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-journal-text"></i> Internal Notes</h2>
+                <label><span>Internal Notes</span><textarea asp-for="InternalNotes" rows="5"></textarea><small asp-validation-for="InternalNotes"></small></label>
+            </section>
+        </div>
+
+        <aside class="customer-preview-card">
+            <div class="customer-preview-avatar" data-preview-avatar>@(Model.IsEditMode ? (Model.FirstName.FirstOrDefault().ToString() + Model.LastName.FirstOrDefault().ToString()).ToUpperInvariant() : "NU")</div>
+            <img class="d-none" src="@Model.ExistingProfileImageUrl" alt="" data-preview-image />
+            <h2 data-preview-name>@(Model.IsEditMode ? $"{Model.FirstName} {Model.LastName}" : "New User")</h2>
+            <p data-preview-code>@(Model.CustomerCode ?? "CUS-000000")</p>
+            <span data-preview-preferred-text>@(Model.PreferredName ?? "Preferred name not set")</span>
+            <div class="customer-preview-list">
+                <strong data-preview-phone-text>@(Model.PrimaryPhone ?? "Phone not provided")</strong>
+                <span data-preview-email-text>@(Model.Email ?? "Email not provided")</span>
+                <span data-preview-location>@($"{Model.City ?? "City"}, {Model.Country}")</span>
+                <span data-preview-age>Age not available</span>
+            </div>
+            <div class="customer-preview-badges">
+                <em data-preview-type-text>@Model.CustomerType.GetDisplayName()</em>
+                <em data-preview-source-text>@Model.CustomerSource.GetDisplayName()</em>
+                <em data-preview-member>@(Model.IsMember ? "Member" : "Non-Member")</em>
+                <em data-preview-status>@(Model.IsActive ? "Active" : "Inactive")</em>
+                <em class="danger @(Model.IsBlacklisted ? "" : "d-none")" data-preview-blacklist>Blacklisted</em>
+            </div>
+            <div class="customer-completeness">
+                <div><span>Profile Completeness</span><strong data-complete-value>0%</strong></div>
+                <meter min="0" max="100" value="0" data-complete-meter></meter>
+            </div>
+        </aside>
+
+        <div class="customer-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Index">Cancel</a>
+            <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Create Customer")</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,140 @@
+@model BookingInvoice
+@{
+    ViewData["Title"] = Model.InvoiceNumber;
+    Layout = "_CustomerLayout";
+    var booking = Model.Booking;
+    var customer = Model.Customer;
+    var customerAddress = string.Join(", ", new[] { customer?.AddressLine1, customer?.AddressLine2, customer?.City, customer?.Country }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    var membership = booking?.CustomerMembership?.MembershipNumber ?? customer?.MembershipNumber ?? "No membership applied";
+    var duration = booking?.DurationMinutes ?? (int)(Model.EndTime.ToTimeSpan() - Model.StartTime.ToTimeSpan()).TotalMinutes;
+    var paymentStatus = Model.IsPaid ? "Paid" : "Balance Due";
+}
+
+<section class="document-preview-page">
+    <div class="container document-preview-shell">
+        <div class="document-toolbar no-print">
+            <a class="btn-ghost-light" asp-action="Details" asp-route-id="@Model.BookingId"><i class="bi bi-arrow-left"></i> Back</a>
+            <div>
+                <button class="btn-ghost-light" type="button" data-doc-share><i class="bi bi-share"></i> Share</button>
+                <button class="btn-ghost-light" type="button" data-doc-print data-document-id="invoiceDocument"><i class="bi bi-printer"></i> Print</button>
+                <button class="btn-premium" type="button" data-doc-download data-document-id="invoiceDocument"><i class="bi bi-file-earmark-pdf"></i> Download / Save PDF</button>
+            </div>
+        </div>
+
+        <article id="invoiceDocument" class="accounting-document invoice-document document-print-root" data-document-preview>
+            <header class="doc-hero">
+                <div class="doc-brand">
+                    <span class="doc-logo">G</span>
+                    <div>
+                        <strong>@Model.ArenaName</strong>
+                        <small>Premium Sports Arena</small>
+                    </div>
+                </div>
+                <div class="doc-title-block">
+                    <span class="doc-kicker">Invoice</span>
+                    <h1>@Model.InvoiceNumber</h1>
+                    <span class="doc-status paid-@Model.IsPaid.ToString().ToLowerInvariant()">@paymentStatus</span>
+                </div>
+            </header>
+
+            <section class="doc-meta-grid">
+                <div class="doc-card">
+                    <span>Arena Information</span>
+                    <h2>@Model.ArenaName</h2>
+                    <p>@(Model.ArenaAddress ?? "GameHub Arena")</p>
+                    <p><i class="bi bi-telephone"></i> @(Model.ArenaPhone ?? "Support")</p>
+                    <p><i class="bi bi-envelope"></i> @(Model.ArenaEmail ?? "support@gamehub.pk")</p>
+                    <p><i class="bi bi-globe"></i> www.gamehub.pk</p>
+                </div>
+                <div class="doc-card">
+                    <span>Invoice Details</span>
+                    <dl class="doc-mini-list">
+                        <div><dt>Invoice Number</dt><dd>@Model.InvoiceNumber</dd></div>
+                        <div><dt>Booking Number</dt><dd>@Model.BookingNumber</dd></div>
+                        <div><dt>Issue Date</dt><dd>@Model.InvoiceDate.ToString("MMM dd, yyyy")</dd></div>
+                        <div><dt>Status</dt><dd>@paymentStatus</dd></div>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="doc-section-grid">
+                <div class="doc-card">
+                    <span>Bill To</span>
+                    <h2>@Model.CustomerName</h2>
+                    <dl class="doc-mini-list">
+                        <div><dt>Customer Code</dt><dd>@(customer?.CustomerCode ?? $"CUST-{Model.CustomerId}")</dd></div>
+                        <div><dt>Email</dt><dd>@(Model.CustomerEmail ?? customer?.Email ?? "Not provided")</dd></div>
+                        <div><dt>Phone</dt><dd>@(Model.CustomerPhone ?? customer?.PrimaryPhone ?? "Not provided")</dd></div>
+                        <div><dt>Membership</dt><dd>@membership</dd></div>
+                        <div><dt>Address</dt><dd>@(string.IsNullOrWhiteSpace(customerAddress) ? "Not provided" : customerAddress)</dd></div>
+                    </dl>
+                </div>
+                <div class="doc-card">
+                    <span>Booking Details</span>
+                    <dl class="doc-mini-list">
+                        <div><dt>Sport</dt><dd>@Model.SportName</dd></div>
+                        <div><dt>Facility</dt><dd>@(booking?.Facility?.Name ?? "GameHub Facility")</dd></div>
+                        <div><dt>Court</dt><dd>@Model.CourtName</dd></div>
+                        <div><dt>Date</dt><dd>@Model.BookingDate.ToString("dddd, MMM dd yyyy")</dd></div>
+                        <div><dt>Time</dt><dd>@Model.StartTime.ToString("hh:mm tt") - @Model.EndTime.ToString("hh:mm tt")</dd></div>
+                        <div><dt>Duration</dt><dd>@duration minutes</dd></div>
+                        <div><dt>Players</dt><dd>@(booking?.PlayerCount.ToString() ?? "1")</dd></div>
+                        <div><dt>Source</dt><dd>@(booking?.Source.GetDisplayName() ?? "Website")</dd></div>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="doc-card doc-table-card">
+                <span>Payment Breakdown</span>
+                <table class="doc-money-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Discount</th>
+                            <th>Tax</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>@Model.CourtName booking</strong>
+                                <small>@Model.BookingDate.ToString("MMM dd, yyyy") · @Model.StartTime.ToString("hh:mm tt") - @Model.EndTime.ToString("hh:mm tt")</small>
+                            </td>
+                            <td>@Model.CurrencySymbol @Model.Subtotal.ToString("N0")</td>
+                            <td>@Model.CurrencySymbol @Model.DiscountAmount.ToString("N0")</td>
+                            <td>@Model.CurrencySymbol @Model.TaxAmount.ToString("N0")</td>
+                            <td>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="doc-total-panel">
+                    <div><span>Total</span><strong>@Model.CurrencySymbol @Model.TotalAmount.ToString("N0")</strong></div>
+                    <div><span>Paid</span><strong>@Model.CurrencySymbol @Model.PaidAmount.ToString("N0")</strong></div>
+                    <div class="balance"><span>Balance</span><strong>@Model.CurrencySymbol @Model.BalanceAmount.ToString("N0")</strong></div>
+                </div>
+            </section>
+
+            <footer class="doc-footer">
+                <div>
+                    <h2>Terms & Conditions</h2>
+                    <p>Bookings are subject to GameHub arena policies. Please contact support for billing or booking questions.</p>
+                    <p class="thank-you">Thank you for choosing GameHub Arena.</p>
+                </div>
+                <div class="doc-qr">
+                    <i class="bi bi-qr-code"></i>
+                    <span>QR Placeholder</span>
+                </div>
+            </footer>
+        </article>
+    </div>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/customer-documents.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/customer-documents-print.css" asp-append-version="true" media="print" />
+}
+@section Scripts {
+    <script src="~/js/document-print.js" asp-append-version="true"></script>
+}

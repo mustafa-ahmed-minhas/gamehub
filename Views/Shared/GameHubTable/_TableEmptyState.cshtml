@@ -1,0 +1,10 @@
+@model GameHub.Models.ViewModels.GameHubTable.GameHubTableEmptyStateViewModel
+<div class="users-empty-state gamehub-table-empty">
+    <i class="@Model.IconClass"></i>
+    <h2>@Model.Title</h2>
+    <p>@Model.Description</p>
+    @if (!string.IsNullOrWhiteSpace(Model.ActionText) && !string.IsNullOrWhiteSpace(Model.ActionUrl))
+    {
+        <a class="admin-action-button" href="@Model.ActionUrl">@Model.ActionText</a>
+    }
+</div>

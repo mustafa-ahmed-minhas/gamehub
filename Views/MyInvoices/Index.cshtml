@@ -1,0 +1,99 @@
+@{
+    ViewData["Title"] = "My Invoices";
+    Layout = "_CustomerLayout";
+    var tab = (string?)ViewBag.Tab ?? "all";
+    var currency = (string?)ViewBag.CurrencySymbol ?? "Rs";
+    var bookingInvoices = ViewBag.BookingInvoices as IReadOnlyList<BookingInvoice> ?? Array.Empty<BookingInvoice>();
+    var membershipInvoices = ViewBag.MembershipInvoices as IReadOnlyList<MembershipInvoice> ?? Array.Empty<MembershipInvoice>();
+    var showBookings = tab is "all" or "bookings";
+    var showMemberships = tab is "all" or "memberships";
+}
+<section class="my-bookings-page">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-receipt"></i> Billing</span>
+            <h1>My Invoices</h1>
+            <p class="section-subtitle">Downloadable invoices for court bookings and memberships.</p>
+        </div>
+
+        <div class="account-stats">
+            <article><i class="bi bi-receipt-cutoff"></i><strong>@ViewBag.BookingCount</strong><span>Booking Invoices</span></article>
+            <article><i class="bi bi-stars"></i><strong>@ViewBag.MembershipCount</strong><span>Membership Invoices</span></article>
+            <article><i class="bi bi-exclamation-triangle"></i><strong>@currency @(((decimal)ViewBag.Outstanding).ToString("N0"))</strong><span>Outstanding Balance</span></article>
+        </div>
+
+        <div class="booking-tabs">
+            <a class="@(tab == "all" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="all">All</a>
+            <a class="@(tab == "bookings" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="bookings">Bookings <span class="tab-count">@ViewBag.BookingCount</span></a>
+            <a class="@(tab == "memberships" ? "active" : string.Empty)" asp-action="Index" asp-route-tab="memberships">Memberships <span class="tab-count">@ViewBag.MembershipCount</span></a>
+        </div>
+
+        @if (showBookings)
+        {
+            <h2 class="history-section-title"><i class="bi bi-calendar-check"></i> Booking Invoices</h2>
+            <div class="booking-card-list">
+                @foreach (var invoice in bookingInvoices)
+                {
+                    <article class="customer-booking-card">
+                        <div>
+                            <span>@invoice.InvoiceNumber</span>
+                            <h2>@invoice.CourtName</h2>
+                            <p>@invoice.SportName · @invoice.BookingDate.ToString("MMM dd, yyyy") · @invoice.BookingNumber</p>
+                        </div>
+                        <div>
+                            <span class="status-pill">@(invoice.IsPaid ? "Paid" : "Outstanding")</span>
+                            <small class="d-block text-muted mt-1">@invoice.InvoiceDate.ToString("MMM dd, yyyy")</small>
+                        </div>
+                        <div>
+                            <strong>@invoice.CurrencySymbol @invoice.TotalAmount.ToString("N0")</strong>
+                            <a class="btn-premium btn-compact" asp-action="Details" asp-route-id="@invoice.Id" asp-route-type="booking">View Invoice</a>
+                        </div>
+                    </article>
+                }
+                @if (!bookingInvoices.Any())
+                {
+                    <div class="public-empty-state">
+                        <i class="bi bi-receipt"></i>
+                        <h2>No booking invoices yet</h2>
+                        <p>Invoices are generated when a booking is created.</p>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (showMemberships)
+        {
+            <h2 class="history-section-title"><i class="bi bi-stars"></i> Membership Invoices</h2>
+            <div class="booking-card-list">
+                @foreach (var invoice in membershipInvoices)
+                {
+                    <article class="customer-booking-card">
+                        <div>
+                            <span>@invoice.InvoiceNumber</span>
+                            <h2>@invoice.PlanName</h2>
+                            <p>@invoice.PlanCode · @invoice.MembershipNumber · @invoice.StartDate.ToString("MMM dd, yyyy") - @invoice.ExpiryDate.ToString("MMM dd, yyyy")</p>
+                        </div>
+                        <div>
+                            <span class="status-pill">@(invoice.IsPaid ? "Paid" : "Outstanding")</span>
+                            <small class="d-block text-muted mt-1">@invoice.InvoiceDate.ToString("MMM dd, yyyy")</small>
+                        </div>
+                        <div>
+                            <strong>@invoice.CurrencySymbol @invoice.TotalAmount.ToString("N0")</strong>
+                            <a class="btn-premium btn-compact" asp-action="Details" asp-route-id="@invoice.Id" asp-route-type="membership">View Invoice</a>
+                        </div>
+                    </article>
+                }
+                @if (!membershipInvoices.Any())
+                {
+                    <div class="public-empty-state">
+                        <i class="bi bi-stars"></i>
+                        <h2>No membership invoices yet</h2>
+                        <p>An invoice is generated automatically when you purchase a membership.</p>
+                        <a class="btn-premium" asp-controller="MyMemberships" asp-action="Plans">Browse Plans</a>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/my-bookings.css" asp-append-version="true" /> }

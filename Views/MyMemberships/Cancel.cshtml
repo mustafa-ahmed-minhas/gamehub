@@ -1,0 +1,81 @@
+@model MembershipCancelViewModel
+@{
+    ViewData["Title"] = "Cancel Membership";
+    Layout = "_CustomerLayout";
+}
+<section class="membership-page">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-x-circle"></i> Membership</span>
+            <h1>Cancel Membership</h1>
+            <p class="section-subtitle">Review what cancelling does before you confirm.</p>
+        </div>
+
+        <div class="booking-tabs">
+            <a class="active" asp-action="Index" asp-controller="MyMemberships">Current</a>
+            <a asp-action="History">History</a>
+        </div>
+
+        <div class="membership-join-panel">
+            <div class="membership-join-summary">
+                <span class="eyebrow-pill"><i class="bi bi-person-badge"></i> Your Membership</span>
+                <h2>@Model.PlanName</h2>
+                <p class="membership-current-note">@Model.MembershipNumber</p>
+                <dl>
+                    <div><dt>Valid Until</dt><dd>@Model.ExpiryDate.ToString("MMM dd, yyyy")</dd></div>
+                    <div><dt>Days Left</dt><dd>@Model.RemainingDays day(s)</dd></div>
+                    <div><dt>Hours Left</dt><dd>@Model.RemainingHours of @Model.IncludedHours</dd></div>
+                    <div><dt>Hours Used</dt><dd>@Model.UsedHours</dd></div>
+                    <div class="summary-divider"></div>
+                    <div class="total"><dt>Total Paid to Date</dt><dd>@Model.CurrencySymbol @Model.TotalPaid.ToString("N0")</dd></div>
+                </dl>
+            </div>
+
+            @if (!Model.AllowCustomerCancellation)
+            {
+                <div class="membership-cancel-blocked">
+                    <h3><i class="bi bi-lock"></i> Cancellation is not available</h3>
+                    <p>@Model.BlockReason</p>
+                    <a class="btn-premium" asp-action="Index" asp-controller="MyMemberships">Back to My Membership</a>
+                </div>
+            }
+            else
+            {
+                <div class="membership-cancel-policy">
+                    <h3>Before you cancel</h3>
+                    <p>@Model.PolicySummary</p>
+                </div>
+
+                <form asp-action="Cancel" method="post">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="MembershipId" type="hidden" />
+
+                    <div class="form-group">
+                        <label asp-for="Reason">Reason for cancelling</label>
+                        <textarea asp-for="Reason" rows="3" class="form-control" placeholder="e.g. Moving away from the area"></textarea>
+                        <span asp-validation-for="Reason" class="text-danger small"></span>
+                        <small class="form-text text-muted">This is stored on your membership record so our team can help if needed.</small>
+                    </div>
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                    <label class="premium-policy-check premium-payment-check terms-check membership-cancel-confirm">
+                        <input asp-for="ConfirmCancellation" />
+                        <span></span>
+                        I understand my membership ends immediately and that cancelling does not automatically refund any payment.
+                    </label>
+                    <span asp-validation-for="ConfirmCancellation" class="text-danger small"></span>
+
+                    <div class="membership-cancel-actions">
+                        <button class="btn-premium btn-danger" type="submit">
+                            <i class="bi bi-x-circle"></i> Confirm Cancellation
+                        </button>
+                        <a class="btn-ghost-light" asp-action="Index" asp-controller="MyMemberships">Keep My Membership</a>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" /> }
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

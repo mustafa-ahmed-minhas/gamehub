@@ -1,0 +1,1019 @@
+/* ==========================================================================
+   Customer portal design system
+   --------------------------------------------------------------------------
+   Loaded last on the customer shell so it wins over customer-account.css and
+   the per-page sheets. Everything is scoped to `.portal-page` so shared
+   customer screens (profile, invoices, documents, plan selection) keep their
+   current presentation untouched.
+
+   Contents
+     1. Tone vocabulary (one scale reused by tiles, records and badges)
+     2. Page surface and page header
+     3. Metric tiles
+     4. Filter tabs
+     5. Record rows
+     6. Panels, notes, subheads
+     7. Empty states
+     8. Membership parity
+     9. Responsive, focus, reduced motion, print
+   ========================================================================== */
+
+/* 1. Tone vocabulary ------------------------------------------------------ */
+
+.tone-gold {
+    --tone: #d6a652;
+    --tone-soft: rgba(214, 166, 82, .16);
+    --tone-ink: #8a6528;
+}
+
+.tone-success {
+    --tone: #1f8a4c;
+    --tone-soft: #dff4e8;
+    --tone-ink: #146c43;
+}
+
+.tone-warn {
+    --tone: #d99a2b;
+    --tone-soft: #fdf0d3;
+    --tone-ink: #8a5a06;
+}
+
+.tone-danger {
+    --tone: #cf3a2c;
+    --tone-soft: #fdecea;
+    --tone-ink: #a5231a;
+}
+
+.tone-info {
+    --tone: #2f6fb5;
+    --tone-soft: #e2eefb;
+    --tone-ink: #1b4f86;
+}
+
+.tone-muted {
+    --tone: #a79c88;
+    --tone-soft: #eeeae2;
+    --tone-ink: #6b6558;
+}
+
+/* 2. Page surface and header ---------------------------------------------- */
+.portal-page {
+    position: relative;
+    padding: clamp(1.8rem, 3.6vw, 3rem) 0 clamp(2.8rem, 5vw, 4rem);
+    min-height: calc(100vh - 76px);
+    background:
+        radial-gradient(1100px 520px at 92% -10%, rgba(214, 166, 82, .17), transparent 62%),
+        radial-gradient(760px 420px at 2% 2%, rgba(31, 122, 92, .07), transparent 60%),
+        linear-gradient(180deg, #fffaf3, #f7f1e6);
+}
+
+.portal-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.25rem 2rem;
+    flex-wrap: wrap;
+    margin: 0 0 1.6rem;
+}
+
+.portal-head__text {
+    min-width: 0;
+    max-width: 64ch;
+}
+
+.portal-head h1 {
+    margin: .75rem 0 .5rem;
+    color: var(--color-ink);
+    font-family: var(--font-heading);
+    font-size: clamp(2.4rem, 4.6vw, 3.6rem);
+    line-height: .95;
+    text-transform: uppercase;
+}
+
+.portal-head__lead,
+.portal-head .section-subtitle {
+    margin: 0;
+    color: #6b5b45;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.portal-head__actions {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+}
+
+/* Account dashboard header: avatar, copy, then actions. */
+.portal-head--profile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.4rem;
+}
+
+.portal-head--profile .profile-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 26px;
+    font-size: 1.8rem;
+}
+
+.portal-head--profile .profile-avatar span {
+    line-height: 1;
+}
+
+body.customer-site .eyebrow-pill {
+    color: #6b5518;
+    background: rgba(214, 166, 82, .14);
+    border-color: rgba(214, 166, 82, .45);
+    backdrop-filter: none;
+}
+
+body.customer-site .eyebrow-pill i {
+    color: #a3762a;
+}
+
+/* 3. Metric tiles --------------------------------------------------------- */
+
+.portal-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: .85rem;
+    margin: 0 0 1.6rem;
+}
+
+.portal-stat {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "icon value" "icon label";
+    align-items: center;
+    gap: .15rem .9rem;
+    padding: 1.05rem 1.2rem;
+    background: rgba(255, 255, 255, .9);
+    border: 1px solid rgba(214, 166, 82, .22);
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .06);
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.portal-stat:hover {
+    transform: translateY(-3px);
+    border-color: rgba(214, 166, 82, .45);
+    box-shadow: 0 18px 38px rgba(45, 34, 17, .1);
+}
+
+.portal-stat__icon {
+    grid-area: icon;
+    display: grid;
+    place-items: center;
+    width: 2.85rem;
+    height: 2.85rem;
+    border-radius: 14px;
+    background: var(--tone-soft, rgba(214, 166, 82, .16));
+    color: var(--tone-ink, #a3762a);
+    font-size: 1.2rem;
+}
+
+.portal-stat__value {
+    grid-area: value;
+    align-self: end;
+    color: var(--color-ink);
+    font-size: clamp(1.25rem, 2vw, 1.55rem);
+    font-weight: 900;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.portal-stat__label {
+    grid-area: label;
+    align-self: start;
+    color: #8a765a;
+    font-size: .71rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+/* 4. Filter tabs ---------------------------------------------------------- */
+
+.portal-tabs {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin: 0 0 1.4rem;
+    padding: .35rem;
+    overflow-x: auto;
+    background: rgba(255, 255, 255, .8);
+    border: 1px solid rgba(214, 166, 82, .2);
+    border-radius: 999px;
+    box-shadow: 0 10px 26px rgba(45, 34, 17, .05);
+    scrollbar-width: none;
+}
+
+.portal-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.portal-tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    flex: 0 0 auto;
+    padding: .58rem 1.05rem;
+    border-radius: 999px;
+    color: #6b5b45;
+    font-size: .84rem;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 180ms ease, color 180ms ease;
+}
+
+.portal-tabs a:hover {
+    color: var(--color-ink);
+    background: rgba(214, 166, 82, .14);
+}
+
+.portal-tabs a.active {
+    color: #fff;
+    background: linear-gradient(135deg, #17120a, #2c2519);
+    box-shadow: 0 10px 22px rgba(23, 18, 10, .26);
+}
+
+.portal-tab-count {
+    min-width: 1.5rem;
+    padding: .08rem .45rem;
+    border-radius: 999px;
+    background: rgba(107, 91, 69, .12);
+    font-size: .74rem;
+    font-weight: 900;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.portal-tabs a.active .portal-tab-count {
+    color: #f6dda9;
+    background: rgba(214, 166, 82, .28);
+}
+
+/* 5. Record rows ---------------------------------------------------------- */
+
+.portal-records {
+    display: grid;
+    gap: .8rem;
+}
+
+.portal-record {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, .95fr);
+    align-items: center;
+    gap: 1rem 1.25rem;
+    padding: 1.1rem 1.3rem 1.1rem 1.45rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(214, 166, 82, .2);
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .06);
+    overflow: hidden;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.portal-record::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--tone, rgba(214, 166, 82, .6));
+}
+
+.portal-record:hover {
+    transform: translateY(-2px);
+    border-color: rgba(214, 166, 82, .42);
+    box-shadow: 0 18px 40px rgba(45, 34, 17, .1);
+}
+
+.portal-record__main {
+    min-width: 0;
+}
+
+.portal-record__ref {
+    display: block;
+    color: #9a8459;
+    font-size: .72rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.portal-record__title {
+    margin: .3rem 0 .2rem;
+    color: var(--color-ink);
+    font-size: 1.12rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.portal-record__meta {
+    margin: 0;
+    color: #6b5b45;
+    font-size: .87rem;
+    font-weight: 600;
+}
+
+.portal-field {
+    min-width: 0;
+    display: grid;
+    gap: .22rem;
+}
+
+.portal-field__label {
+    color: #9a8459;
+    font-size: .67rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.portal-field__value {
+    color: var(--color-ink);
+    font-size: .95rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.portal-field__value--amount {
+    font-size: 1.1rem;
+}
+
+.portal-record__badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .4rem;
+    min-width: 0;
+}
+
+.portal-record__action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .7rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.portal-record__note {
+    flex-basis: 100%;
+    color: #6b5b45;
+    font-size: .82rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+.portal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .68rem;
+    border-radius: 999px;
+    background: var(--tone-soft, #f2e3ca);
+    color: var(--tone-ink, #7a5517);
+    font-size: .72rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+/* 6. Panels, notes, subheads --------------------------------------------- */
+
+.portal-note {
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    margin: 0 0 1.4rem;
+    padding: .85rem 1.05rem;
+    background: rgba(214, 166, 82, .1);
+    border: 1px solid rgba(214, 166, 82, .34);
+    border-radius: 16px;
+    color: #6f5317;
+    font-size: .88rem;
+    font-weight: 700;
+}
+
+.portal-note i {
+    font-size: 1.05rem;
+    line-height: 1.45;
+}
+
+.portal-subhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 2.2rem 0 1rem;
+}
+
+.portal-subhead h2 {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: 0;
+    color: var(--color-ink);
+    font-size: 1.16rem;
+    font-weight: 900;
+    line-height: 1.3;
+}
+
+.portal-subhead h2 i {
+    color: #d6a652;
+    font-size: 1.1rem;
+}
+
+.portal-page .account-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem;
+}
+
+.portal-page .account-panel {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: 1.45rem 1.55rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(214, 166, 82, .2);
+    border-radius: 22px;
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .06);
+}
+
+.portal-panel--wide {
+    grid-column: 1 / -1;
+}
+
+.portal-panel__head {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.portal-panel__head i {
+    color: #d6a652;
+    font-size: 1.2rem;
+}
+
+.portal-panel__head h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: 1.05rem;
+    font-weight: 900;
+}
+
+.portal-panel__body {
+    margin: 0;
+    color: #4b3d2c;
+    font-size: .95rem;
+    font-weight: 600;
+    line-height: 1.65;
+}
+
+.portal-panel__link {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: auto;
+    color: #9a6c20;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.portal-panel__link i {
+    transition: transform 180ms ease;
+}
+
+.portal-panel__link:hover,
+.portal-panel__link:focus-visible {
+    color: #7d5514;
+}
+
+.portal-panel__link:hover i {
+    transform: translateX(4px);
+}
+
+.portal-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+    gap: .6rem;
+}
+
+.portal-quick-grid a {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .85rem 1rem;
+    border: 1px solid rgba(214, 166, 82, .18);
+    border-radius: 14px;
+    background: #fffaf1;
+    color: var(--color-ink);
+    font-size: .88rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.portal-quick-grid a i {
+    color: #a3762a;
+    font-size: 1.1rem;
+}
+
+.portal-quick-grid a:hover,
+.portal-quick-grid a:focus-visible {
+    transform: translateY(-2px);
+    background: #fff;
+    border-color: rgba(214, 166, 82, .5);
+}
+
+/* 7. Empty states --------------------------------------------------------- */
+
+.portal-empty {
+    display: grid;
+    justify-items: center;
+    gap: .3rem;
+    padding: clamp(2.2rem, 6vw, 3.4rem) 1.5rem;
+    text-align: center;
+    background: rgba(255, 255, 255, .74);
+    border: 1px dashed rgba(214, 166, 82, .55);
+    border-radius: 24px;
+}
+
+.portal-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 4.2rem;
+    height: 4.2rem;
+    margin-bottom: .6rem;
+    border-radius: 24px;
+    background: rgba(214, 166, 82, .16);
+    color: #a3762a;
+    font-size: 1.9rem;
+}
+
+.portal-empty h2 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: 1.22rem;
+    font-weight: 900;
+}
+
+.portal-empty p {
+    margin: 0 0 .9rem;
+    color: #6b5b45;
+    font-size: .95rem;
+    font-weight: 600;
+    max-width: 46ch;
+}
+
+/* 8. Membership parity ---------------------------------------------------- */
+
+.portal-page .membership-history-block {
+    margin-top: 2.4rem;
+}
+
+.portal-page .plan-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+    gap: 1rem;
+}
+
+.portal-page .plan-card {
+    border-color: rgba(214, 166, 82, .24);
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .05);
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.portal-page .plan-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(214, 166, 82, .5);
+    box-shadow: 0 20px 44px rgba(45, 34, 17, .1);
+}
+
+.portal-page .plan-card.current {
+    border-color: #d6a652;
+    box-shadow: 0 20px 46px rgba(214, 166, 82, .24);
+}
+
+.portal-page .plan-card .btn-premium {
+    margin-top: auto;
+}
+
+.portal-page .membership-current-card,
+.portal-page .membership-join-panel {
+    background: rgba(255, 255, 255, .92);
+    border-color: rgba(214, 166, 82, .24);
+    box-shadow: 0 14px 34px rgba(45, 34, 17, .07);
+}
+
+/* 9. Responsive, focus, reduced motion, print ---------------------------- */
+
+@media (max-width: 1080px) {
+    .portal-record {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .portal-record__main {
+        grid-column: 1 / -1;
+    }
+
+    .portal-record__action {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    .portal-record__note {
+        text-align: left;
+    }
+}
+
+@media (max-width: 900px) {
+    .portal-head--profile {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .portal-head--profile .portal-head__actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    .portal-page .account-panel-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .portal-page {
+        padding-top: 1.4rem;
+    }
+
+    .portal-head {
+        align-items: flex-start;
+    }
+
+    .portal-head__actions {
+        width: 100%;
+    }
+
+    .portal-head__actions .btn-premium,
+    .portal-head__actions .btn-ghost-light {
+        flex: 1 1 auto;
+    }
+
+    .portal-head--profile .profile-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        font-size: 1.4rem;
+    }
+
+    .portal-record {
+        grid-template-columns: 1fr;
+        gap: .8rem;
+        padding: 1rem 1.1rem 1rem 1.25rem;
+    }
+
+    .portal-stat {
+        padding: .95rem 1rem;
+    }
+
+    .portal-subhead {
+        align-items: flex-start;
+    }
+}
+
+body.customer-site .portal-page :focus-visible,
+body.customer-site .customer-nav :focus-visible,
+body.customer-site .customer-footer :focus-visible {
+    outline: 3px solid rgba(214, 166, 82, .78);
+    outline-offset: 3px;
+    border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .portal-stat,
+    .portal-record,
+    .portal-tabs a,
+    .portal-quick-grid a,
+    .plan-card {
+        transition: none;
+    }
+
+    .portal-stat:hover,
+    .portal-record:hover,
+    .plan-card:hover,
+    .portal-quick-grid a:hover {
+        transform: none;
+    }
+}
+
+/* 10. Membership plans screen ---------------------------------------------- */
+/* Scoped to `.plans-page` so the plan cards on My Membership and Upgrade keep
+   their current treatment. */
+
+.portal-page.plans-page .plan-card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.15rem;
+    margin: 0 0 1.75rem;
+}
+
+.portal-page.plans-page .plan-card {
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+    flex: 1 1 268px;
+    max-width: 344px;
+    padding: 1.5rem 1.5rem 1.4rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(214, 166, 82, .26);
+    border-radius: 24px;
+    box-shadow: 0 12px 30px rgba(45, 34, 17, .06);
+}
+
+/* Selected plan: gold accent rail, stronger border and shadow. No transform,
+   so it never fights the shared hover lift. */
+.portal-page.plans-page .plan-card.current {
+    background: linear-gradient(180deg, #fffdf8, #fff);
+    border-color: #d6a652;
+    box-shadow: 0 24px 54px rgba(154, 108, 32, .2);
+}
+
+.portal-page.plans-page .plan-card.current::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, #d6a652, var(--color-gold-soft));
+}
+
+.portal-page.plans-page .plan-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.portal-page.plans-page .plan-card__top h3 {
+    margin: 0;
+    color: var(--color-ink);
+    font-size: 1.32rem;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.portal-page.plans-page .plan-badge {
+    position: static;
+    flex: 0 0 auto;
+    padding: .3rem .7rem;
+    color: #17120a;
+    background: linear-gradient(135deg, #ffe1a4, #d6a652);
+    font-size: .64rem;
+    letter-spacing: .08em;
+}
+
+.portal-page.plans-page .plan-badge--soft {
+    color: #6b5518;
+    background: rgba(214, 166, 82, .16);
+    border: 1px solid rgba(214, 166, 82, .4);
+}
+
+.portal-page.plans-page .plan-price {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .1rem .55rem;
+    margin: 0;
+}
+
+.portal-page.plans-page .plan-price strong {
+    color: var(--color-ink);
+    font-size: 2.3rem;
+    font-weight: 900;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.portal-page.plans-page .plan-price span {
+    color: #8a765a;
+    font-size: .74rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.portal-page.plans-page .plan-duration {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: .45rem;
+    margin: -.35rem 0 0;
+    padding: .34rem .7rem;
+    border: 1px solid rgba(214, 166, 82, .22);
+    border-radius: 999px;
+    background: #fffaf1;
+    color: #6b5b45;
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+.portal-page.plans-page .plan-duration i {
+    color: #a3762a;
+}
+
+.portal-page.plans-page .plan-features {
+    display: grid;
+    gap: .55rem;
+    flex: 1;
+    margin: .2rem 0 0;
+    padding: .95rem 0 0;
+    border-top: 1px dashed rgba(214, 166, 82, .3);
+}
+
+.portal-page.plans-page .plan-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: .55rem;
+    color: #4b3d2c;
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.portal-page.plans-page .plan-features li i {
+    flex: 0 0 auto;
+    margin: 0;
+    color: #1f8a4c;
+    font-size: .95rem;
+    line-height: 1.45;
+}
+
+.portal-page.plans-page .plan-features .plan-feature--lead {
+    align-items: center;
+    margin: -.15rem -.2rem 0;
+    padding: .5rem .65rem;
+    border-radius: 12px;
+    background: rgba(214, 166, 82, .1);
+    color: var(--color-ink);
+    font-size: .94rem;
+}
+
+.portal-page.plans-page .plan-features .plan-feature--lead i {
+    color: #a3762a;
+    font-size: 1rem;
+}
+
+.portal-page.plans-page .plan-feature--lead strong {
+    font-size: 1.1rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.portal-page.plans-page .plan-note {
+    margin: 0;
+    padding: .7rem .8rem;
+    border: 1px solid rgba(214, 166, 82, .2);
+    border-radius: 14px;
+    background: #fffaf1;
+    color: #6b5b45;
+    font-size: .82rem;
+    font-weight: 600;
+    line-height: 1.55;
+}
+
+.portal-page.plans-page .plan-card__cta {
+    width: 100%;
+    margin-top: auto;
+}
+
+.portal-page.plans-page .plan-empty {
+    margin-bottom: 1.75rem;
+}
+
+/* Order summary panel */
+.portal-page.plans-page .membership-join-panel {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.75rem 1.75rem 1.5rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid rgba(214, 166, 82, .26);
+    border-radius: 24px;
+    box-shadow: 0 18px 44px rgba(45, 34, 17, .08);
+}
+
+.portal-page.plans-page .membership-join-summary h2 {
+    margin: .8rem 0 1.15rem;
+    color: var(--color-ink);
+    font-size: 1.5rem;
+    font-weight: 900;
+}
+
+.portal-page.plans-page .membership-join-summary dl {
+    display: grid;
+    gap: 0;
+    margin: 0 0 1.25rem;
+}
+
+.portal-page.plans-page .membership-join-summary dl > div:not(.summary-divider) {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .55rem 0;
+    border-bottom: 1px dashed rgba(214, 166, 82, .22);
+    color: #4b3d2c;
+    font-weight: 700;
+}
+
+.portal-page.plans-page .membership-join-summary dt {
+    color: #8a765a;
+    font-size: .74rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.portal-page.plans-page .membership-join-summary dd {
+    margin: 0;
+    color: var(--color-ink);
+    font-weight: 800;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.portal-page.plans-page .membership-join-summary dl > div.total {
+    border-bottom: 0;
+    color: var(--color-ink);
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.portal-page.plans-page .membership-join-summary dl > div.total:last-child {
+    margin-top: .35rem;
+    padding: .8rem .9rem;
+    border: 1px solid rgba(214, 166, 82, .3);
+    border-radius: 14px;
+    background: rgba(214, 166, 82, .1);
+}
+
+.portal-page.plans-page .membership-join-panel .btn-premium {
+    width: 100%;
+    margin-top: .3rem;
+}
+
+.portal-page.plans-page .membership-join-panel .membership-renew-hint {
+    display: block;
+    margin-top: .75rem;
+    text-align: center;
+}
+
+.portal-page.plans-page .terms-check {
+    margin-top: .5rem;
+}
+
+@media (max-width: 680px) {
+    .portal-page.plans-page .plan-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+        padding: 1.25rem 1.2rem 1.2rem;
+    }
+
+    .portal-page.plans-page .plan-price strong {
+        font-size: 2.05rem;
+    }
+
+    .portal-page.plans-page .membership-join-panel {
+        padding: 1.3rem 1.15rem 1.2rem;
+    }
+}
+
+/* 11. Print ---------------------------------------------------------------- */
+
+@media print {
+    .portal-page {
+        min-height: 0;
+        padding: 0;
+        background: #fff;
+    }
+
+    .portal-stat,
+    .portal-record,
+    .portal-empty,
+    .portal-note,
+    .portal-page.plans-page .plan-card,
+    .portal-page.plans-page .membership-join-panel {
+        background: #fff;
+        box-shadow: none;
+    }
+}
+

@@ -1,0 +1,163 @@
+@model UserFormViewModel
+@{
+    var isEdit = Model.IsEditMode;
+    ViewData["Title"] = isEdit ? "Edit User" : "Create User";
+    Layout = "_AdminLayout";
+}
+
+<section class="users-page user-form-page" data-user-form data-user-id="@Model.Id">
+    <div class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">System Administration</span>
+            <h1>@(isEdit ? "Edit User" : "Create User")</h1>
+            <p>@(isEdit ? "Update internal ERP user details, role, status, and password." : "Create a secure internal ERP user record.")</p>
+        </div>
+        <a class="admin-secondary-button" asp-controller="Users" asp-action="Index">
+            <i class="bi bi-arrow-left"></i> Back to Users
+        </a>
+    </div>
+
+    <div class="user-form-grid">
+        <form class="users-form-card admin-reveal" method="post" asp-controller="Users" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" novalidate>
+            @Html.AntiForgeryToken()
+            <input asp-for="Id" type="hidden" />
+            <input asp-for="ExistingProfileImageUrl" type="hidden" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger user-validation-summary"></div>
+
+            <fieldset>
+                <legend><i class="bi bi-person"></i> Personal Information</legend>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="FirstName">First Name <span>*</span></label>
+                        <div><i class="bi bi-person"></i><input asp-for="FirstName" data-preview-first placeholder="Mustafa" /></div>
+                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                    </div>
+                    <div class="premium-field">
+                        <label asp-for="LastName">Last Name <span>*</span></label>
+                        <div><i class="bi bi-person"></i><input asp-for="LastName" data-preview-last placeholder="Ahmed" /></div>
+                        <span asp-validation-for="LastName" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="Email">Email Address <span>*</span></label>
+                        <div><i class="bi bi-envelope"></i><input asp-for="Email" data-preview-email data-email-check placeholder="email@gamehub.pk" /></div>
+                        <small data-email-message>Use a unique email address.</small>
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                    <div class="premium-field">
+                        <label asp-for="PhoneNumber">Phone Number</label>
+                        <div><i class="bi bi-telephone"></i><input asp-for="PhoneNumber" data-preview-phone placeholder="0300-0000000" /></div>
+                        <small>Optional Pakistani or international format.</small>
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend><i class="bi bi-shield-lock"></i> Access and Role</legend>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="Role">Role <span>*</span></label>
+                        <div><i class="bi bi-person-gear"></i><select asp-for="Role" data-preview-role>
+                            @foreach (UserRole role in Enum.GetValues<UserRole>())
+                            {
+                                <option value="@role" data-description="@RoleDescription(role)">@role.GetDisplayName()</option>
+                            }
+                        </select></div>
+                        <small data-role-description>Select a role to define ERP access.</small>
+                        <span asp-validation-for="Role" class="text-danger"></span>
+                    </div>
+                    <div class="premium-toggle-field">
+                        <label>Active User</label>
+                        <input asp-for="IsActive" data-preview-status />
+                        <span>This user can access ERP once authentication is connected.</span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend><i class="bi bi-key"></i> Security</legend>
+                @if (isEdit)
+                {
+                    <p class="form-note">Leave password blank to keep the current password.</p>
+                }
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="Password">Password @(isEdit ? "" : "*")</label>
+                        <div>
+                            <i class="bi bi-lock"></i>
+                            <input asp-for="Password" data-password-input autocomplete="new-password" placeholder="Enter secure password" />
+                            <button type="button" data-password-toggle aria-label="Show password"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <div class="password-meter"><span data-password-meter></span></div>
+                        <small data-password-strength>Enter a password to check strength.</small>
+                        <ul class="password-rules">
+                            <li data-rule="length">At least 8 characters</li>
+                            <li data-rule="upper">One uppercase letter</li>
+                            <li data-rule="lower">One lowercase letter</li>
+                            <li data-rule="number">One number</li>
+                            <li data-rule="special">One special character</li>
+                        </ul>
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+                    <div class="premium-field">
+                        <label asp-for="ConfirmPassword">Confirm Password @(isEdit ? "" : "*")</label>
+                        <div>
+                            <i class="bi bi-lock-fill"></i>
+                            <input asp-for="ConfirmPassword" data-confirm-password autocomplete="new-password" placeholder="Confirm password" />
+                            <button type="button" data-password-toggle aria-label="Show confirm password"><i class="bi bi-eye"></i></button>
+                        </div>
+                        <small data-password-match>Passwords must match.</small>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <a class="admin-secondary-button" asp-controller="Users" asp-action="Index">Cancel</a>
+                <button class="admin-action-button" type="submit" data-user-submit>
+                    <i class="bi bi-check2-circle"></i> @(isEdit ? "Save Changes" : "Create User")
+                </button>
+            </div>
+        </form>
+
+        <aside class="user-preview-stack admin-reveal">
+            <article class="user-preview-card">
+                <span class="user-avatar large" data-preview-initials>NU</span>
+                <h2 data-preview-name>New User</h2>
+                <p data-preview-email-text>email@gamehub.pk</p>
+                <p data-preview-phone-text>Phone not provided</p>
+                <span class="role-badge" data-preview-role-text>Select a role</span>
+                <span class="user-status-badge active" data-preview-status-text><i></i><span>Active</span></span>
+            </article>
+            <article class="access-summary-card">
+                <h2>Access Summary</h2>
+                <p data-access-summary>Select a role to preview this user's future ERP access.</p>
+            </article>
+            <article class="access-summary-card">
+                <h2>Password Guidance</h2>
+                <p>Use a strong password with uppercase, lowercase, number, and special character. This preview is frontend-only; server validation still applies.</p>
+            </article>
+        </aside>
+    </div>
+</section>
+
+@functions {
+    private static string RoleDescription(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "Full system access",
+            UserRole.Admin => "General administrative access",
+            UserRole.BookingManager => "Manage bookings and schedules",
+            UserRole.CourtManager => "Manage courts and facilities",
+            UserRole.FinanceManager => "Manage payments and financial records",
+            UserRole.StaffManager => "Manage staff and attendance",
+            UserRole.Receptionist => "Handle customers and daily bookings",
+            UserRole.Viewer => "Read-only access",
+            _ => "General ERP access"
+        };
+    }
+}

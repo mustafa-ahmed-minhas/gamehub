@@ -1,0 +1,82 @@
+@model IReadOnlyList<MembershipHistoryItemViewModel>
+@{
+    ViewData["Title"] = "Membership History";
+    Layout = "_CustomerLayout";
+    var currency = Model.FirstOrDefault()?.CurrencySymbol ?? "Rs";
+}
+<section class="membership-page">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow-pill"><i class="bi bi-clock-history"></i> Membership</span>
+            <h1>Membership History</h1>
+            <p class="section-subtitle">Every membership term, payment and invoice on your account.</p>
+        </div>
+
+        <div class="booking-tabs">
+            <a asp-action="Index" asp-controller="MyMemberships">Current</a>
+            <a class="active" asp-action="History">History</a>
+        </div>
+
+        <div class="booking-card-list">
+            @foreach (var item in Model)
+            {
+                <article class="customer-booking-card">
+                    <div>
+                        <span>@item.MembershipNumber</span>
+                        <h2>@item.PlanName</h2>
+                        <p>@item.StartDate.ToString("MMM dd, yyyy") - @item.ExpiryDate.ToString("MMM dd, yyyy")</p>
+                        <p class="membership-history-meta">
+                            @item.IncludedBookingHours included hours &middot; @item.UsedBookingHours used
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(item.UpgradedFromPlan))
+                        {
+                            <small class="membership-history-upgraded"><i class="bi bi-arrow-up-circle"></i> Upgraded from @item.UpgradedFromPlan</small>
+                        }
+                    </div>
+                    <div>
+                        <span class="status-pill">@item.Status</span>
+                        @if (!string.IsNullOrWhiteSpace(item.CancelledAt))
+                        {
+                            <small class="d-block text-muted mt-1">Cancelled @item.CancelledAt</small>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(item.CancellationReason))
+                        {
+                            <small class="d-block text-muted mt-1">@item.CancellationReason</small>
+                        }
+                    </div>
+                    <div class="membership-history-payment">
+                        <strong>@currency @((item.PaidAmount > 0 ? item.PaidAmount : item.JoiningFee).ToString("N0"))</strong>
+                        @if (!string.IsNullOrWhiteSpace(item.TransactionNumber))
+                        {
+                            <small class="d-block text-muted">@item.TransactionNumber</small>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(item.PaymentDate))
+                        {
+                            <small class="d-block text-muted">Paid @item.PaymentDate</small>
+                        }
+                        <a class="btn-premium btn-compact" asp-controller="MyInvoices" asp-action="Membership" asp-route-membershipId="@item.Id">Invoice</a>
+                    </div>
+                </article>
+            }
+            @if (!Model.Any())
+            {
+                <div class="public-empty-state">
+                    <i class="bi bi-stars"></i>
+                    <h2>No membership history</h2>
+                    <p>Memberships you purchase will be listed here.</p>
+                    <a class="btn-premium" asp-action="Plans" asp-controller="MyMemberships">Browse Plans</a>
+                </div>
+            }
+        </div>
+
+        @if (Model.Any())
+        {
+            <p class="membership-history-footnote">
+                <i class="bi bi-info-circle"></i>
+                Renewals and upgrades each create a new membership term so every payment keeps its own record.
+                Cancelling a membership never deletes your payments or invoices.
+            </p>
+        }
+    </div>
+</section>
+@section Styles { <link rel="stylesheet" href="~/css/customer-membership.css" asp-append-version="true" /> }

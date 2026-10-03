@@ -1,0 +1,103 @@
+@model PublicCourtDetailsViewModel
+@using Microsoft.AspNetCore.Authentication
+@{
+    ViewData["Title"] = Model.Name;
+    Layout = "_CustomerLayout";
+    var auth = await Context.AuthenticateAsync(AuthConstants.CustomerScheme);
+    var isCustomerSignedIn = auth.Succeeded && auth.Principal?.Identity?.IsAuthenticated == true;
+}
+
+<section class="court-details-hero" style="background-image:url('@(Model.ImageUrl ?? "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=1600")')">
+    <div class="container">
+        <a class="back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Courts</a>
+        <span class="eyebrow-pill">@Model.SportName · @Model.FacilityName</span>
+        <h1>@Model.Name</h1>
+        <p>@(Model.Description ?? "A premium GameHub court configured from the internal arena setup module.")</p>
+        <div class="court-detail-actions">
+            @if (isCustomerSignedIn)
+            {
+                <a class="btn-premium" asp-controller="OnlineBooking" asp-action="Start" asp-route-id="@Model.Id"><i class="bi bi-calendar2-check"></i> Book Now</a>
+            }
+            else
+            {
+                <a class="btn-premium" asp-controller="OnlineBooking" asp-action="Start" asp-route-id="@Model.Id"><i class="bi bi-calendar2-check"></i> Start Booking</a>
+            }
+            <a class="btn-ghost-light" asp-action="HowItWorks"><i class="bi bi-question-circle"></i> How Booking Works</a>
+        </div>
+    </div>
+</section>
+
+<section class="court-details-content">
+    <div class="container details-grid">
+        <main>
+            <div class="detail-card">
+                <h2>Court Overview</h2>
+                <div class="detail-facts">
+                    <span><i class="bi bi-trophy"></i> @Model.SportName</span>
+                    <span><i class="bi bi-building"></i> @Model.FacilityName</span>
+                    <span><i class="bi bi-people"></i> @Model.Capacity players</span>
+                    <span><i class="bi bi-clock"></i> @Model.DefaultDurationMinutes minutes</span>
+                    <span><i class="bi bi-activity"></i> @Model.Status</span>
+                </div>
+            </div>
+            <div class="detail-card">
+                <h2>Pricing Summary</h2>
+                @if (!Model.Pricings.Any())
+                {
+                    <p>Pricing is not available yet. Please contact GameHub support before planning this court.</p>
+                }
+                else
+                {
+                    <div class="pricing-grid">
+                        @foreach (var price in Model.Pricings)
+                        {
+                            <article>
+                                <span>@(price.DayOfWeek?.ToString() ?? "All Days")</span>
+                                <h3>@price.Name</h3>
+                                <strong>@Model.CurrencySymbol @price.Price.ToString("N0")</strong>
+                                <p>@price.StartTime.ToString("hh:mm tt") - @price.EndTime.ToString("hh:mm tt") · @price.DurationMinutes min</p>
+                                <em>@(price.IsPeakRate ? "Peak rate" : "Standard rate")</em>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="detail-card">
+                <h2>Weekly Operating Schedule</h2>
+                <div class="schedule-list">
+                    @foreach (var schedule in Model.Schedules)
+                    {
+                        <div>
+                            <strong>@schedule.DayOfWeek</strong>
+                            <span>@schedule.OpeningTime.ToString("hh:mm tt") - @schedule.ClosingTime.ToString("hh:mm tt")</span>
+                            <small>@schedule.SlotDurationMinutes min slots · @schedule.BufferMinutes min buffer</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </main>
+        <aside>
+            <div class="booking-guidance-card">
+                <h2>Booking guidance</h2>
+                <p>Verified customers can reserve this court and pay online. Availability is rechecked before the booking is confirmed.</p>
+                <ul>
+                    <li>Booking is not confirmed until 100% payment succeeds.</li>
+                    <li>Availability is checked for your selected date and time.</li>
+                    <li>Email verification is required before checkout.</li>
+                    <li>You can cancel online while the booking is still Confirmed and before the cancellation cutoff.</li>
+                </ul>
+                <a class="btn-ghost-light btn-compact" asp-controller="Courts" asp-action="HowItWorks">How booking works</a>
+            </div>
+            <div class="booking-guidance-card">
+                <h2>Membership</h2>
+                <p>Members get booking discounts, included hours and priority access applied automatically at checkout.</p>
+                <a class="btn-ghost-light btn-compact" asp-controller="MyMemberships" asp-action="Plans">View membership plans</a>
+            </div>
+            <div class="booking-guidance-card">
+                <h2>Need help?</h2>
+                <p><i class="bi bi-telephone"></i> @Model.SupportPhone</p>
+                <p><i class="bi bi-envelope"></i> @Model.SupportEmail</p>
+            </div>
+        </aside>
+    </div>
+</section>

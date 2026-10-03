@@ -1,0 +1,104 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Admin Login";
+    Layout = "_AuthLayout";
+}
+
+<main class="auth-shell" aria-label="GameHub ERP login">
+    <section class="auth-visual" aria-label="GameHub arena management preview">
+        <div class="auth-visual-bg" aria-hidden="true"></div>
+        <div class="auth-visual-overlay" aria-hidden="true"></div>
+        <div class="auth-orb auth-orb-one" aria-hidden="true"></div>
+        <div class="auth-orb auth-orb-two" aria-hidden="true"></div>
+
+        <div class="auth-brand">
+            <a class="brand-mark" asp-controller="Home" asp-action="Index" aria-label="GameHub landing page">
+                <span class="brand-icon">G</span>
+                <span>
+                    <strong>GameHub</strong>
+                    <small>Arena</small>
+                </span>
+            </a>
+        </div>
+
+        <div class="auth-hero-copy">
+            <span class="eyebrow-pill"><i class="bi bi-shield-lock-fill"></i> GameHub ERP</span>
+            <h1>Manage Your Arena<span>Like Never Before</span></h1>
+            <p>Access your management dashboard to oversee bookings, courts, customers, staff, reports, and daily operations.</p>
+        </div>
+
+        <div class="auth-stats-card" aria-label="GameHub display statistics">
+            <div>
+                <strong>12+</strong>
+                <span>Premium Courts</span>
+            </div>
+            <div>
+                <strong>2500+</strong>
+                <span>Happy Players</span>
+            </div>
+            <div>
+                <strong>15K+</strong>
+                <span>Bookings</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="auth-panel-wrap" aria-label="Admin portal sign in">
+        <div class="auth-card">
+            <div class="auth-card-glow" aria-hidden="true"></div>
+
+            <div class="auth-card-header">
+                <a class="brand-mark auth-card-brand" asp-controller="Home" asp-action="Index" aria-label="GameHub home">
+                    <span class="brand-icon">G</span>
+                    <span>
+                        <strong>GameHub</strong>
+                        <small>Arena</small>
+                    </span>
+                </a>
+                <span class="auth-label">Admin Portal</span>
+                <h2>Welcome Back</h2>
+                <p>Sign in to access the GameHub ERP Management System.</p>
+            </div>
+
+            <form class="auth-form" asp-controller="Auth" asp-action="Login" method="post" aria-label="Admin login form" data-login-form>
+                @Html.AntiForgeryToken()
+                <input asp-for="ReturnUrl" type="hidden" />
+
+                <div asp-validation-summary="ModelOnly" class="auth-validation-summary"></div>
+
+                <div class="auth-field">
+                    <i class="bi bi-envelope"></i>
+                    <input asp-for="Email" id="emailAddress" type="email" placeholder=" " autocomplete="username" />
+                    <label asp-for="Email" for="emailAddress">Email Address</label>
+                </div>
+                <span asp-validation-for="Email" class="auth-field-error"></span>
+
+                <div class="auth-field">
+                    <i class="bi bi-key"></i>
+                    <input asp-for="Password" id="password" type="password" placeholder=" " autocomplete="current-password" data-password-input />
+                    <label asp-for="Password" for="password">Password</label>
+                    <button class="password-toggle" type="button" data-password-toggle aria-label="Show password">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+                <span asp-validation-for="Password" class="auth-field-error"></span>
+
+                <div class="auth-form-row">
+                    <label class="remember-check" for="rememberMe">
+                        <input asp-for="RememberMe" id="rememberMe" type="checkbox" />
+                        <span>Remember Me</span>
+                    </label>
+                </div>
+
+                <button class="auth-submit" type="submit" data-login-submit>
+                    <span>Sign In</span> <i class="bi bi-arrow-right"></i>
+                </button>
+
+                <div class="auth-secure-note">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Authorized Personnel Only</span>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>

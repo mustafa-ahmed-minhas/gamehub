@@ -1,0 +1,181 @@
+@model SalesQuotationFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Edit Quotation" : "Create Quotation";
+    Layout = "_AdminLayout";
+
+    var completenessChecks = new (string Label, bool Complete)[]
+    {
+        ("Customer linked", !string.IsNullOrWhiteSpace(Model.CustomerLabel)),
+        ("Opportunity linked", !string.IsNullOrWhiteSpace(Model.OpportunityLabel)),
+        ("Validity set", Model.ValidUntil >= Model.QuotationDate),
+        ("Subject added", !string.IsNullOrWhiteSpace(Model.Subject)),
+        ("At least one valid line", Model.Items.Any(x => !string.IsNullOrWhiteSpace(x.Description))),
+        ("Terms added", !string.IsNullOrWhiteSpace(Model.TermsAndConditions))
+    };
+    var completeness = Math.Clamp((int)Math.Round(completenessChecks.Count(x => x.Complete) / (double)completenessChecks.Length * 100), 0, 100);
+}
+
+<section class="users-page customer-form-page sales-cycle-page">
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Sales Management</span>
+            <h1>@(isEdit ? "Edit Quotation" : "Create Quotation")</h1>
+            <p>Build a customer-ready commercial quotation with service lines, discounts, tax and terms.</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-arrow-left"></i> Back to Sales</a>
+    </header>
+
+    <form class="customer-form-grid" asp-action="@(isEdit ? "EditQuotation" : "CreateQuotation")" asp-route-id="@Model.Id" method="post" data-sales-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="OpportunityId" type="hidden" />
+        <input asp-for="CustomerId" type="hidden" />
+        <input asp-for="Currency" type="hidden" />
+        <input asp-for="CurrencySymbol" type="hidden" />
+
+        <div class="customer-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-bullseye"></i> Opportunity and Customer</h2>
+                <label><span>Opportunity</span><input value="@Model.OpportunityLabel" readonly /><small asp-validation-for="OpportunityId"></small></label>
+                <label><span>Customer</span><input value="@Model.CustomerLabel" readonly /><small asp-validation-for="CustomerId"></small></label>
+                <label><span>Assigned Owner</span><select asp-for="AssignedToUserId" asp-items="Model.UserOptions"><option value="">Unassigned</option></select></label>
+                <label><span>Customer Reference</span><input asp-for="CustomerReference" placeholder="PO, email reference or note" /><small asp-validation-for="CustomerReference"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-file-earmark-text"></i> Quotation Information</h2>
+                <label><span>Quotation Date *</span><input asp-for="QuotationDate" type="date" data-summary-date /><small asp-validation-for="QuotationDate"></small></label>
+                <label><span>Valid Until *</span><input asp-for="ValidUntil" type="date" data-summary-valid /><small asp-validation-for="ValidUntil"></small></label>
+                <label><span>Subject</span><input asp-for="Subject" placeholder="Proposal subject" data-summary-subject /><small asp-validation-for="Subject"></small></label>
+                <label><span>Introduction</span><textarea asp-for="Introduction" placeholder="Short commercial introduction"></textarea><small asp-validation-for="Introduction"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <div class="sales-cycle-section-head">
+                    <h2><i class="bi bi-list-check"></i> Line Items</h2>
+                    <div class="sales-cycle-section-actions">
+                        <button class="admin-secondary-button" type="button" data-add-line data-type="CourtBooking"><i class="bi bi-plus"></i> Add Court Service</button>
+                        <button class="admin-secondary-button" type="button" data-add-line data-type="Membership"><i class="bi bi-plus"></i> Add Membership</button>
+                        <button class="admin-action-button" type="button" data-add-line data-type="CustomService"><i class="bi bi-plus-lg"></i> Add Custom Service</button>
+                    </div>
+                </div>
+                <div class="sales-cycle-form-lines" data-sales-lines>
+                    @for (var i = 0; i < Model.Items.Count; i++)
+                    {
+                        <article class="sales-cycle-line" data-sales-line>
+                            <input asp-for="Items[i].Id" type="hidden" />
+                            <input asp-for="Items[i].LineNumber" type="hidden" />
+                            <input asp-for="Items[i].DisplayOrder" type="hidden" />
+                            <div class="sales-cycle-line-head">
+                                <strong>Line @(i + 1)</strong>
+                                <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <div class="sales-cycle-line-grid">
+                                <label>Item Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" data-item-type></select></label>
+                                <label>Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions"><option value="">Any</option></select></label>
+                                <label>Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions"><option value="">Any</option></select></label>
+                                <label>Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions"><option value="">Any</option></select></label>
+                                <label>Membership<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions"><option value="">None</option></select></label>
+                                <label class="wide">Description<input asp-for="Items[i].Description" data-line-description /><small asp-validation-for="Items[i].Description"></small></label>
+                                <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" data-line-quantity /></label>
+                                <label>Unit<input asp-for="Items[i].UnitOfMeasure" maxlength="30" data-line-unit /></label>
+                                <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" min="0" data-line-price /></label>
+                                <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" min="0" max="100" data-line-discount /></label>
+                                <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" min="0" max="100" data-line-tax /></label>
+                                <label>Line Total<input asp-for="Items[i].LineTotal" readonly data-line-total /></label>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-journal-richtext"></i> Terms and Notes</h2>
+                <label><span>Terms and Conditions</span><textarea asp-for="TermsAndConditions" data-summary-terms></textarea><small asp-validation-for="TermsAndConditions"></small></label>
+                <label><span>Customer Notes</span><textarea asp-for="CustomerNotes"></textarea><small asp-validation-for="CustomerNotes"></small></label>
+                <label><span>Internal Notes</span><textarea asp-for="InternalNotes"></textarea><small asp-validation-for="InternalNotes"></small></label>
+            </section>
+
+            <section class="customer-form-card">
+                <h2><i class="bi bi-calculator"></i> Financial Summary</h2>
+                <div class="sales-cycle-totals">
+                    <span>Subtotal <strong data-total-subtotal>@Model.CurrencySymbol @Model.Subtotal.ToString("N2")</strong></span>
+                    <span>Line Discounts <strong data-total-line-discount>@Model.CurrencySymbol @Model.LineDiscountTotal.ToString("N2")</strong></span>
+                    <span>Tax <strong data-total-tax>@Model.CurrencySymbol @Model.TaxTotal.ToString("N2")</strong></span>
+                    <span class="grand">Grand Total <strong data-total-grand>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</strong></span>
+                </div>
+                <label class="sales-cycle-manual-discount">
+                    <span>Manual Discount</span>
+                    <input asp-for="ManualDiscountAmount" type="number" step="0.01" min="0" data-manual-discount />
+                    <small asp-validation-for="ManualDiscountAmount"></small>
+                </label>
+            </section>
+        </div>
+
+        <aside class="customer-preview-card sales-cycle-live-summary">
+            <span class="admin-label">Live Quotation Summary</span>
+            <h2>@(Model.QuotationNumber ?? "SQ-000000")</h2>
+            <p data-summary-customer>@Model.CustomerLabel</p>
+            <dl>
+                <div><dt>Opportunity</dt><dd>@Model.OpportunityLabel</dd></div>
+                <div><dt>Date</dt><dd data-summary-date-text>@Model.QuotationDate.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Valid Until</dt><dd data-summary-valid-text>@Model.ValidUntil.ToString("MMM dd, yyyy")</dd></div>
+                <div><dt>Items</dt><dd data-summary-items>@Model.Items.Count</dd></div>
+                <div><dt>Grand Total</dt><dd data-summary-grand>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</dd></div>
+                <div><dt>Status</dt><dd><span class="@Model.Status.Badge()"><i></i>@Model.Status.GetDisplayName()</span></dd></div>
+            </dl>
+            <div class="sales-cycle-completeness">
+                <span data-complete-customer class="@(completenessChecks[0].Complete ? "complete" : "")">Customer linked</span>
+                <span data-complete-validity class="@(completenessChecks[2].Complete ? "complete" : "")">Validity set</span>
+                <span data-complete-line class="@(completenessChecks[4].Complete ? "complete" : "")">At least one valid line</span>
+                <span data-complete-terms class="@(completenessChecks[5].Complete ? "complete" : "")">Terms added</span>
+            </div>
+            <div class="customer-completeness">
+                <div><span>Quotation Completeness</span><strong data-complete-value>@completeness%</strong></div>
+                <meter min="0" max="100" value="@completeness" data-complete-meter></meter>
+            </div>
+        </aside>
+
+        <div class="customer-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations">Cancel</a>
+            <button class="admin-secondary-button" type="submit" name="submitAction" value="draft" data-loading-button><i class="bi bi-save"></i> Save Draft</button>
+            <button class="admin-action-button" type="submit" name="submitAction" value="review" data-loading-button><i class="bi bi-send-check"></i> Save and Submit</button>
+        </div>
+    </form>
+</section>
+
+<template id="salesLineTemplate">
+    <article class="sales-cycle-line" data-sales-line>
+        <input name="Items[__index__].LineNumber" type="hidden" value="__line__" />
+        <input name="Items[__index__].DisplayOrder" type="hidden" value="__line__" />
+        <div class="sales-cycle-line-head">
+            <strong>Line __line__</strong>
+            <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="sales-cycle-line-grid">
+            <label>Item Type<select name="Items[__index__].ItemType" data-item-type>@foreach (SalesItemType item in Enum.GetValues<SalesItemType>()) { <option value="@item">@item.GetDisplayName()</option> }</select></label>
+            <label>Sport<select name="Items[__index__].SportId"><option value="">Any</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value">@item.Text</option> }</select></label>
+            <label>Facility<select name="Items[__index__].FacilityId"><option value="">Any</option>@foreach (var item in Model.FacilityOptions) { <option value="@item.Value">@item.Text</option> }</select></label>
+            <label>Court<select name="Items[__index__].CourtId"><option value="">Any</option>@foreach (var item in Model.CourtOptions) { <option value="@item.Value">@item.Text</option> }</select></label>
+            <label>Membership<select name="Items[__index__].MembershipPlanId"><option value="">None</option>@foreach (var item in Model.MembershipPlanOptions) { <option value="@item.Value">@item.Text</option> }</select></label>
+            <label class="wide">Description<input name="Items[__index__].Description" data-line-description /></label>
+            <label>Quantity<input name="Items[__index__].Quantity" type="number" step="0.01" min="0.01" value="1" data-line-quantity /></label>
+            <label>Unit<input name="Items[__index__].UnitOfMeasure" value="Unit" maxlength="30" data-line-unit /></label>
+            <label>Unit Price<input name="Items[__index__].UnitPrice" type="number" step="0.01" min="0" value="0" data-line-price /></label>
+            <label>Discount %<input name="Items[__index__].DiscountPercentage" type="number" step="0.01" min="0" max="100" value="0" data-line-discount /></label>
+            <label>Tax %<input name="Items[__index__].TaxPercentage" type="number" step="0.01" min="0" max="100" value="@Model.Items.FirstOrDefault()?.TaxPercentage" data-line-tax /></label>
+            <label>Line Total<input name="Items[__index__].LineTotal" readonly data-line-total /></label>
+        </div>
+    </article>
+</template>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }
+@section Scripts {
+    <script src="~/js/sales.js" asp-append-version="true"></script>
+    <partial name="_ValidationScriptsPartial" />
+}

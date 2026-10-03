@@ -1,0 +1,42 @@
+@model BookingFormViewModel
+@{
+    ViewData["Title"] = "Reschedule Booking";
+    Layout = "_AdminLayout";
+}
+
+<section class="booking-form-page">
+    <header class="booking-hero">
+        <div><span class="admin-label">SCHEDULE CHANGE</span><h1>Reschedule @Model.BookingNumber</h1><p>Choose a new date and available slot while preserving the same booking number.</p></div>
+        <a class="booking-btn booking-btn-secondary" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i><span>Back</span></a>
+    </header>
+
+    <form class="booking-form-grid" asp-action="Reschedule" asp-route-id="@Model.Id" method="post" data-booking-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="CustomerId" type="hidden" />
+        <input asp-for="SportId" type="hidden" />
+        <input asp-for="FacilityId" type="hidden" />
+        <input asp-for="CourtId" type="hidden" />
+        <input asp-for="PlayerCount" type="hidden" />
+        <input asp-for="Source" type="hidden" />
+        <input asp-for="Status" type="hidden" />
+        <main class="booking-form-main">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <section class="booking-form-card">
+                <h2><i class="bi bi-calendar2-week"></i> New Schedule</h2>
+                <div class="booking-form-two">
+                    <label class="booking-field"><span>New Date</span><input asp-for="BookingDate" type="date" data-booking-date /></label>
+                    <label class="booking-field"><span>Duration</span><input asp-for="DurationMinutes" type="number" data-duration /></label>
+                    <label class="booking-field"><span>Start Time</span><input asp-for="StartTime" type="time" data-start-time /></label>
+                    <label class="booking-field"><span>End Time</span><input asp-for="EndTime" type="time" data-end-time readonly /></label>
+                    <label class="booking-field span-two"><span>Reschedule Reason</span><textarea name="rescheduleReason" required minlength="10"></textarea></label>
+                </div>
+                <div class="booking-slot-grid" data-slot-grid><div class="booking-slot-empty">Available slots will appear here.</div></div>
+            </section>
+            <div class="booking-save-bar"><a class="booking-btn booking-btn-secondary" asp-action="Details" asp-route-id="@Model.Id">Cancel</a><button class="booking-btn booking-btn-primary" type="submit"><i class="bi bi-check2-circle"></i><span>Save Reschedule</span></button></div>
+        </main>
+        <aside class="booking-live-summary"><span>Reschedule</span><h2>@Model.BookingNumber</h2><p>Compare the current booking with the selected new slot before saving.</p><dl><div><dt>New Date</dt><dd data-summary-date>@Model.BookingDate.ToString("dd MMM yyyy")</dd></div><div><dt>New Time</dt><dd data-summary-time>@Model.StartTime.ToString("HH:mm") - @Model.EndTime.ToString("HH:mm")</dd></div></dl></aside>
+    </form>
+</section>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

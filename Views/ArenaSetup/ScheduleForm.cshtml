@@ -1,0 +1,16 @@
+@model CourtScheduleFormViewModel
+@{ ViewData["Title"] = Model.IsEditMode ? "Edit Schedule" : "Create Schedule"; Layout = "_AdminLayout"; }
+<section class="arena-form-page" data-arena-form>
+    <div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@ViewData["Title"]</h1><p>Manage recurring weekly court operating hours.</p></div><a class="admin-secondary-button" asp-action="Index" asp-route-tab="schedules"><i class="bi bi-arrow-left"></i> Back</a></div>
+    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditSchedule" : "CreateSchedule")" asp-route-id="@Model.Id">
+        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
+        <div class="arena-form-card"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <label><span>Court</span><select asp-for="CourtId" asp-items="Model.CourtOptions" data-preview-court></select><small asp-validation-for="CourtId"></small></label><label><span>Day</span><select asp-for="DayOfWeek" asp-items="Html.GetEnumSelectList<DayOfWeek>()" data-preview-day></select></label>
+            <label><span>Opening Time</span><input asp-for="OpeningTime" type="time" data-preview-open /></label><label><span>Closing Time</span><input asp-for="ClosingTime" type="time" data-preview-close /><small asp-validation-for="ClosingTime"></small></label>
+            <label><span>Slot Duration</span><input asp-for="SlotDurationMinutes" type="number" data-preview-duration /><small asp-validation-for="SlotDurationMinutes"></small></label><label><span>Buffer Minutes</span><input asp-for="BufferMinutes" type="number" data-preview-buffer /><small asp-validation-for="BufferMinutes"></small></label>
+            <label class="arena-toggle"><input asp-for="IsClosed" data-preview-closed /><span>Closed Day</span></label><label class="arena-toggle"><input asp-for="IsActive" data-preview-active /><span>Active Schedule</span></label>
+        </div>
+        <aside class="arena-preview-card"><i class="bi bi-clock-history"></i><h2 data-preview-court-target>Court</h2><p data-preview-day-target>@Model.DayOfWeek</p><span data-preview-time-target>@Model.OpeningTime.ToString("HH:mm") - @Model.ClosingTime.ToString("HH:mm")</span><span data-preview-duration-target>@Model.SlotDurationMinutes min slots</span><span data-preview-buffer-target>@Model.BufferMinutes min buffer</span><strong data-preview-closed-target>@(Model.IsClosed ? "Closed" : "Open")</strong></aside>
+        <div class="arena-save-bar"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="schedules">Cancel</a><button class="admin-action-button" type="submit" data-arena-save><i class="bi bi-check2-circle"></i><span>Save Changes</span></button></div>
+    </form>
+</section>
