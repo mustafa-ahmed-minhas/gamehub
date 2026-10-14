@@ -740,12 +740,12 @@
 }
 
 .job-panel {
-    padding: clamp(1.5rem, 3vw, 2rem);
-    margin-bottom: 22px;
+    padding: clamp(1.45rem, 2.8vw, 2rem);
+    margin-bottom: 20px;
     background: #fff;
     border: 1px solid var(--careers-line);
     border-radius: var(--careers-radius);
-    box-shadow: var(--careers-shadow);
+    box-shadow: var(--careers-shadow-lg);
 }
 
 .job-panel:last-child {
@@ -793,8 +793,8 @@
     gap: 0.7rem;
     padding: 0.8rem 0.95rem;
     border-radius: 14px;
-    background: var(--careers-ivory);
-    border: 1px solid rgba(214, 166, 82, 0.14);
+    background: #fffdf9;
+    border: 1px solid rgba(214, 166, 82, 0.2);
     color: var(--careers-charcoal);
     font-size: 0.9rem;
     font-weight: 800;
@@ -819,8 +819,8 @@
 .job-fact {
     padding: 1rem;
     border-radius: var(--careers-radius-sm);
-    background: var(--careers-ivory);
-    border: 1px solid rgba(214, 166, 82, 0.14);
+    background: #fffdf9;
+    border: 1px solid rgba(214, 166, 82, 0.18);
 }
 
 .job-fact dt {
@@ -851,8 +851,8 @@
     gap: 0.45rem;
     padding: 0.55rem 1rem;
     border-radius: 999px;
-    background: var(--careers-ivory);
-    border: 1px solid rgba(214, 166, 82, 0.32);
+    background: linear-gradient(135deg, rgba(214, 166, 82, 0.18), rgba(214, 166, 82, 0.12));
+    border: 1px solid rgba(214, 166, 82, 0.4);
     color: #6b4d16;
     font-size: 0.86rem;
     font-weight: 800;
@@ -942,11 +942,19 @@
 }
 
 .job-apply-form {
-    padding: clamp(1.4rem, 3vw, 2rem);
-    background: #fff;
+    padding: clamp(1.3rem, 2.8vw, 1.8rem);
+    background: linear-gradient(180deg, #ffffff 0%, var(--careers-paper) 48%);
     border: 1px solid var(--careers-line);
     border-radius: var(--careers-radius);
     box-shadow: var(--careers-shadow);
+}
+
+.job-apply-form.is-structured {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .job-validation-summary {
@@ -968,10 +976,16 @@
     display: none;
 }
 
+.job-form-card {
+    padding: clamp(1.3rem, 2.6vw, 1.85rem);
+    border: 1px solid var(--careers-line);
+    border-radius: var(--careers-radius);
+    background: #fff;
+    box-shadow: var(--careers-shadow);
+}
+
 .job-form-section + .job-form-section {
-    margin-top: 1.7rem;
-    padding-top: 1.7rem;
-    border-top: 1px solid var(--careers-line);
+    margin-top: 1.35rem;
 }
 
 .job-form-section h2 {
@@ -1066,8 +1080,8 @@
     gap: 0.9rem;
     padding: 1rem 1.1rem;
     border-radius: var(--careers-radius-sm);
-    background: var(--careers-ivory);
-    border: 1px solid rgba(214, 166, 82, 0.2);
+    background: linear-gradient(90deg, rgba(214, 166, 82, 0.16), rgba(214, 166, 82, 0.1));
+    border: 1px solid rgba(214, 166, 82, 0.26);
 }
 
 .job-posting-lock > i {
@@ -1116,8 +1130,8 @@
     width: 100%;
     padding: 0.85rem;
     color: var(--careers-charcoal);
-    background: #fffaf1;
-    border: 1.5px dashed rgba(214, 166, 82, 0.5);
+    background: #fffdf9;
+    border: 1.5px dashed rgba(214, 166, 82, 0.6);
     border-radius: var(--careers-radius-sm);
     font-weight: 700;
     transition: border-color 180ms ease, background 180ms ease;

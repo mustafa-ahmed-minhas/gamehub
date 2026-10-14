@@ -1,3 +1,605 @@
+/* ============================================
+   PREMIUM COURTS & HOW BOOKING WORKS SECTIONS
+   Matches GameHub homepage design language
+   ============================================ */
+
+/* --- Courts Section --- */
+.courts-section {
+    background: var(--color-paper);
+    scroll-margin-top: 96px;
+}
+
+.court-catalog-premium {
+    margin-top: clamp(1.5rem, 3vw, 2rem);
+}
+
+.court-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.court-card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid rgba(26, 23, 19, 0.08);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.court-card:hover {
+    border-color: rgba(214, 169, 80, 0.38);
+    box-shadow: var(--shadow-deep);
+    transform: translateY(-8px);
+}
+
+.court-image-wrap {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    background: #111;
+}
+
+.court-image-wrap::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 55%;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.46), transparent);
+}
+
+.court-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 420ms ease;
+}
+
+.court-card:hover .court-image-wrap img {
+    transform: scale(1.08);
+}
+
+.court-status {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    color: #fff;
+    background: rgba(7, 7, 7, 0.72);
+    border: 1px solid rgba(214, 169, 80, 0.42);
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+}
+
+.court-status::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    background: var(--color-gold-soft);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.court-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 1.5rem 1.25rem 1.25rem;
+    min-height: 12rem;
+}
+
+.court-header {
+    margin-bottom: 0.75rem;
+}
+
+.sport-badge {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--color-gold), var(--color-gold-soft));
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 14px rgba(214, 169, 80, 0.28);
+}
+
+.court-meta-top {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.facility-tag,
+.type-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #6d6458;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.facility-tag i {
+    font-size: 0.7rem;
+}
+
+.type-tag {
+    padding: 0.2rem 0.55rem;
+    background: #fff7ec;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    color: #9a6c20;
+}
+
+.court-title {
+    margin: 0.25rem 0 0.5rem;
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.court-details-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: auto;
+    padding-top: 0.5rem;
+}
+
+.detail-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #5e5648;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.detail-item i {
+    color: var(--color-gold);
+    font-size: 0.85rem;
+}
+
+.court-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: auto;
+    border-top: 1px solid rgba(26, 23, 19, 0.06);
+    flex-wrap: wrap;
+}
+
+.price-tag {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+.price-label {
+    color: var(--color-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.price-value {
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.price-unit {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.price-na {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-style: italic;
+}
+
+.court-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: clamp(3rem, 6vw, 5rem) 2rem;
+    background: #fff;
+    border: 1px solid rgba(26, 23, 19, 0.06);
+    border-radius: var(--radius-lg);
+}
+
+.empty-state i {
+    display: block;
+    margin-bottom: 1.2rem;
+    color: var(--color-gold-soft);
+    font-size: 3.5rem;
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem;
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.empty-state p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.section-cta {
+    margin-top: clamp(2rem, 4vw, 3rem);
+    text-align: center;
+}
+
+/* --- How Booking Works Section --- */
+.how-works-section {
+    background:
+        radial-gradient(circle at 88% 12%, rgba(214, 169, 80, 0.13), transparent 22rem),
+        linear-gradient(180deg, #fffaf1, #f4eadb);
+    scroll-margin-top: 96px;
+}
+
+.how-works-section .section-heading h2 {
+    color: var(--color-charcoal);
+}
+
+/* Workflow Steps */
+.workflow-section {
+    position: relative;
+    margin-top: clamp(2rem, 4vw, 3rem);
+    padding: clamp(1.5rem, 3vw, 2.5rem) 0;
+}
+
+.workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
+    position: relative;
+    z-index: 2;
+}
+
+.step-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: #fff;
+    border: 1px solid rgba(26, 23, 19, 0.08);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.step-card:hover {
+    border-color: rgba(214, 169, 80, 0.38);
+    box-shadow: var(--shadow-deep);
+    transform: translateY(-6px);
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    margin-bottom: 1rem;
+    color: #17120a;
+    background: linear-gradient(135deg, var(--color-gold-soft), var(--color-gold));
+    border-radius: 50%;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 900;
+    box-shadow: 0 8px 24px rgba(214, 169, 80, 0.28);
+}
+
+.step-icon {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 1rem;
+    color: var(--color-gold);
+    background: rgba(214, 169, 80, 0.1);
+    border: 1px solid rgba(214, 169, 80, 0.22);
+    border-radius: 1rem;
+    font-size: 1.4rem;
+    transition: transform 220ms ease, background 220ms ease, border-color 220ms ease;
+}
+
+.step-card:hover .step-icon {
+    background: var(--color-gold);
+    color: #17120a;
+    border-color: var(--color-gold);
+    transform: scale(1.08);
+}
+
+.step-content h4 {
+    margin: 0 0 0.5rem;
+    color: var(--color-charcoal);
+    font-size: 0.88rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.step-content p {
+    margin: 0;
+    color: #5e5648;
+    font-size: 0.86rem;
+    font-weight: 650;
+    line-height: 1.55;
+}
+
+/* Connector line between steps */
+.step-connector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.connector-line {
+    position: absolute;
+    top: 0;
+    left: 12.5%;
+    right: 12.5%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-line), transparent);
+}
+
+.connector-dot {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    background: var(--color-gold);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.4;
+}
+
+.connector-dot:nth-child(2) { left: 12.5%; }
+.connector-dot:nth-child(3) { left: 37.5%; }
+.connector-dot:nth-child(4) { left: 62.5%; }
+.connector-dot:nth-child(5) { left: 87.5%; }
+
+/* Rules Card */
+.rules-card {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    background: #fff;
+    border: 1px solid rgba(26, 23, 19, 0.08);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.rules-card:hover {
+    border-color: rgba(214, 169, 80, 0.38);
+    box-shadow: var(--shadow-deep);
+}
+
+.rules-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.rules-header i {
+    display: grid;
+    place-items: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    color: var(--color-gold);
+    background: rgba(214, 169, 80, 0.1);
+    border: 1px solid rgba(214, 169, 80, 0.22);
+    border-radius: 0.9rem;
+    font-size: 1.25rem;
+}
+
+.rules-header h3 {
+    margin: 0;
+    color: var(--color-charcoal);
+    font-size: 1rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rules-content p {
+    margin: 0 0 1rem;
+    color: #5e5648;
+    font-size: 0.9rem;
+    font-weight: 650;
+    line-height: 1.7;
+}
+
+.rules-content p:last-child {
+    margin-bottom: 1.5rem;
+}
+
+.rules-content strong {
+    color: var(--color-ink);
+}
+
+.rules-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(26, 23, 19, 0.06);
+}
+
+/* FAQ Section */
+.faq-section {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+}
+
+.faq-title {
+    margin: 0 0 1.5rem;
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.faq-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.faq-card {
+    padding: 1.5rem;
+    background: #fff;
+    border: 1px solid rgba(26, 23, 19, 0.08);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.faq-card:hover {
+    border-color: rgba(214, 169, 80, 0.38);
+    box-shadow: var(--shadow-deep);
+    transform: translateY(-4px);
+}
+
+.faq-card h4 {
+    margin: 0 0 0.75rem;
+    color: var(--color-charcoal);
+    font-size: 0.9rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.faq-card p {
+    margin: 0;
+    color: #5e5648;
+    font-size: 0.88rem;
+    font-weight: 650;
+    line-height: 1.65;
+}
+
+.faq-card strong {
+    color: var(--color-ink);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1199px) {
+    .court-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .workflow-steps {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .step-connector {
+        display: none;
+    }
+    
+    .faq-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 991px) {
+    .court-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .court-grid,
+    .workflow-steps,
+    .faq-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .court-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .court-actions-row {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .court-actions-row .btn-premium,
+    .court-actions-row .btn-ghost-light {
+        flex: 1;
+    }
+    
+    .rules-actions {
+        flex-direction: column;
+    }
+    
+    .rules-actions .btn-premium,
+    .rules-actions .btn-ghost-light {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   LEGACY STYLES FOR STANDALONE COURTS VIEWS
+   (Index.cshtml, HowItWorks.cshtml, Details.cshtml)
+   ============================================ */
+
 .courts-hero,
 .how-hero {
     padding: 92px 0 46px;
@@ -49,8 +651,8 @@
 .detail-card,
 .booking-guidance-card,
 .workflow-grid article,
-.rules-card,
-.faq-grid article {
+.how-content .rules-card,
+.how-content .faq-grid article {
     background: #fff;
     border: 1px solid rgba(214,166,82,.18);
     border-radius: 24px;
@@ -74,7 +676,7 @@
     position: relative;
 }
 
-.court-status,
+.court-image .court-status,
 .sport-chip {
     display: inline-flex;
     align-items: center;
@@ -86,7 +688,7 @@
     font-size: .78rem;
 }
 
-.court-status {
+.court-image .court-status {
     position: absolute;
     left: 16px;
     top: 16px;
@@ -168,7 +770,7 @@
 
 .detail-card,
 .booking-guidance-card,
-.rules-card {
+.how-content .rules-card {
     padding: 26px;
     margin-bottom: 22px;
 }
@@ -176,7 +778,7 @@
 .detail-facts,
 .pricing-grid,
 .workflow-grid,
-.faq-grid {
+.how-content .faq-grid {
     display: grid;
     gap: 16px;
 }
@@ -234,7 +836,7 @@
 }
 
 .workflow-grid article,
-.faq-grid article {
+.how-content .faq-grid article {
     padding: 24px;
 }
 
@@ -250,7 +852,7 @@
     font-weight: 900;
 }
 
-.faq-grid {
+.how-content .faq-grid {
     grid-template-columns: repeat(3, 1fr);
 }
 
@@ -264,7 +866,7 @@
     .court-card-grid,
     .details-grid,
     .workflow-grid,
-    .faq-grid {
+    .how-content .faq-grid {
         grid-template-columns: 1fr 1fr;
     }
 }
@@ -276,7 +878,7 @@
     .detail-facts,
     .pricing-grid,
     .workflow-grid,
-    .faq-grid,
+    .how-content .faq-grid,
     .schedule-list div {
         grid-template-columns: 1fr;
     }

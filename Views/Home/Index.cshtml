@@ -1,3 +1,5 @@
+@using GameHub.Models.ViewModels
+@using GameHub.Models.Enums
 @{
     ViewData["Title"] = "Premium Sports Arena";
     Layout = "_PublicLayout";
@@ -339,6 +341,181 @@
     </div>
 </section>
 
+@{
+    var courtsModel = ViewData["CourtsModel"] as PublicCourtsIndexViewModel;
+    var supportPhone = ViewBag.SupportPhone as string ?? "+92 300 1234567";
+    var supportEmail = ViewBag.SupportEmail as string ?? "info@gamehub.pk";
+}
+
+<section class="section-block courts-section" id="courts" aria-label="GameHub Courts">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Our Courts</span>
+            <h2>Choose Your <span>Court</span></h2>
+        </div>
+
+        <div class="court-catalog-premium">
+            @if (courtsModel?.Courts != null && courtsModel.Courts.Any())
+            {
+                <div class="court-grid">
+                    @foreach (var court in courtsModel.Courts)
+                    {
+                        var hasPricing = court.StartingPrice.HasValue;
+                        <article class="court-card reveal">
+                            <div class="court-image-wrap">
+                                <img src="@(court.ImageUrl ?? "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=1200")" alt="@court.Name court at GameHub Arena" loading="lazy" />
+                                <span class="court-status">@((court.Status == CourtStatus.Available) ? "Available for Booking" : "Check availability")</span>
+                            </div>
+                            <div class="court-body">
+                                <div class="court-header">
+                                    <span class="sport-badge">@court.SportName</span>
+                                    <div class="court-meta-top">
+                                        <span class="facility-tag"><i class="bi bi-building"></i> @court.FacilityName</span>
+                                        <span class="type-tag">@court.FacilityType</span>
+                                    </div>
+                                </div>
+                                <h3 class="court-title">@court.Name</h3>
+                                <div class="court-details-row">
+                                    <span class="detail-item"><i class="bi bi-people"></i> @court.Capacity players</span>
+                                    <span class="detail-item"><i class="bi bi-clock"></i> @court.DefaultDurationMinutes min</span>
+                                </div>
+                                <div class="court-footer">
+                                    <div class="price-tag">
+                                        @if (hasPricing)
+                                        {
+                                            <span class="price-label">From</span>
+                                            <strong class="price-value">@courtsModel.CurrencySymbol @court.StartingPrice?.ToString("N0")</strong>
+                                            <span class="price-unit">/ hour</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="price-na">Pricing on request</span>
+                                        }
+                                    </div>
+                                    <div class="court-actions-row">
+                                        <a class="btn-ghost-light btn-compact" asp-controller="Courts" asp-action="Details" asp-route-id="@court.Id">View Details</a>
+                                        <a class="btn-premium btn-compact @(hasPricing ? "" : "disabled")" asp-controller="OnlineBooking" asp-action="Start" asp-route-id="@court.Id"><i class="bi bi-calendar2-check"></i> Book Now</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state reveal">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <h3>No courts available</h3>
+                    <p>No active courts are available at the moment. Please check back soon.</p>
+                </div>
+            }
+        </div>
+
+        <div class="section-cta reveal">
+            <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> View All Courts</a>
+        </div>
+    </div>
+</section>
+
+<section class="section-block how-works-section" id="how-booking-works" aria-label="How Booking Works">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Booking Process</span>
+            <h2>How It <span>Works</span></h2>
+        </div>
+
+        <div class="workflow-section reveal">
+            <div class="workflow-steps">
+                @{
+                    var steps = new[]
+                    {
+                        ("Browse Courts", "Explore sports, facilities and active courts as a guest. Filter by sport, facility, or indoor/outdoor type.", "bi-grid-3x3-gap"),
+                        ("Create Account", "Register securely with email verification. Your profile unlocks bookings, memberships, and history.", "bi-person-plus"),
+                        ("Pick Date & Slot", "Select your court, choose a date, and pick from real-time available time slots.", "bi-calendar2-check"),
+                        ("Membership Benefits", "Eligible discounts and included hours apply automatically at checkout.", "bi-stars"),
+                        ("Review & Confirm", "Verify players, duration, policies, tax, and the total amount before payment.", "bi-clipboard-check"),
+                        ("Secure Payment", "Complete 100% payment online. The booking is only created after payment succeeds.", "bi-credit-card"),
+                        ("Confirmation", "Receive instant confirmation with booking details, invoice, and reminders via email.", "bi-check-circle")
+                    };
+                    var stepIndex = 1;
+                }
+                @foreach (var step in steps)
+                {
+                    <article class="step-card">
+                        <div class="step-number">
+                            <span>@stepIndex.ToString("00")</span>
+                        </div>
+                        <div class="step-icon">
+                            <i class="bi @step.Item3"></i>
+                        </div>
+                        <div class="step-content">
+                            <h4>@step.Item1</h4>
+                            <p>@step.Item2</p>
+                        </div>
+                    </article>
+                    stepIndex++;
+                }
+            </div>
+
+            <div class="step-connector" aria-hidden="true">
+                <span class="connector-line"></span>
+                @for (var i = 1; i <= 7; i++)
+                {
+                    <span class="connector-dot" style="--dot-index: @i;"></span>
+                }
+            </div>
+        </div>
+
+        <div class="rules-card reveal">
+            <div class="rules-header">
+                <i class="bi bi-shield-check"></i>
+                <h3>Important Booking Rules</h3>
+            </div>
+            <div class="rules-content">
+                <p>A booking is <strong>not confirmed</strong> until your full online payment succeeds. If the slot becomes unavailable during payment, the booking is not created and the payment is reversed.</p>
+                <p>You can cancel your own booking online while it is still <strong>Confirmed</strong> and before the cancellation cutoff. Cancelling releases the court immediately and records an audit entry. Membership hours used by that booking are returned to your pool.</p>
+                <p>Online cancellation does not issue an automatic refund. Contact GameHub at <strong>@supportPhone</strong> or <strong>@supportEmail</strong> to discuss refund eligibility for an amount already paid.</p>
+            </div>
+            <div class="rules-actions">
+                <a class="btn-premium" asp-controller="Account" asp-action="Signup"><i class="bi bi-person-plus"></i> Sign Up</a>
+                <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
+                <a class="btn-ghost-light" asp-controller="MyMemberships" asp-action="Plans"><i class="bi bi-stars"></i> Membership Plans</a>
+            </div>
+        </div>
+
+        <div class="faq-section reveal">
+            <h3 class="faq-title">Frequently Asked Questions</h3>
+            <div class="faq-grid">
+                <article class="faq-card">
+                    <h4>Can I book online now?</h4>
+                    <p>Yes. Verified customers can book any available court, pay online and manage the booking from their account.</p>
+                </article>
+                <article class="faq-card">
+                    <h4>Can guests browse?</h4>
+                    <p>Yes. Guests can view active public courts and membership plans before creating an account.</p>
+                </article>
+                <article class="faq-card">
+                    <h4>Is payment required?</h4>
+                    <p>Yes. A booking is only created after a successful full online payment.</p>
+                </article>
+                <article class="faq-card">
+                    <h4>What happens after a session ends?</h4>
+                    <p>Sessions you check into are marked <strong>Completed</strong> automatically. A confirmed booking that passes its end time without a check-in is marked <strong>No Show</strong> and the slot is released.</p>
+                </article>
+                <article class="faq-card">
+                    <h4>How do memberships work?</h4>
+                    <p>Pick a plan, pay the joining or renewal fee online, and your discount, included hours and validity apply automatically at the next checkout.</p>
+                </article>
+                <article class="faq-card">
+                    <h4>Where do I find my documents?</h4>
+                    <p>Invoices and receipts for bookings and memberships are always available from your account under Invoices and Payment History.</p>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="final-cta-section">
     <div class="container">
         <div class="final-cta reveal">
@@ -351,3 +528,7 @@
         </div>
     </div>
 </section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/public-courts.css" asp-append-version="true" />
+}
