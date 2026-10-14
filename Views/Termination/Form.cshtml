@@ -1,0 +1,138 @@
+@model GameHub.Models.ViewModels.TerminationFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Termination Request" : "New Termination Request";
+    Layout = "_AdminLayout";
+
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+
+<section class="arena-page hr-page termination-form-page" data-termination-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Termination &amp; Clearance</span>
+            <h1>@(Model.IsEditMode ? "Edit Termination Request" : "New Termination Request")</h1>
+            <p>@(Model.IsEditMode ? "Update the request details. The linked employee and reference are preserved." : "Raise a termination request against an existing employee and propose their last working day.")</p>
+        </div>
+        @if (Model.IsEditMode)
+        {
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i> Back to Request</a>
+        }
+        else
+        {
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Termination &amp; Clearance</a>
+        }
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="arena-form-main" data-hr-submit-once>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        @if (Model.IsEditMode)
+        {
+            <input asp-for="EmployeeId" type="hidden" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person-badge"></i> Employee &amp; Request</h2>
+            @if (Model.IsEditMode)
+            {
+                <label>
+                    <span>Employee</span>
+                    <input value="@Model.EmployeeName" readonly />
+                </label>
+                <label>
+                    <span>Employee Number</span>
+                    <input value="@Model.EmployeeNumber" readonly />
+                </label>
+            }
+            else
+            {
+                <label class="hr-form-wide">
+                    <span>Employee *</span>
+                    <select asp-for="EmployeeId" asp-items="Model.EmployeeOptions">
+                        <option value="">Select an employee</option>
+                    </select>
+                    <small class="hr-hint">Only active employees without an open termination request can be selected.</small>
+                    <span asp-validation-for="EmployeeId"></span>
+                </label>
+            }
+            <label>
+                <span>Reference</span>
+                <input asp-for="ReferenceNumber" readonly />
+            </label>
+            <label>
+                <span>Termination Type *</span>
+                <select asp-for="TerminationType" asp-items="Html.GetEnumSelectList<TerminationType>()"></select>
+                <span asp-validation-for="TerminationType"></span>
+            </label>
+            <label>
+                <span>Request Date *</span>
+                <input asp-for="RequestDate" type="date" />
+                <span asp-validation-for="RequestDate"></span>
+            </label>
+            <label>
+                <span>Proposed Last Working Day *</span>
+                <input asp-for="ProposedLastWorkingDay" type="date" />
+                <small class="hr-hint">Must not be before the request date.</small>
+                <span asp-validation-for="ProposedLastWorkingDay"></span>
+            </label>
+            <label>
+                <span>Notice Period</span>
+                <input asp-for="NoticePeriod" list="noticePeriodOptions" maxlength="50" placeholder="e.g. 1 Month" />
+                <datalist id="noticePeriodOptions">
+                    @foreach (var period in Model.NoticePeriodOptions)
+                    {
+                        <option value="@period.Value"></option>
+                    }
+                </datalist>
+                <small class="hr-hint">Optional. Select a common value or type your own.</small>
+                <span asp-validation-for="NoticePeriod"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-card-text"></i> Reason &amp; Explanation</h2>
+            <label class="hr-form-wide">
+                <span>Reason *</span>
+                <input asp-for="Reason" maxlength="200" placeholder="e.g. Resignation accepted - relocation" />
+                <span asp-validation-for="Reason"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Explanation *</span>
+                <textarea asp-for="Explanation" rows="6" maxlength="4000" placeholder="Explain the circumstances, prior discussions, and any relevant details."></textarea>
+                <small class="hr-hint">Up to 4,000 characters.</small>
+                <span asp-validation-for="Explanation"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Remarks</span>
+                <textarea asp-for="Remarks" rows="3" maxlength="3000" placeholder="Optional internal notes for the approver."></textarea>
+                <span asp-validation-for="Remarks"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            @if (Model.IsEditMode)
+            {
+                <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-x-circle"></i> Cancel</a>
+            }
+            else
+            {
+                <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Cancel</a>
+            }
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Create Request")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

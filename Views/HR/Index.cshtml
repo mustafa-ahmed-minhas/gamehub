@@ -1,0 +1,145 @@
+@model GameHub.Models.ViewModels.HRDashboardViewModel
+@{
+    ViewData["Title"] = "HR Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page hr-page" data-hr-dashboard>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>@Model.Greeting, @Model.FirstName</h1>
+            <p>Overview of your workforce, hiring pipeline, and pending people operations.</p>
+        </div>
+        <div class="arena-actions">
+            <a class="admin-secondary-button" asp-controller="Employees" asp-action="Index"><i class="bi bi-people"></i> Manage Employees</a>
+            <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index"><i class="bi bi-person-plus"></i> Recruitment Management</a>
+            <a class="admin-action-button" asp-controller="JobPostings" asp-action="Create"><i class="bi bi-journal-plus"></i> Add Job Posting</a>
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article>
+            <i class="bi bi-people"></i>
+            <span>Total Employees</span>
+            <strong>@Model.TotalEmployees</strong>
+        </article>
+        <article>
+            <i class="bi bi-person-check"></i>
+            <span>Active Employees</span>
+            <strong>@Model.ActiveEmployees</strong>
+        </article>
+        <article>
+            <i class="bi bi-briefcase"></i>
+            <span>Open Positions</span>
+            <strong>@Model.OpenPositions</strong>
+        </article>
+        <article>
+            <i class="bi bi-inbox"></i>
+            <span>Pending Applications</span>
+            <strong>@Model.PendingApplications</strong>
+        </article>
+        <article>
+            <i class="bi bi-calendar2-event"></i>
+            <span>Upcoming Interviews</span>
+            <strong>@Model.UpcomingInterviews</strong>
+        </article>
+        <article>
+            <i class="bi bi-clipboard-check"></i>
+            <span>Pending HR Actions</span>
+            <strong>@Model.PendingHrActions</strong>
+        </article>
+    </div>
+
+    <section class="arena-card hr-section-card" aria-label="Recent recruitment activity">
+        <div class="hr-card-head">
+            <div>
+                <h2>Recent Recruitment Activity</h2>
+                <p>Latest applications and hiring pipeline updates</p>
+            </div>
+            <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">View All <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="hr-table-wrap">
+            <table class="arena-table hr-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Candidate</th>
+                        <th scope="col">Position</th>
+                        <th scope="col">Stage</th>
+                        <th scope="col">Applied</th>
+                        <th scope="col">Last Update</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.RecentRecruitment.Count == 0)
+                    {
+                        <tr><td colspan="5" class="hr-table-empty">No recruitment activity yet. Applications will appear here as they are received.</td></tr>
+                    }
+                    @foreach (var item in Model.RecentRecruitment)
+                    {
+                        <tr>
+                            <td data-label="Candidate">
+                                <div class="user-cell hr-identity">
+                                    <span class="user-avatar">@item.Initials</span>
+                                    <div>
+                                        <strong>@item.Candidate</strong>
+                                        <small>@item.Reference</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td data-label="Position"><strong>@item.Position</strong></td>
+                            <td data-label="Stage"><span class="membership-status-badge hr-tone @item.StageClass"><i></i>@item.Stage</span></td>
+                            <td data-label="Applied">@item.Applied</td>
+                            <td data-label="Last Update"><small class="hr-update">@item.LastUpdate</small></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="arena-card hr-section-card" aria-label="Pending HR tasks">
+        <div class="hr-card-head">
+            <div>
+                <h2>Pending HR Tasks</h2>
+                <p>Action items requiring your attention</p>
+            </div>
+            <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">Open Tasks <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="hr-table-wrap">
+            <table class="arena-table hr-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Task</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Owner</th>
+                        <th scope="col">Due</th>
+                        <th scope="col">Priority</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.PendingTasks.Count == 0)
+                    {
+                        <tr><td colspan="6" class="hr-table-empty">No pending HR tasks. Recruitment and interview actions will surface here.</td></tr>
+                    }
+                    @foreach (var task in Model.PendingTasks)
+                    {
+                        <tr>
+                            <td data-label="Task"><strong>@task.Title</strong></td>
+                            <td data-label="Category"><span class="membership-code">@task.Category</span></td>
+                            <td data-label="Owner">@task.Owner</td>
+                            <td data-label="Due"><strong>@task.Due</strong></td>
+                            <td data-label="Priority"><span class="membership-status-badge hr-tone @task.PriorityClass"><i></i>@task.Priority</span></td>
+                            <td data-label="Status"><span class="membership-status-badge hr-tone @task.StatusClass"><i></i>@task.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+}

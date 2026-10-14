@@ -1,0 +1,183 @@
+@model PublicJobDetailsViewModel
+@{
+    Layout = "_PublicLayout";
+    var posting = Model.Posting;
+
+    string SalaryRange()
+    {
+        if (posting.MinimumSalary.HasValue && posting.MaximumSalary.HasValue)
+        {
+            return $"{posting.Currency} {posting.MinimumSalary.Value:N0} - {posting.MaximumSalary.Value:N0}";
+        }
+        if (posting.MinimumSalary.HasValue)
+        {
+            return $"{posting.Currency} {posting.MinimumSalary.Value:N0}+";
+        }
+        if (posting.MaximumSalary.HasValue)
+        {
+            return $"Up to {posting.Currency} {posting.MaximumSalary.Value:N0}";
+        }
+        return "Not disclosed";
+    }
+}
+
+@if (Model.LoadFailed)
+{
+    <section class="job-details-hero">
+        <div class="container">
+            <a class="careers-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Careers</a>
+            <span class="eyebrow-pill"><i class="bi bi-briefcase"></i> Careers</span>
+            <h1>Job details</h1>
+        </div>
+    </section>
+
+    <section class="job-details-body">
+        <div class="container">
+            <div class="careers-state careers-state--error" role="alert">
+                <span class="careers-state-icon"><i class="bi bi-exclamation-triangle"></i></span>
+                <h2>We could not load this role</h2>
+                <p>Something went wrong while loading the job details. Please try again in a moment.</p>
+                <div class="careers-state-actions">
+                    <a class="btn-premium" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Careers</a>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section class="job-details-hero">
+        <div class="container">
+            <a class="careers-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Careers</a>
+            <span class="eyebrow-pill"><i class="bi bi-briefcase"></i> @posting.Department</span>
+            <h1>@posting.JobTitle</h1>
+            <ul class="careers-hero-meta">
+                <li><i class="bi bi-hash"></i> @posting.ReferenceNumber</li>
+                <li><i class="bi bi-geo-alt"></i> @posting.JobLocation</li>
+                <li><i class="bi bi-clock"></i> @posting.EmploymentType.GetDisplayName()</li>
+                <li><i class="bi bi-laptop"></i> @posting.WorkplaceType.GetDisplayName()</li>
+            </ul>
+            <div class="careers-hero-badges">
+                <span class="careers-hero-badge"><i class="bi bi-people"></i> @(posting.Vacancies == 1 ? "1 vacancy" : $"{posting.Vacancies} vacancies")</span>
+                <span class="careers-hero-badge"><i class="bi bi-hourglass-split"></i> Apply by @posting.ApplicationDeadline.ToString("dd MMM yyyy")</span>
+            </div>
+            <div class="careers-hero-actions">
+                <a class="btn-premium" asp-action="Apply" asp-route-id="@posting.Id"><i class="bi bi-send"></i> Apply Now</a>
+                <a class="btn-ghost-light" asp-controller="Inquiry" asp-action="Index"><i class="bi bi-chat-dots"></i> Ask a Question</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="job-details-body">
+        <div class="container job-layout">
+            <main class="job-main">
+                <article class="job-panel">
+                    <h2><i class="bi bi-clipboard-data"></i> Job Overview</h2>
+                    <ul class="job-facts-inline">
+                        <li><i class="bi bi-building"></i> @posting.Department</li>
+                        <li><i class="bi bi-clock"></i> @posting.EmploymentType.GetDisplayName()</li>
+                        <li><i class="bi bi-laptop"></i> @posting.WorkplaceType.GetDisplayName()</li>
+                        <li><i class="bi bi-geo-alt"></i> @posting.JobLocation</li>
+                    </ul>
+                    <dl class="job-facts">
+                        <div class="job-fact">
+                            <dt>Reference</dt>
+                            <dd>@posting.ReferenceNumber</dd>
+                        </div>
+                        <div class="job-fact">
+                            <dt>Experience Required</dt>
+                            <dd>@posting.ExperienceRequired</dd>
+                        </div>
+                        <div class="job-fact">
+                            <dt>Minimum Education</dt>
+                            <dd>@posting.MinimumEducation</dd>
+                        </div>
+                        <div class="job-fact">
+                            <dt>Posted On</dt>
+                            <dd>@posting.PostedOn.ToString("dd MMM yyyy")</dd>
+                        </div>
+                        <div class="job-fact">
+                            <dt>Vacancies</dt>
+                            <dd>@(posting.Vacancies == 1 ? "1 position" : $"{posting.Vacancies} positions")</dd>
+                        </div>
+                        <div class="job-fact">
+                            <dt>Application Deadline</dt>
+                            <dd>@posting.ApplicationDeadline.ToString("dd MMM yyyy")</dd>
+                        </div>
+                    </dl>
+                </article>
+
+                <article class="job-panel">
+                    <h2><i class="bi bi-file-text"></i> Job Description</h2>
+                    <p class="job-copy">@posting.JobDescription</p>
+                </article>
+
+                <article class="job-panel">
+                    <h2><i class="bi bi-list-check"></i> Key Responsibilities</h2>
+                    <p class="job-copy">@posting.KeyResponsibilities</p>
+                </article>
+
+                <article class="job-panel">
+                    <h2><i class="bi bi-mortarboard"></i> Qualifications &amp; Requirements</h2>
+                    <p class="job-copy">@posting.Qualifications</p>
+                </article>
+
+                @if (posting.Skills.Any())
+                {
+                    <article class="job-panel">
+                        <h2><i class="bi bi-stars"></i> Required Skills</h2>
+                        <div class="job-chip-list">
+                            @foreach (var skill in posting.Skills)
+                            {
+                                <span class="job-chip"><i class="bi bi-check2-circle"></i> @skill</span>
+                            }
+                        </div>
+                    </article>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(posting.Benefits))
+                {
+                    <article class="job-panel">
+                        <h2><i class="bi bi-gift"></i> Benefits</h2>
+                        <p class="job-copy">@posting.Benefits</p>
+                    </article>
+                }
+            </main>
+
+            <aside class="job-side">
+                <div class="job-side-card job-apply-cta">
+                    <h2>Ready to apply?</h2>
+                    <p>Send your application with a short cover note and your CV. Our recruitment team reviews every submission.</p>
+                    <a class="btn-premium job-apply-button" asp-action="Apply" asp-route-id="@posting.Id"><i class="bi bi-send"></i> Apply Now</a>
+                    <span class="job-deadline"><i class="bi bi-hourglass-split"></i> Applications close @posting.ApplicationDeadline.ToString("dd MMM yyyy")</span>
+                </div>
+
+                @* Salary is only shown when HR actually published a range on the posting. *@
+                @if (posting.HasSalaryInformation)
+                {
+                    <div class="job-side-card">
+                        <h2>Compensation</h2>
+                        <dl class="job-facts job-facts--stacked">
+                            <div class="job-fact">
+                                <dt>Salary Range</dt>
+                                <dd>@SalaryRange()</dd>
+                            </div>
+                            <div class="job-fact">
+                                <dt>Currency</dt>
+                                <dd>@posting.Currency</dd>
+                            </div>
+                        </dl>
+                    </div>
+                }
+
+                <div class="job-side-card">
+                    <h2>Need help?</h2>
+                    <p>Questions about this role or the application process?</p>
+                    <a class="job-btn-outline" asp-controller="Inquiry" asp-action="Index"><i class="bi bi-chat-dots"></i> Contact GameHub</a>
+                </div>
+            </aside>
+        </div>
+    </section>
+}
+
+@section Styles { <link rel="stylesheet" href="~/css/public-careers.css" asp-append-version="true" /> }

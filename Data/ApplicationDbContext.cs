@@ -44,6 +44,23 @@ namespace GameHub.Data
         public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
         public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
         public DbSet<DocumentActivity> DocumentActivities => Set<DocumentActivity>();
+        public DbSet<JobPosting> JobPostings => Set<JobPosting>();
+        public DbSet<JobPostingSkill> JobPostingSkills => Set<JobPostingSkill>();
+        public DbSet<JobPostingScreeningQuestion> JobPostingScreeningQuestions => Set<JobPostingScreeningQuestion>();
+        public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+        public DbSet<JobApplicationDocument> JobApplicationDocuments => Set<JobApplicationDocument>();
+        public DbSet<Interview> Interviews => Set<Interview>();
+        public DbSet<JobOffer> JobOffers => Set<JobOffer>();
+        public DbSet<JobOfferDocument> JobOfferDocuments => Set<JobOfferDocument>();
+        public DbSet<Employee> Employees => Set<Employee>();
+        public DbSet<PerformanceCase> PerformanceCases => Set<PerformanceCase>();
+        public DbSet<PerformanceMeeting> PerformanceMeetings => Set<PerformanceMeeting>();
+        public DbSet<PerformanceWarning> PerformanceWarnings => Set<PerformanceWarning>();
+        public DbSet<ImprovementPlan> ImprovementPlans => Set<ImprovementPlan>();
+        public DbSet<TerminationRequest> TerminationRequests => Set<TerminationRequest>();
+        public DbSet<TerminationDocument> TerminationDocuments => Set<TerminationDocument>();
+        public DbSet<ClearanceItem> ClearanceItems => Set<ClearanceItem>();
+        public DbSet<TerminationStatusHistory> TerminationStatusHistories => Set<TerminationStatusHistory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -836,6 +853,330 @@ namespace GameHub.Data
                 entity.HasOne(x => x.Facility).WithMany().HasForeignKey(x => x.FacilityId).OnDelete(DeleteBehavior.SetNull);
                 entity.HasOne(x => x.Court).WithMany().HasForeignKey(x => x.CourtId).OnDelete(DeleteBehavior.SetNull);
                 entity.HasOne(x => x.MembershipPlan).WithMany().HasForeignKey(x => x.MembershipPlanId).OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<JobPosting>(entity =>
+            {
+                entity.HasIndex(posting => posting.ReferenceNumber).IsUnique();
+                entity.HasIndex(posting => posting.Status);
+                entity.HasIndex(posting => posting.ApplicationDeadline);
+                entity.HasIndex(posting => posting.Department);
+                entity.Property(posting => posting.ReferenceNumber).IsRequired().HasMaxLength(30);
+                entity.Property(posting => posting.JobTitle).IsRequired().HasMaxLength(100);
+                entity.Property(posting => posting.Department).IsRequired().HasMaxLength(80);
+                entity.Property(posting => posting.EmploymentType).HasConversion<string>().HasMaxLength(20);
+                entity.Property(posting => posting.WorkplaceType).HasConversion<string>().HasMaxLength(20);
+                entity.Property(posting => posting.JobLocation).IsRequired().HasMaxLength(150);
+                entity.Property(posting => posting.MinimumSalary).HasPrecision(12, 2);
+                entity.Property(posting => posting.MaximumSalary).HasPrecision(12, 2);
+                entity.Property(posting => posting.Currency).IsRequired().HasMaxLength(10);
+                entity.Property(posting => posting.ExperienceRequired).IsRequired().HasMaxLength(80);
+                entity.Property(posting => posting.MinimumEducation).IsRequired().HasMaxLength(120);
+                entity.Property(posting => posting.JobDescription).IsRequired().HasMaxLength(5000);
+                entity.Property(posting => posting.KeyResponsibilities).IsRequired().HasMaxLength(3000);
+                entity.Property(posting => posting.Qualifications).IsRequired().HasMaxLength(3000);
+                entity.Property(posting => posting.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(posting => posting.Benefits).HasMaxLength(2000);
+                entity.Property(posting => posting.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(posting => posting.IsActive).HasDefaultValue(true);
+                entity.HasOne(posting => posting.HiringManager).WithMany().HasForeignKey(posting => posting.HiringManagerUserId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(posting => posting.CreatedByUser).WithMany().HasForeignKey(posting => posting.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(posting => posting.Skills).WithOne(skill => skill.JobPosting).HasForeignKey(skill => skill.JobPostingId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(posting => posting.ScreeningQuestions).WithOne(question => question.JobPosting).HasForeignKey(question => question.JobPostingId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<JobPostingSkill>(entity =>
+            {
+                entity.HasIndex(skill => skill.JobPostingId);
+                entity.Property(skill => skill.Skill).IsRequired().HasMaxLength(80);
+            });
+
+            modelBuilder.Entity<JobPostingScreeningQuestion>(entity =>
+            {
+                entity.HasIndex(question => question.JobPostingId);
+                entity.Property(question => question.Question).IsRequired().HasMaxLength(500);
+            });
+
+            modelBuilder.Entity<JobApplication>(entity =>
+            {
+                entity.HasIndex(application => application.ApplicationNumber).IsUnique();
+                entity.HasIndex(application => new { application.JobPostingId, application.Email })
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+                entity.HasIndex(application => new { application.JobPostingId, application.NationalIdNumber })
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+                entity.HasIndex(application => new { application.JobPostingId, application.Phone })
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+                entity.HasIndex(application => application.JobPostingId);
+                entity.HasIndex(application => application.Status);
+                entity.Property(application => application.ApplicationNumber).IsRequired().HasMaxLength(30);
+                entity.Property(application => application.FirstName).IsRequired().HasMaxLength(50);
+                entity.Property(application => application.LastName).IsRequired().HasMaxLength(50);
+                entity.Property(application => application.Email).IsRequired().HasMaxLength(254);
+                entity.Property(application => application.Phone).IsRequired().HasMaxLength(30);
+                entity.Property(application => application.NationalIdNumber).IsRequired().HasMaxLength(30);
+                entity.Property(application => application.Gender).HasConversion<string>().HasMaxLength(30);
+                entity.Property(application => application.City).IsRequired().HasMaxLength(80);
+                entity.Property(application => application.Country).IsRequired().HasMaxLength(80);
+                entity.Property(application => application.CurrentAddress).HasMaxLength(250);
+                entity.Property(application => application.Status).HasConversion<string>().HasMaxLength(30);
+                entity.Property(application => application.HighestEducation).IsRequired().HasMaxLength(120);
+                entity.Property(application => application.CurrentEmployer).HasMaxLength(150);
+                entity.Property(application => application.CurrentJobTitle).HasMaxLength(100);
+                entity.Property(application => application.ExpectedSalary).HasPrecision(12, 2);
+                entity.Property(application => application.NoticePeriod).HasMaxLength(40);
+                entity.Property(application => application.CoverLetter).HasMaxLength(3000);
+                entity.Property(application => application.LinkedInUrl).HasMaxLength(300);
+                entity.Property(application => application.PortfolioUrl).HasMaxLength(300);
+                entity.Property(application => application.CvFileName).IsRequired().HasMaxLength(200);
+                entity.Property(application => application.CvOriginalFileName).HasMaxLength(255);
+                entity.Property(application => application.CvContentType).HasMaxLength(100);
+                entity.Property(application => application.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(application => application.IsActive).HasDefaultValue(true);
+                entity.HasOne(application => application.JobPosting).WithMany(posting => posting.Applications).HasForeignKey(application => application.JobPostingId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(application => application.CreatedByUser).WithMany().HasForeignKey(application => application.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(application => application.Documents).WithOne(document => document.JobApplication).HasForeignKey(document => document.JobApplicationId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(application => application.Interviews).WithOne(interview => interview.JobApplication).HasForeignKey(interview => interview.JobApplicationId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<JobApplicationDocument>(entity =>
+            {
+                entity.HasIndex(document => document.JobApplicationId);
+                entity.Property(document => document.StoredFileName).IsRequired().HasMaxLength(200);
+                entity.Property(document => document.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(document => document.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(document => document.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            });
+
+            modelBuilder.Entity<Interview>(entity =>
+            {
+                entity.HasIndex(interview => interview.JobApplicationId);
+                entity.HasIndex(interview => interview.Status);
+                entity.HasIndex(interview => interview.InterviewDate);
+                entity.Property(interview => interview.InterviewType).HasConversion<string>().HasMaxLength(20);
+                entity.Property(interview => interview.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(interview => interview.Outcome).HasConversion<string>().HasMaxLength(20);
+                entity.Property(interview => interview.Interviewer).IsRequired().HasMaxLength(150);
+                entity.Property(interview => interview.Location).HasMaxLength(250);
+                entity.Property(interview => interview.Notes).HasMaxLength(2000);
+                entity.Property(interview => interview.Feedback).HasMaxLength(2000);
+                entity.Property(interview => interview.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(interview => interview.IsActive).HasDefaultValue(true);
+                entity.HasOne(interview => interview.CreatedByUser).WithMany().HasForeignKey(interview => interview.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<JobOffer>(entity =>
+            {
+                entity.HasIndex(offer => offer.ReferenceNumber).IsUnique();
+                // A candidate may only hold one in-flight offer at a time;
+                // rejected / withdrawn / expired offers stay queryable but do
+                // not block a replacement. Filtered indexes do not support
+                // NOT IN, so the predicate lists the blocking statuses.
+                entity.HasIndex(offer => offer.JobApplicationId)
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1 AND [Status] IN ('Draft','PendingAcceptance','Accepted','Hired')");
+                entity.HasIndex(offer => offer.Status);
+                entity.HasIndex(offer => offer.JoiningDate);
+                entity.Property(offer => offer.ReferenceNumber).IsRequired().HasMaxLength(30);
+                entity.Property(offer => offer.Designation).IsRequired().HasMaxLength(100);
+                entity.Property(offer => offer.Department).IsRequired().HasMaxLength(80);
+                entity.Property(offer => offer.EmploymentType).HasConversion<string>().HasMaxLength(20);
+                entity.Property(offer => offer.WorkLocation).IsRequired().HasMaxLength(150);
+                entity.Property(offer => offer.OfferedSalary).HasPrecision(12, 2);
+                entity.Property(offer => offer.Currency).IsRequired().HasMaxLength(10);
+                entity.Property(offer => offer.SalaryFrequency).HasConversion<string>().HasMaxLength(20);
+                entity.Property(offer => offer.Benefits).HasMaxLength(2000);
+                entity.Property(offer => offer.Terms).HasMaxLength(2000);
+                entity.Property(offer => offer.Remarks).HasMaxLength(2000);
+                entity.Property(offer => offer.Status).HasConversion<string>().HasMaxLength(30);
+                entity.Property(offer => offer.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(offer => offer.IsActive).HasDefaultValue(true);
+                entity.HasOne(offer => offer.JobApplication).WithMany(application => application.Offers).HasForeignKey(offer => offer.JobApplicationId).OnDelete(DeleteBehavior.Restrict);
+                // Two optional links to Employees would form multiple cascade
+                // paths with SET NULL, so the reporting-manager link is NoAction
+                // while the hired-employee link nulls out.
+                entity.HasOne(offer => offer.ReportingManager).WithMany().HasForeignKey(offer => offer.ReportingManagerId).OnDelete(DeleteBehavior.NoAction);
+                entity.HasOne(offer => offer.Employee).WithMany().HasForeignKey(offer => offer.EmployeeId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(offer => offer.CreatedByUser).WithMany().HasForeignKey(offer => offer.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(offer => offer.Documents).WithOne(document => document.JobOffer).HasForeignKey(document => document.JobOfferId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<JobOfferDocument>(entity =>
+            {
+                entity.HasIndex(document => document.JobOfferId);
+                entity.Property(document => document.StoredFileName).IsRequired().HasMaxLength(200);
+                entity.Property(document => document.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(document => document.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(document => document.Title).HasMaxLength(150);
+                entity.Property(document => document.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            });
+
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.HasIndex(employee => employee.EmployeeNumber).IsUnique();
+                entity.HasIndex(employee => employee.Email)
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+                entity.HasIndex(employee => employee.NationalIdNumber)
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
+                entity.HasIndex(employee => employee.Department);
+                entity.HasIndex(employee => employee.Designation);
+                entity.HasIndex(employee => employee.EmploymentStatus);
+                entity.Property(employee => employee.EmployeeNumber).IsRequired().HasMaxLength(20);
+                entity.Property(employee => employee.FirstName).IsRequired().HasMaxLength(50);
+                entity.Property(employee => employee.LastName).IsRequired().HasMaxLength(50);
+                entity.Property(employee => employee.ProfileImageUrl).HasMaxLength(300);
+                entity.Property(employee => employee.Email).IsRequired().HasMaxLength(254);
+                entity.Property(employee => employee.PhoneNumber).IsRequired().HasMaxLength(30);
+                entity.Property(employee => employee.NationalIdNumber).IsRequired().HasMaxLength(30);
+                entity.Property(employee => employee.Gender).HasConversion<string>().HasMaxLength(30);
+                entity.Property(employee => employee.Department).IsRequired().HasMaxLength(80);
+                entity.Property(employee => employee.Designation).IsRequired().HasMaxLength(100);
+                entity.Property(employee => employee.EmploymentType).HasConversion<string>().HasMaxLength(20);
+                entity.Property(employee => employee.EmploymentStatus).HasConversion<string>().HasMaxLength(20);
+                entity.Property(employee => employee.EmploymentAddress).HasMaxLength(250);
+                entity.Property(employee => employee.EmergencyContactName).HasMaxLength(100);
+                entity.Property(employee => employee.EmergencyContactNumber).HasMaxLength(30);
+                entity.Property(employee => employee.BasicSalary).HasPrecision(12, 2);
+                entity.Property(employee => employee.Notes).HasMaxLength(2000);
+                entity.Property(employee => employee.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(employee => employee.IsActive).HasDefaultValue(true);
+                entity.HasOne(employee => employee.ReportingManager).WithMany().HasForeignKey(employee => employee.ReportingManagerId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(employee => employee.CreatedByUser).WithMany().HasForeignKey(employee => employee.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PerformanceCase>(entity =>
+            {
+                entity.HasIndex(detail => detail.CaseNumber).IsUnique();
+                entity.HasIndex(detail => detail.Status);
+                entity.HasIndex(detail => detail.EmployeeId);
+                entity.HasIndex(detail => detail.ReportedDate);
+                entity.Property(detail => detail.CaseNumber).IsRequired().HasMaxLength(30);
+                entity.Property(detail => detail.IssueType).HasConversion<string>().HasMaxLength(30);
+                entity.Property(detail => detail.Title).IsRequired().HasMaxLength(150);
+                entity.Property(detail => detail.Description).IsRequired().HasMaxLength(4000);
+                entity.Property(detail => detail.Severity).HasConversion<string>().HasMaxLength(20);
+                entity.Property(detail => detail.Status).HasConversion<string>().HasMaxLength(30);
+                entity.Property(detail => detail.ResolutionNotes).HasMaxLength(4000);
+                entity.Property(detail => detail.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(detail => detail.IsActive).HasDefaultValue(true);
+                entity.HasOne(detail => detail.Employee).WithMany(employee => employee.PerformanceCases).HasForeignKey(detail => detail.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                // Two optional links to Users, so both stay NoAction to avoid
+                // multiple cascade paths into the case record.
+                entity.HasOne(detail => detail.AssignedHrUser).WithMany().HasForeignKey(detail => detail.AssignedHrUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(detail => detail.CreatedByUser).WithMany().HasForeignKey(detail => detail.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(detail => detail.Meetings).WithOne(meeting => meeting.PerformanceCase).HasForeignKey(meeting => meeting.PerformanceCaseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(detail => detail.Warnings).WithOne(warning => warning.PerformanceCase).HasForeignKey(warning => warning.PerformanceCaseId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(detail => detail.ImprovementPlans).WithOne(plan => plan.PerformanceCase).HasForeignKey(plan => plan.PerformanceCaseId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PerformanceMeeting>(entity =>
+            {
+                entity.HasIndex(meeting => meeting.PerformanceCaseId);
+                entity.HasIndex(meeting => meeting.MeetingDate);
+                entity.HasIndex(meeting => meeting.Status);
+                entity.Property(meeting => meeting.DiscussionNotes).IsRequired().HasMaxLength(3000);
+                entity.Property(meeting => meeting.Outcome).HasMaxLength(2000);
+                entity.Property(meeting => meeting.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(meeting => meeting.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(meeting => meeting.IsActive).HasDefaultValue(true);
+                entity.HasOne(meeting => meeting.CreatedByUser).WithMany().HasForeignKey(meeting => meeting.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PerformanceWarning>(entity =>
+            {
+                entity.HasIndex(warning => warning.PerformanceCaseId);
+                entity.HasIndex(warning => warning.IssueDate);
+                entity.HasIndex(warning => warning.Status);
+                entity.Property(warning => warning.Reason).IsRequired().HasMaxLength(3000);
+                entity.Property(warning => warning.ResponseRemarks).HasMaxLength(3000);
+                entity.Property(warning => warning.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(warning => warning.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(warning => warning.IsActive).HasDefaultValue(true);
+                entity.HasOne(warning => warning.CreatedByUser).WithMany().HasForeignKey(warning => warning.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ImprovementPlan>(entity =>
+            {
+                entity.HasIndex(plan => plan.PerformanceCaseId);
+                entity.HasIndex(plan => plan.Status);
+                entity.HasIndex(plan => plan.ReviewDate);
+                entity.Property(plan => plan.Objectives).IsRequired().HasMaxLength(3000);
+                entity.Property(plan => plan.MeasurableExpectations).IsRequired().HasMaxLength(3000);
+                entity.Property(plan => plan.ReviewNotes).HasMaxLength(3000);
+                entity.Property(plan => plan.Outcome).HasMaxLength(2000);
+                entity.Property(plan => plan.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(plan => plan.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(plan => plan.IsActive).HasDefaultValue(true);
+                entity.HasOne(plan => plan.CreatedByUser).WithMany().HasForeignKey(plan => plan.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<TerminationRequest>(entity =>
+            {
+                entity.HasIndex(request => request.ReferenceNumber).IsUnique();
+                entity.HasIndex(request => request.Status);
+                entity.HasIndex(request => request.EmployeeId);
+                entity.HasIndex(request => request.RequestDate);
+                entity.HasIndex(request => request.ProposedLastWorkingDay);
+                entity.Property(request => request.ReferenceNumber).IsRequired().HasMaxLength(30);
+                entity.Property(request => request.Reason).IsRequired().HasMaxLength(200);
+                entity.Property(request => request.Explanation).IsRequired().HasMaxLength(4000);
+                entity.Property(request => request.TerminationType).HasConversion<string>().HasMaxLength(30);
+                entity.Property(request => request.NoticePeriod).HasMaxLength(50);
+                entity.Property(request => request.Status).HasConversion<string>().HasMaxLength(30);
+                entity.Property(request => request.Remarks).HasMaxLength(3000);
+                entity.Property(request => request.DecisionRemarks).HasMaxLength(3000);
+                entity.Property(request => request.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(request => request.IsActive).HasDefaultValue(true);
+                entity.HasOne(request => request.Employee).WithMany(employee => employee.TerminationRequests).HasForeignKey(request => request.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+                // Two optional links to Users, so both stay NoAction to avoid
+                // multiple cascade paths into the request record.
+                entity.HasOne(request => request.DecidedByUser).WithMany().HasForeignKey(request => request.DecidedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(request => request.CreatedByUser).WithMany().HasForeignKey(request => request.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(request => request.Documents).WithOne(document => document.TerminationRequest).HasForeignKey(document => document.TerminationRequestId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(request => request.ClearanceItems).WithOne(item => item.TerminationRequest).HasForeignKey(item => item.TerminationRequestId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(request => request.StatusHistory).WithOne(history => history.TerminationRequest).HasForeignKey(history => history.TerminationRequestId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<TerminationDocument>(entity =>
+            {
+                entity.HasIndex(document => document.TerminationRequestId);
+                entity.HasIndex(document => document.IsLetter);
+                entity.Property(document => document.StoredFileName).IsRequired().HasMaxLength(200);
+                entity.Property(document => document.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(document => document.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(document => document.Title).HasMaxLength(150);
+                entity.Property(document => document.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            });
+
+            modelBuilder.Entity<ClearanceItem>(entity =>
+            {
+                entity.HasIndex(item => item.TerminationRequestId);
+                entity.HasIndex(item => item.Category);
+                entity.HasIndex(item => item.Status);
+                entity.Property(item => item.Category).HasConversion<string>().HasMaxLength(30);
+                entity.Property(item => item.ResponsiblePerson).HasMaxLength(120);
+                entity.Property(item => item.ResponsibleDepartment).HasMaxLength(100);
+                entity.Property(item => item.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(item => item.OutstandingItems).HasMaxLength(2000);
+                entity.Property(item => item.Remarks).HasMaxLength(2000);
+                entity.Property(item => item.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(item => item.IsActive).HasDefaultValue(true);
+                entity.HasOne(item => item.CreatedByUser).WithMany().HasForeignKey(item => item.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<TerminationStatusHistory>(entity =>
+            {
+                entity.HasIndex(history => history.TerminationRequestId);
+                entity.HasIndex(history => history.ChangedAt);
+                entity.Property(history => history.FromStatus).HasConversion<string>().HasMaxLength(30);
+                entity.Property(history => history.ToStatus).HasConversion<string>().HasMaxLength(30);
+                entity.Property(history => history.Note).HasMaxLength(2000);
+                entity.Property(history => history.ChangedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.HasOne(history => history.ChangedByUser).WithMany().HasForeignKey(history => history.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

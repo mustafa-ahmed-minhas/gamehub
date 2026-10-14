@@ -1,0 +1,69 @@
+@model GameHub.Models.ViewModels.PerformanceWarningFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Warning" : "Issue Warning";
+    Layout = "_AdminLayout";
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+
+<section class="arena-page hr-page performance-form-page" data-performance-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Formal Warning</span>
+            <h1>@(Model.IsEditMode ? "Edit Warning" : "Issue Warning")</h1>
+            <p>@Model.CaseNumber &middot; @Model.EmployeeName</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-arrow-left"></i> Back to Case</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "EditWarning" : "CreateWarning")" asp-route-id="@Model.Id" method="post" class="arena-form-main">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="PerformanceCaseId" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-exclamation-triangle"></i> Warning Details</h2>
+            <label>
+                <span>Issue Date *</span>
+                <input asp-for="IssueDate" type="date" max="@today.ToString("yyyy-MM-dd")" />
+                <small class="hr-hint">Cannot be in the future.</small>
+                <span asp-validation-for="IssueDate"></span>
+            </label>
+            <label>
+                <span>Status *</span>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<WarningStatus>()"></select>
+                <span asp-validation-for="Status"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Reason *</span>
+                <textarea asp-for="Reason" rows="5" maxlength="3000" placeholder="State the reason for the formal warning and the policy or expectation breached."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="Reason"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Employee Response / Remarks</span>
+                <textarea asp-for="ResponseRemarks" rows="4" maxlength="3000" placeholder="Optional. The employee's response or HR remarks about the warning."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="ResponseRemarks"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-x-circle"></i> Cancel</a>
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Issue Warning")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

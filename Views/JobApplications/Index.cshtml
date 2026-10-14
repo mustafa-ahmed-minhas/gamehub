@@ -1,0 +1,161 @@
+@model GameHub.Models.ViewModels.JobApplicationIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Job Applications";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page hr-page job-applications-page" data-job-applications-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Recruitment</span>
+            <h1>Job Applications</h1>
+            <p>Review submitted applications, CVs, and the hiring pipeline.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-person-plus"></i> Add Application</a>
+            }
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article>
+            <i class="bi bi-inbox"></i>
+            <span>Total Applications</span>
+            <strong>@Model.TotalApplications</strong>
+        </article>
+        <article>
+            <i class="bi bi-envelope-open"></i>
+            <span>New</span>
+            <strong>@Model.NewApplications</strong>
+        </article>
+        <article>
+            <i class="bi bi-hourglass-split"></i>
+            <span>In Process</span>
+            <strong>@Model.InProcess</strong>
+        </article>
+        <article>
+            <i class="bi bi-person-check"></i>
+            <span>Hired</span>
+            <strong>@Model.Hired</strong>
+        </article>
+    </div>
+
+    <section class="arena-card hr-section-card" aria-label="Applications list">
+        <div class="hr-card-head">
+            <div>
+                <h2>All Applications</h2>
+                <p>Candidates who applied to your posted positions</p>
+            </div>
+            <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">Back to Recruitment <i class="bi bi-arrow-right"></i></a>
+        </div>
+
+        @if (Model.Applications.Count == 0)
+        {
+            <div class="arena-empty">
+                <i class="bi bi-inbox"></i>
+                <h2>No applications yet</h2>
+                <p>Applications submitted for your open positions will appear here.</p>
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-person-plus"></i> Add Application</a>
+            </div>
+        }
+        else
+        {
+            <div class="hr-table-wrap">
+                <table class="arena-table hr-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Reference</th>
+                            <th scope="col">Candidate</th>
+                            <th scope="col">Position</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Applied</th>
+                            <th scope="col">Experience</th>
+                            @if (Model.CanManage)
+                            {
+                                <th scope="col">CV</th>
+                                <th scope="col">Documents</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var application in Model.Applications)
+                        {
+                            var initials = (application.FirstName.FirstOrDefault().ToString() + application.LastName.FirstOrDefault().ToString()).ToUpperInvariant();
+                            var statusTone = application.Status switch
+                            {
+                                JobApplicationStatus.Screening => "screening",
+                                JobApplicationStatus.Interview => "interview",
+                                JobApplicationStatus.Offer => "offer",
+                                JobApplicationStatus.Hired => "hired",
+                                JobApplicationStatus.Rejected => "high",
+                                _ => "new"
+                            };
+                            <tr>
+                                <td data-label="Reference">
+                                    <div class="membership-action-menu">
+                                        <a class="membership-code" asp-action="Details" asp-route-id="@application.Id" title="View application">@application.ApplicationNumber</a>
+                                        <a class="membership-icon-button" asp-action="Details" asp-route-id="@application.Id" data-tooltip="View" aria-label="View application"><i class="bi bi-eye"></i></a>
+                                        @if (Model.CanManage)
+                                        {
+                                            <a class="membership-icon-button" asp-action="Edit" asp-route-id="@application.Id" data-tooltip="Edit" aria-label="Edit application"><i class="bi bi-pencil"></i></a>
+                                        }
+                                    </div>
+                                </td>
+                                <td data-label="Candidate">
+                                    <div class="user-cell hr-identity">
+                                        <span class="user-avatar">@initials</span>
+                                        <div>
+                                            <strong>@application.FirstName @application.LastName</strong>
+                                            <small>@application.Email</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Position">
+                                    <strong>@application.JobPosting?.JobTitle</strong>
+                                    <small class="hr-update">@application.JobPosting?.ReferenceNumber</small>
+                                </td>
+                                <td data-label="Status">
+                                    <span class="membership-status-badge hr-tone @statusTone"><i></i>@application.Status.GetDisplayName()</span>
+                                </td>
+                                <td data-label="Applied"><strong>@application.ApplicationDate.ToString("dd MMM yyyy")</strong></td>
+                                <td data-label="Experience"><strong>@application.ExperienceYears yrs</strong></td>
+                                @if (Model.CanManage)
+                                {
+                                    <td data-label="CV">
+                                        <a class="membership-icon-button" asp-action="DownloadCv" asp-route-id="@application.Id" title="Download CV"><i class="bi bi-file-earmark-pdf"></i></a>
+                                    </td>
+                                    <td data-label="Documents">
+                                        @if (application.Documents.Count == 0)
+                                        {
+                                            <span class="hr-hint">None</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="hr-doc-list">
+                                                @foreach (var document in application.Documents)
+                                                {
+                                                    <a class="hr-doc-link" asp-action="DownloadDocument" asp-route-id="@document.Id" title="Download @document.OriginalFileName">
+                                                        <i class="bi bi-paperclip"></i> @document.OriginalFileName
+                                                    </a>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}

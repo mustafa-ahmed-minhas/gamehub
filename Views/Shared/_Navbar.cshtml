@@ -1,3 +1,8 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var isHomePage = string.Equals(currentController, "Home", StringComparison.OrdinalIgnoreCase);
+    var isCareersPage = string.Equals(currentController, "Careers", StringComparison.OrdinalIgnoreCase);
+}
 <nav class="public-navbar" data-public-navbar aria-label="Primary navigation">
     <div class="container nav-inner">
         <a class="brand-mark" asp-controller="Home" asp-action="Index" aria-label="GameHub Arena home">
@@ -13,11 +18,12 @@
         </button>
 
         <div class="nav-links" data-nav-links>
-            <a class="active" asp-controller="Home" asp-action="Index" asp-fragment="home">Home</a>
+            <a class="@(isHomePage ? "active" : null)" asp-controller="Home" asp-action="Index" asp-fragment="home">Home</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="sports">Sports</a>
             <a asp-controller="Courts" asp-action="Index">Courts</a>
             <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="facilities">Facilities</a>
+            <a class="@(isCareersPage ? "active" : null)" asp-controller="Careers" asp-action="Index">Careers</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact</a>
             <a asp-controller="Account" asp-action="Login">Sign In</a>
         </div>

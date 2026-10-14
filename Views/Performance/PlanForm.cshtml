@@ -1,0 +1,104 @@
+@model GameHub.Models.ViewModels.ImprovementPlanFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Improvement Plan" : "New Improvement Plan";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page hr-page performance-form-page" data-performance-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Improvement Plan</span>
+            <h1>@(Model.IsEditMode ? "Edit Improvement Plan" : "New Improvement Plan")</h1>
+            <p>@Model.CaseNumber &middot; @Model.EmployeeName</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-arrow-left"></i> Back to Case</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "EditPlan" : "CreatePlan")" asp-route-id="@Model.Id" method="post" class="arena-form-main">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="PerformanceCaseId" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-bullseye"></i> Objectives</h2>
+            <label class="hr-form-wide">
+                <span>Objectives *</span>
+                <textarea asp-for="Objectives" rows="4" maxlength="3000" placeholder="What the employee needs to achieve."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="Objectives"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Measurable Expectations *</span>
+                <textarea asp-for="MeasurableExpectations" rows="4" maxlength="3000" placeholder="How progress will be measured and evidenced."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="MeasurableExpectations"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-calendar-range"></i> Timeline &amp; Progress</h2>
+            <label>
+                <span>Start Date *</span>
+                <input asp-for="StartDate" type="date" />
+                <span asp-validation-for="StartDate"></span>
+            </label>
+            <label>
+                <span>Review Date *</span>
+                <input asp-for="ReviewDate" type="date" />
+                <small class="hr-hint">Cannot be before the start date.</small>
+                <span asp-validation-for="ReviewDate"></span>
+            </label>
+            <label>
+                <span>End Date *</span>
+                <input asp-for="EndDate" type="date" />
+                <small class="hr-hint">Cannot be before the review date.</small>
+                <span asp-validation-for="EndDate"></span>
+            </label>
+            <label>
+                <span>Progress (%)</span>
+                <input asp-for="ProgressPercent" type="number" min="0" max="100" step="1" />
+                <span asp-validation-for="ProgressPercent"></span>
+            </label>
+            <label>
+                <span>Status *</span>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<ImprovementPlanStatus>()"></select>
+                <span asp-validation-for="Status"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-clipboard-check"></i> Review &amp; Closure</h2>
+            <label class="hr-form-wide">
+                <span>Review Notes</span>
+                <textarea asp-for="ReviewNotes" rows="4" maxlength="3000" placeholder="Optional. Notes from review meetings and checkpoint discussions."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="ReviewNotes"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Outcome</span>
+                <textarea asp-for="Outcome" rows="3" maxlength="2000" placeholder="Optional. The final outcome of the plan."></textarea>
+                <small class="hr-hint">Up to 2,000 characters.</small>
+                <span asp-validation-for="Outcome"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-x-circle"></i> Cancel</a>
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Create Plan")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

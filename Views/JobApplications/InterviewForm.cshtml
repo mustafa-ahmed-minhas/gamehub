@@ -1,0 +1,119 @@
+@model GameHub.Models.ViewModels.InterviewFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.IsEditMode;
+    ViewData["Title"] = isEdit ? "Edit Interview" : "Schedule Interview";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-form-page interview-form-page" data-interview-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Recruitment</span>
+            <h1>@(isEdit ? "Edit Interview" : "Schedule Interview")</h1>
+            <p>@(isEdit ? "Update the interview schedule, panel, and outcome." : "Schedule an interview for this application and record the panel details.")</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.JobApplicationId"><i class="bi bi-arrow-left"></i> Back to Application</a>
+    </header>
+
+    <form asp-action="@(isEdit ? "EditInterview" : "ScheduleInterview")" method="post" class="arena-form-main" data-interview-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="JobApplicationId" type="hidden" />
+        <input asp-for="ApplicationNumber" type="hidden" />
+        <input asp-for="CandidateName" type="hidden" />
+        <input asp-for="JobTitle" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person-vcard"></i> Candidate</h2>
+            <label>
+                <span>Application Number</span>
+                <input value="@Model.ApplicationNumber" readonly />
+            </label>
+            <label>
+                <span>Candidate</span>
+                <input value="@Model.CandidateName" readonly />
+            </label>
+            <label class="hr-form-wide">
+                <span>Position</span>
+                <input value="@Model.JobTitle" readonly />
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-calendar-event"></i> Interview Schedule</h2>
+            <label>
+                <span>Interview Date *</span>
+                <input asp-for="InterviewDate" type="date" min="@(isEdit ? null : DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"))" />
+                <span asp-validation-for="InterviewDate"></span>
+            </label>
+            <label>
+                <span>Interview Time *</span>
+                <input asp-for="InterviewTime" type="time" />
+                <span asp-validation-for="InterviewTime"></span>
+            </label>
+            <label>
+                <span>Interview Type *</span>
+                <select asp-for="InterviewType" asp-items="Html.GetEnumSelectList<InterviewType>()"></select>
+                <span asp-validation-for="InterviewType"></span>
+            </label>
+            <label>
+                <span>Interviewer *</span>
+                <input asp-for="Interviewer" maxlength="150" placeholder="e.g. Sara Malik (HR Manager)" />
+                <span asp-validation-for="Interviewer"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Meeting Location / Link</span>
+                <input asp-for="Location" maxlength="250" placeholder="e.g. Head Office - Room 2, or a video meeting link" />
+                <small class="hr-hint">Use a physical location for in-person interviews or a link for online ones.</small>
+                <span asp-validation-for="Location"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Notes</span>
+                <textarea asp-for="Notes" rows="4" maxlength="2000" placeholder="Optional. Panel instructions, preparation notes, or candidate reminders."></textarea>
+                <small class="hr-counter" data-counter-target="Notes"></small>
+                <span asp-validation-for="Notes"></span>
+            </label>
+        </section>
+
+        @if (isEdit)
+        {
+            <section class="arena-form-card">
+                <h2><i class="bi bi-clipboard-check"></i> Status &amp; Outcome</h2>
+                <label>
+                    <span>Interview Status</span>
+                    <select asp-for="Status" asp-items="Html.GetEnumSelectList<InterviewStatus>()"></select>
+                    <span asp-validation-for="Status"></span>
+                </label>
+                <label>
+                    <span>Outcome</span>
+                    <select asp-for="Outcome" asp-items="Html.GetEnumSelectList<InterviewOutcome>()"></select>
+                    <span asp-validation-for="Outcome"></span>
+                </label>
+                <label class="hr-form-wide">
+                    <span>Feedback</span>
+                    <textarea asp-for="Feedback" rows="3" maxlength="2000" placeholder="Optional. Interviewer feedback and recommendation."></textarea>
+                    <small class="hr-counter" data-counter-target="Feedback"></small>
+                    <span asp-validation-for="Feedback"></span>
+                </label>
+            </section>
+        }
+
+        <div class="arena-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.JobApplicationId">Cancel</a>
+            <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> @(isEdit ? "Update Interview" : "Schedule Interview")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

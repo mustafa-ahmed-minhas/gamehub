@@ -185,6 +185,39 @@
     border-radius: 99px;
 }
 
+/* Entries for module screens that are planned but not yet implemented. */
+.admin-nav-link.is-disabled {
+    cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.32);
+}
+
+.admin-nav-link.is-disabled i {
+    color: rgba(255, 255, 255, 0.24);
+}
+
+.admin-nav-link.is-disabled:hover {
+    color: rgba(255, 255, 255, 0.32);
+    background: transparent;
+}
+
+.admin-nav-link .admin-nav-soon {
+    margin-left: auto;
+    padding: 0.1rem 0.45rem;
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
+    font-size: 0.58rem;
+    font-style: normal;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.admin-shell.is-collapsed .admin-nav-link .admin-nav-soon {
+    display: none;
+}
+
 .admin-profile-block {
     display: flex;
     align-items: center;

@@ -1,0 +1,257 @@
+@model GameHub.Models.ViewModels.JobApplicationFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.IsEditMode;
+    ViewData["Title"] = isEdit ? "Edit Application" : "Add Application";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-form-page job-application-form-page" data-job-application-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Job Application</span>
+            <h1>@(isEdit ? "Edit Application" : "Add Application")</h1>
+            <p>@(isEdit ? "Update the candidate's submitted information and documents." : "Record a candidate's application for an open position, including their CV.")</p>
+        </div>
+        @if (isEdit)
+        {
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i> Back to Application</a>
+        }
+        else
+        {
+            <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications"><i class="bi bi-arrow-left"></i> Back to Recruitment</a>
+        }
+    </header>
+
+    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" enctype="multipart/form-data" class="arena-form-main" data-job-application-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        @if (!isEdit && Model.AvailableJobPostings.Count == 0)
+        {
+            <div class="hr-warning-banner">
+                <i class="bi bi-exclamation-triangle"></i>
+                <div>
+                    <strong>No open postings available</strong>
+                    <span>There are no active job postings accepting applications right now. Open or create a posting first.</span>
+                </div>
+            </div>
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-briefcase"></i> Application Details</h2>
+            <label>
+                <span>Application Number</span>
+                <input asp-for="ApplicationNumber" readonly placeholder="Auto generated" />
+                <small class="hr-hint">System generated and guaranteed unique.</small>
+            </label>
+            <label>
+                <span>Job Posting *</span>
+                <select asp-for="JobPostingId" asp-items="Model.AvailableJobPostings">
+                    <option value="">Select job posting</option>
+                </select>
+                <span asp-validation-for="JobPostingId"></span>
+            </label>
+            <label>
+                <span>Application Date</span>
+                <input asp-for="ApplicationDate" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="ApplicationDate"></span>
+            </label>
+            <label>
+                <span>Application Status</span>
+                <input value="@Model.Status.GetDisplayName()" readonly />
+                <small class="hr-hint">@(isEdit ? "Status is managed from the application workflow actions." : "New applications start at Submitted.")</small>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person"></i> Personal Information</h2>
+            <label>
+                <span>First Name *</span>
+                <input asp-for="FirstName" maxlength="50" placeholder="e.g. Ayesha" />
+                <span asp-validation-for="FirstName"></span>
+            </label>
+            <label>
+                <span>Last Name *</span>
+                <input asp-for="LastName" maxlength="50" placeholder="e.g. Khan" />
+                <span asp-validation-for="LastName"></span>
+            </label>
+            <label>
+                <span>Date of Birth</span>
+                <input asp-for="DateOfBirth" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-18)).ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="DateOfBirth"></span>
+            </label>
+            <label>
+                <span>Gender</span>
+                <select asp-for="Gender" asp-items="Html.GetEnumSelectList<Gender>()">
+                    <option value="">Not specified</option>
+                </select>
+                <span asp-validation-for="Gender"></span>
+            </label>
+            <label>
+                <span>City *</span>
+                <input asp-for="City" maxlength="80" placeholder="e.g. Lahore" />
+                <span asp-validation-for="City"></span>
+            </label>
+            <label>
+                <span>Country *</span>
+                <select asp-for="Country" asp-items="Model.Countries"></select>
+                <span asp-validation-for="Country"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Current Address</span>
+                <input asp-for="CurrentAddress" maxlength="250" placeholder="Optional street address" />
+                <span asp-validation-for="CurrentAddress"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-telephone"></i> Contact &amp; Identity</h2>
+            <label>
+                <span>Email Address *</span>
+                <input asp-for="Email" type="email" maxlength="254" placeholder="candidate@example.com" />
+                <span asp-validation-for="Email"></span>
+            </label>
+            <label>
+                <span>Phone Number *</span>
+                <input asp-for="Phone" maxlength="30" placeholder="+92 300 1234567" />
+                <span asp-validation-for="Phone"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>National ID Number *</span>
+                <input asp-for="NationalIdNumber" maxlength="30" placeholder="e.g. 35202-1234567-8" data-cnic-input />
+                <small class="hr-hint">For Pakistan, enter the 13-digit CNIC. Hyphens are optional.</small>
+                <span asp-validation-for="NationalIdNumber"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-mortarboard"></i> Experience &amp; Education</h2>
+            <label>
+                <span>Experience in Years *</span>
+                <input asp-for="ExperienceYears" type="number" min="0" max="50" />
+                <span asp-validation-for="ExperienceYears"></span>
+            </label>
+            <label>
+                <span>Highest Education *</span>
+                <select asp-for="HighestEducation" asp-items="Model.EducationLevels"><option value="">Select education level</option></select>
+                <span asp-validation-for="HighestEducation"></span>
+            </label>
+            <label>
+                <span>Current / Previous Employer</span>
+                <input asp-for="CurrentEmployer" maxlength="150" placeholder="Company name (optional)" />
+                <span asp-validation-for="CurrentEmployer"></span>
+            </label>
+            <label>
+                <span>Current Job Title</span>
+                <input asp-for="CurrentJobTitle" maxlength="100" placeholder="Job title (optional)" />
+                <span asp-validation-for="CurrentJobTitle"></span>
+            </label>
+            <label>
+                <span>Expected Salary</span>
+                <input asp-for="ExpectedSalary" type="number" min="0" step="0.01" placeholder="0.00" />
+                <span asp-validation-for="ExpectedSalary"></span>
+            </label>
+            <label>
+                <span>Notice Period</span>
+                <select asp-for="NoticePeriod" asp-items="Model.NoticePeriods"><option value="">Select notice period</option></select>
+                <span asp-validation-for="NoticePeriod"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-link-45deg"></i> Links &amp; Cover Letter</h2>
+            <label>
+                <span>LinkedIn Profile</span>
+                <input asp-for="LinkedInUrl" type="url" maxlength="300" placeholder="https://www.linkedin.com/in/..." />
+                <span asp-validation-for="LinkedInUrl"></span>
+            </label>
+            <label>
+                <span>Portfolio URL</span>
+                <input asp-for="PortfolioUrl" type="url" maxlength="300" placeholder="https://..." />
+                <span asp-validation-for="PortfolioUrl"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Cover Letter</span>
+                <textarea asp-for="CoverLetter" rows="4" maxlength="3000" placeholder="Optional covering message."></textarea>
+                <small class="hr-counter" data-counter-target="CoverLetter"></small>
+                <span asp-validation-for="CoverLetter"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-file-earmark-pdf"></i> CV / Resume Upload</h2>
+            @if (isEdit && !string.IsNullOrWhiteSpace(Model.ExistingCvFileName))
+            {
+                <label class="hr-form-wide">
+                    <span>Current CV / Resume</span>
+                    <div class="hr-file-item is-current">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <div class="hr-file-meta">
+                            <strong>@Model.ExistingCvFileName</strong>
+                            <span>@((Model.ExistingCvFileSize / 1024d).ToString("N0")) KB &middot; Stored securely</span>
+                        </div>
+                        <a class="membership-icon-button" asp-action="DownloadCv" asp-route-id="@Model.Id" title="Download current CV" aria-label="Download current CV"><i class="bi bi-download"></i></a>
+                    </div>
+                </label>
+            }
+            <label class="hr-form-wide">
+                <span>CV / Resume (PDF) @(isEdit ? Html.Raw("<em class=\"hr-optional\">(optional - leave blank to keep current)</em>") : Html.Raw("*"))</span>
+                <input asp-for="CvFile" type="file" accept=".pdf,application/pdf" data-file-input="cv" />
+                <small class="hr-hint">PDF only, up to 5 MB. The file is stored securely with a generated name.</small>
+                <span asp-validation-for="CvFile"></span>
+                <div class="hr-file-list" data-file-list="cv"></div>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-paperclip"></i> Supporting Documents</h2>
+            @if (isEdit && Model.ExistingDocuments.Count > 0)
+            {
+                <label class="hr-form-wide">
+                    <span>Existing Documents</span>
+                    <div class="hr-doc-list">
+                        @foreach (var document in Model.ExistingDocuments)
+                        {
+                            <a class="hr-doc-link" asp-action="DownloadDocument" asp-route-id="@document.Id" title="Download @document.OriginalFileName">
+                                <i class="bi bi-paperclip"></i> @document.OriginalFileName
+                            </a>
+                        }
+                    </div>
+                </label>
+            }
+            <label class="hr-form-wide">
+                <span>Add Supporting Documents <em class="hr-optional">(optional, max 3)</em></span>
+                <input type="file" name="SupportingDocuments" accept=".pdf,application/pdf" multiple data-file-input="docs" />
+                <small class="hr-hint">PDF only, up to 5 MB per file and a maximum of 3 files. Existing files are kept.</small>
+                <span asp-validation-for="SupportingDocuments"></span>
+                <div class="hr-file-list" data-file-list="docs"></div>
+            </label>
+        </section>
+
+        <div class="arena-save-bar" data-save-bar>
+            @if (isEdit)
+            {
+                <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+            }
+            else
+            {
+                <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">Cancel</a>
+            }
+            <button class="admin-action-button" type="submit" data-loading-button data-application-submit><i class="bi bi-check2-circle"></i> @(isEdit ? "Update Application" : "Save Application")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-forms.js" asp-append-version="true"></script>
+}

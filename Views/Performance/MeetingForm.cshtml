@@ -1,0 +1,78 @@
+@model GameHub.Models.ViewModels.PerformanceMeetingFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Meeting" : "Record Meeting";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page hr-page performance-form-page" data-performance-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Performance Meeting</span>
+            <h1>@(Model.IsEditMode ? "Edit Meeting" : "Record Meeting")</h1>
+            <p>@Model.CaseNumber &middot; @Model.EmployeeName</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-arrow-left"></i> Back to Case</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "EditMeeting" : "CreateMeeting")" asp-route-id="@Model.Id" method="post" class="arena-form-main">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="PerformanceCaseId" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-calendar-event"></i> Meeting</h2>
+            <label>
+                <span>Meeting Date *</span>
+                <input asp-for="MeetingDate" type="date" />
+                <span asp-validation-for="MeetingDate"></span>
+            </label>
+            <label>
+                <span>Meeting Time *</span>
+                <input asp-for="MeetingTime" type="time" />
+                <span asp-validation-for="MeetingTime"></span>
+            </label>
+            <label>
+                <span>Status *</span>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<PerformanceMeetingStatus>()"></select>
+                <span asp-validation-for="Status"></span>
+            </label>
+            <label>
+                <span>Follow-up Date</span>
+                <input asp-for="FollowUpDate" type="date" />
+                <small class="hr-hint">Optional. Cannot be before the meeting date.</small>
+                <span asp-validation-for="FollowUpDate"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Discussion Notes *</span>
+                <textarea asp-for="DiscussionNotes" rows="5" maxlength="3000" placeholder="What was discussed, agreed, and highlighted."></textarea>
+                <small class="hr-hint">Up to 3,000 characters.</small>
+                <span asp-validation-for="DiscussionNotes"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Outcome</span>
+                <textarea asp-for="Outcome" rows="3" maxlength="2000" placeholder="Optional. The agreed outcome or next steps."></textarea>
+                <small class="hr-hint">Up to 2,000 characters.</small>
+                <span asp-validation-for="Outcome"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.PerformanceCaseId"><i class="bi bi-x-circle"></i> Cancel</a>
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Add Meeting")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

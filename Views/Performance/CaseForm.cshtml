@@ -1,0 +1,130 @@
+@model GameHub.Models.ViewModels.PerformanceCaseFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Performance Case" : "New Performance Case";
+    Layout = "_AdminLayout";
+
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+
+<section class="arena-page hr-page performance-form-page" data-performance-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Performance &amp; Warnings</span>
+            <h1>@(Model.IsEditMode ? "Edit Performance Case" : "New Performance Case")</h1>
+            <p>@(Model.IsEditMode ? "Update the case details. The linked employee and case reference are preserved." : "Raise a performance, conduct, attendance, or compliance case against an existing employee.")</p>
+        </div>
+        @if (Model.IsEditMode)
+        {
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i> Back to Case</a>
+        }
+        else
+        {
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Performance &amp; Warnings</a>
+        }
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "EditCase" : "CreateCase")" asp-route-id="@Model.Id" method="post" class="arena-form-main">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        @if (Model.IsEditMode)
+        {
+            <input asp-for="EmployeeId" type="hidden" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person-badge"></i> Employee &amp; Case</h2>
+            @if (Model.IsEditMode)
+            {
+                <label>
+                    <span>Employee</span>
+                    <input value="@Model.EmployeeName" readonly />
+                </label>
+                <label>
+                    <span>Employee Number</span>
+                    <input value="@Model.EmployeeNumber" readonly />
+                </label>
+            }
+            else
+            {
+                <label class="hr-form-wide">
+                    <span>Employee *</span>
+                    <select asp-for="EmployeeId" asp-items="Model.EmployeeOptions">
+                        <option value="">Select an employee</option>
+                    </select>
+                    <small class="hr-hint">Only active employees can be linked to a case.</small>
+                    <span asp-validation-for="EmployeeId"></span>
+                </label>
+            }
+            <label>
+                <span>Case Reference</span>
+                <input asp-for="CaseNumber" readonly />
+            </label>
+            <label>
+                <span>Issue Type *</span>
+                <select asp-for="IssueType" asp-items="Html.GetEnumSelectList<PerformanceIssueType>()"></select>
+                <span asp-validation-for="IssueType"></span>
+            </label>
+            <label>
+                <span>Reported Date *</span>
+                <input asp-for="ReportedDate" type="date" max="@today.ToString("yyyy-MM-dd")" />
+                <small class="hr-hint">Cannot be in the future.</small>
+                <span asp-validation-for="ReportedDate"></span>
+            </label>
+            <label>
+                <span>Severity *</span>
+                <select asp-for="Severity" asp-items="Html.GetEnumSelectList<PerformanceSeverity>()"></select>
+                <span asp-validation-for="Severity"></span>
+            </label>
+            <label>
+                <span>Assigned HR Person</span>
+                <select asp-for="AssignedHrUserId" asp-items="Model.HrUserOptions">
+                    <option value="">Not assigned</option>
+                </select>
+                <small class="hr-hint">Optional. The HR owner responsible for this case.</small>
+                <span asp-validation-for="AssignedHrUserId"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-card-text"></i> Case Details</h2>
+            <label class="hr-form-wide">
+                <span>Case Title *</span>
+                <input asp-for="Title" maxlength="150" placeholder="e.g. Repeated lateness in Q3" />
+                <span asp-validation-for="Title"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Description *</span>
+                <textarea asp-for="Description" rows="6" maxlength="4000" placeholder="Describe the concern, the evidence, and any prior discussions."></textarea>
+                <small class="hr-hint">Up to 4,000 characters.</small>
+                <span asp-validation-for="Description"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            @if (Model.IsEditMode)
+            {
+                <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-x-circle"></i> Cancel</a>
+            }
+            else
+            {
+                <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Cancel</a>
+            }
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Create Case")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,473 @@
+@model GameHub.Models.ViewModels.TerminationDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var request = Model.Request;
+    var employee = Model.Employee;
+    var today = Model.Today;
+
+    var isDraft = request.Status == TerminationStatus.Draft;
+    var isPending = request.Status == TerminationStatus.PendingApproval;
+    var isApproved = request.Status == TerminationStatus.Approved;
+    var isRejected = request.Status == TerminationStatus.Rejected;
+    var isInProgress = request.Status == TerminationStatus.InProgress;
+    var isCompleted = request.Status == TerminationStatus.Completed;
+
+    var canManageClearance = Model.CanManage && (isApproved || isInProgress);
+    var clearancePercent = Model.TotalCount == 0 ? 0 : (int)Math.Round(Model.ClearedCount * 100.0 / Model.TotalCount);
+
+    ViewData["Title"] = $"Termination {request.ReferenceNumber}";
+    Layout = "_AdminLayout";
+
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateTimeOrFallback(DateTime? value) => value.HasValue ? value.Value.ToString("dd MMM yyyy hh:mm tt") : "Not available";
+    string PersonName(GameHub.Models.Entities.User? user) => user == null ? "System" : $"{user.FirstName} {user.LastName}".Trim();
+
+    string TransitionClass(TerminationStatus status) => status switch
+    {
+        TerminationStatus.Approved => "admin-action-button",
+        TerminationStatus.InProgress => "admin-action-button",
+        TerminationStatus.Completed => "admin-action-button",
+        TerminationStatus.Rejected => "admin-secondary-button",
+        _ => "admin-secondary-button"
+    };
+
+    string TransitionIcon(TerminationStatus status) => status switch
+    {
+        TerminationStatus.PendingApproval => "bi-send",
+        TerminationStatus.Approved => "bi-check2-circle",
+        TerminationStatus.Rejected => "bi-x-circle",
+        TerminationStatus.InProgress => "bi-arrow-repeat",
+        TerminationStatus.Completed => "bi-flag",
+        _ => "bi-arrow-right"
+    };
+
+    bool NeedsNote(TerminationStatus status) =>
+        status is TerminationStatus.Approved or TerminationStatus.Rejected or TerminationStatus.Completed;
+}
+
+<section class="arena-page hr-page termination-page termination-details-page">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Termination Request</span>
+            <h1>@request.ReferenceNumber</h1>
+            <p>@employee.FirstName @employee.LastName &middot; @request.TerminationType.GetDisplayName() &middot; @request.Reason</p>
+        </div>
+        <div class="arena-actions">
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Termination</a>
+            @if (Model.CanManage && isDraft)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@request.Id"><i class="bi bi-pencil"></i> Edit Request</a>
+            }
+        </div>
+    </header>
+
+    <article class="termination-hero">
+        <div class="user-cell hr-identity">
+            <span class="user-avatar membership-table-avatar termination-hero-avatar">@Model.Initials</span>
+            <div>
+                <strong>@employee.FirstName @employee.LastName</strong>
+                <small>@employee.EmployeeNumber &middot; @employee.Designation</small>
+                <small>@employee.Department</small>
+            </div>
+        </div>
+
+        <div class="termination-hero-meta">
+            <div><span>Status</span><strong><span class="membership-status-badge hr-tone @request.Status.GetBadgeClass()"><i></i>@request.Status.GetDisplayName()</span></strong></div>
+            <div><span>Requested</span><strong>@request.RequestDate.ToString("dd MMM yyyy")</strong></div>
+            <div><span>Last Working Day</span><strong>@request.ProposedLastWorkingDay.ToString("dd MMM yyyy")</strong></div>
+            <div><span>Clearance</span><strong>@Model.ClearedCount / @Model.TotalCount</strong></div>
+        </div>
+    </article>
+
+    <div class="termination-status-banner @request.Status.GetBadgeClass()">
+        <i class="bi bi-info-circle"></i>
+        <div>
+            <strong>@request.Status.GetDisplayName()</strong>
+            <span>
+                @(isDraft ? "Draft. Submit the request for approval once the details are complete."
+                    : isPending ? "Awaiting an approver decision."
+                    : isApproved ? "Approved. Track employee clearance and finalise once all mandatory items are cleared."
+                    : isRejected ? "Rejected. No further action is available on this request."
+                    : isInProgress ? "Clearance is in progress. Complete all mandatory items to finalise the termination."
+                    : "Completed. The employee's employment status has been updated.")
+            </span>
+        </div>
+    </div>
+
+    <div class="termination-details-grid">
+        <main class="termination-details-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-card-text"></i><div><h2>Request Overview</h2><p>The termination as requested.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Reference</dt><dd>@request.ReferenceNumber</dd></div>
+                    <div><dt>Termination Type</dt><dd>@request.TerminationType.GetDisplayName()</dd></div>
+                    <div><dt>Reason</dt><dd>@request.Reason</dd></div>
+                    <div><dt>Request Date</dt><dd>@request.RequestDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Proposed Last Working Day</dt><dd>@request.ProposedLastWorkingDay.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Notice Period</dt><dd>@(string.IsNullOrWhiteSpace(request.NoticePeriod) ? "Not specified" : request.NoticePeriod)</dd></div>
+                </dl>
+                <h3 class="admin-label">Explanation</h3>
+                <p class="job-posting-copy">@TextOrFallback(request.Explanation)</p>
+                @if (!string.IsNullOrWhiteSpace(request.Remarks))
+                {
+                    <h3 class="admin-label">Remarks</h3>
+                    <p class="job-posting-copy">@request.Remarks</p>
+                }
+            </article>
+
+            @if (request.DecisionAt.HasValue || !string.IsNullOrWhiteSpace(request.DecisionRemarks))
+            {
+                <article class="customer-info-card admin-reveal">
+                    <header><i class="bi bi-shield-check"></i><div><h2>Approval Decision</h2><p>The approver's recorded decision.</p></div></header>
+                    <dl class="customer-meta-grid">
+                        <div><dt>Decision</dt><dd>@(isApproved || isInProgress || isCompleted ? "Approved" : isRejected ? "Rejected" : "Pending")</dd></div>
+                        <div><dt>Decided By</dt><dd>@PersonName(request.DecidedByUser)</dd></div>
+                        <div><dt>Decided At</dt><dd>@DateTimeOrFallback(request.DecisionAt)</dd></div>
+                        @if (request.CompletedAt.HasValue)
+                        {
+                            <div><dt>Completed At</dt><dd>@DateTimeOrFallback(request.CompletedAt)</dd></div>
+                        }
+                    </dl>
+                    @if (!string.IsNullOrWhiteSpace(request.DecisionRemarks))
+                    {
+                        <h3 class="admin-label">Decision Remarks</h3>
+                        <p class="job-posting-copy">@request.DecisionRemarks</p>
+                    }
+                </article>
+            }
+
+            <article class="customer-info-card admin-reveal">
+                <header class="termination-section-head">
+                    <div class="termination-section-title"><i class="bi bi-file-earmark-text"></i><div><h2>Termination Letter</h2><p>Generate a letter or upload a signed copy.</p></div></div>
+                </header>
+
+                @if (Model.Letter != null)
+                {
+                    <div class="termination-letter-row">
+                        <div>
+                            <strong>@Model.Letter.OriginalFileName</strong>
+                            <small>@(Model.Letter.IsGenerated ? "Generated" : "Uploaded") &middot; @(Model.Letter.CreatedAt.ToString("dd MMM yyyy"))</small>
+                        </div>
+                        @if (Model.CanManage)
+                        {
+                            <div class="termination-record-actions">
+                                <a class="admin-secondary-button" asp-action="PreviewLetter" asp-route-id="@request.Id" target="_blank" rel="noopener"><i class="bi bi-eye"></i> Preview</a>
+                                <a class="admin-secondary-button" asp-action="DownloadLetter" asp-route-id="@request.Id"><i class="bi bi-download"></i> Download</a>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="customer-empty-copy">No termination letter has been generated or uploaded yet.</p>
+                }
+
+                @if (Model.CanManage && !isRejected)
+                {
+                    <div class="termination-letter-actions">
+                        <form method="post" asp-action="GenerateLetter" asp-route-id="@request.Id" class="membership-inline-form"
+                              data-hr-confirm-form data-confirm-title="Generate Letter" data-confirm-message="Generate the termination letter from the saved request details? Any existing letter will be replaced.">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="admin-action-button" type="submit"><i class="bi bi-magic"></i> Generate Letter</button>
+                        </form>
+                        <form method="post" asp-action="UploadLetter" asp-route-id="@request.Id" enctype="multipart/form-data" class="termination-upload-form" data-hr-submit-once>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <input type="file" name="letter" accept="application/pdf" required />
+                            <button class="admin-secondary-button" type="submit"><i class="bi bi-upload"></i> Upload Letter</button>
+                        </form>
+                    </div>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="termination-section-head">
+                    <div class="termination-section-title"><i class="bi bi-paperclip"></i><div><h2>Supporting Documents</h2><p>PDF evidence such as resignation letters or notices.</p></div></div>
+                </header>
+
+                @if (Model.Documents.Count == 0)
+                {
+                    <p class="customer-empty-copy">No supporting documents uploaded.</p>
+                }
+                else
+                {
+                    <div class="termination-record-list">
+                        @foreach (var document in Model.Documents)
+                        {
+                            <div class="termination-record-item is-static">
+                                <div class="termination-record-head">
+                                    <span class="termination-record-when">
+                                        <strong>@document.OriginalFileName</strong>
+                                        <small>@document.CreatedAt.ToString("dd MMM yyyy") &middot; @(document.FileSize / 1024) KB</small>
+                                    </span>
+                                    <div class="termination-record-actions">
+                                        @if (Model.CanManage)
+                                        {
+                                            <a class="membership-icon-button" asp-action="DownloadDocument" asp-route-id="@document.Id" data-tooltip="Download" aria-label="Download document"><i class="bi bi-download"></i></a>
+                                            <form method="post" asp-action="DeleteDocument" asp-route-id="@document.Id" class="membership-inline-form"
+                                                  data-hr-confirm-form data-confirm-title="Remove Document" data-confirm-danger="true"
+                                                  data-confirm-message="Remove this document from the request?">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button class="membership-icon-button" type="submit" data-tooltip="Remove" aria-label="Remove document"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (Model.CanManage && !isRejected)
+                {
+                    <form method="post" asp-action="UploadDocuments" asp-route-id="@request.Id" enctype="multipart/form-data" class="termination-upload-form" data-hr-submit-once>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <input type="file" name="documents" accept="application/pdf" multiple />
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-upload"></i> Upload Documents</button>
+                        <small class="hr-hint">PDF only, up to 5 documents.</small>
+                    </form>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="termination-section-head">
+                    <div class="termination-section-title"><i class="bi bi-clipboard-check"></i><div><h2>Employee Clearance</h2><p>Track clearance by category and outstanding items.</p></div></div>
+                    @if (canManageClearance)
+                    {
+                        <a class="admin-secondary-button" asp-action="CreateClearance" asp-route-requestId="@request.Id"><i class="bi bi-plus-lg"></i> Add Item</a>
+                    }
+                </header>
+
+                @if (Model.TotalCount > 0)
+                {
+                    <div class="termination-progress">
+                        <div class="hr-progress"><span style="width:@clearancePercent%"></span></div>
+                        <small>@clearancePercent% cleared &middot; @Model.OutstandingMandatoryCount mandatory outstanding</small>
+                    </div>
+                }
+
+                @if (Model.ClearanceItems.Count == 0)
+                {
+                    <p class="customer-empty-copy">No clearance items recorded yet.</p>
+                    @if (canManageClearance)
+                    {
+                        <form method="post" asp-action="SeedClearance" asp-route-id="@request.Id" class="membership-inline-form"
+                              data-hr-confirm-form data-confirm-title="Create Checklist" data-confirm-message="Create the standard five-item clearance checklist for this request?">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="admin-action-button" type="submit"><i class="bi bi-list-check"></i> Create Standard Checklist</button>
+                        </form>
+                    }
+                }
+                else
+                {
+                    <div class="termination-record-list">
+                        @foreach (var item in Model.ClearanceItems)
+                        {
+                            <div class="termination-record-item is-static">
+                                <div class="termination-record-head">
+                                    <span class="termination-record-when">
+                                        <strong>@item.Category.GetDisplayName()</strong>
+                                        <small>@(item.IsMandatory ? "Mandatory" : "Optional")@(string.IsNullOrWhiteSpace(item.ResponsibleDepartment) ? "" : $" \u00b7 {item.ResponsibleDepartment}")@(string.IsNullOrWhiteSpace(item.ResponsiblePerson) ? "" : $" \u00b7 {item.ResponsiblePerson}")</small>
+                                    </span>
+                                    <span class="membership-status-badge hr-tone @item.Status.GetBadgeClass()"><i></i>@item.Status.GetDisplayName()</span>
+                                </div>
+                                <div class="termination-record-body">
+                                    @if (!string.IsNullOrWhiteSpace(item.OutstandingItems))
+                                    {
+                                        <p class="termination-outstanding"><i class="bi bi-exclamation-circle"></i> @item.OutstandingItems</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.Remarks))
+                                    {
+                                        <p class="job-posting-copy"><strong>Remarks:</strong> @item.Remarks</p>
+                                    }
+                                    @if (item.CompletedDate.HasValue)
+                                    {
+                                        <p class="termination-completed"><i class="bi bi-check2"></i> Cleared on @item.CompletedDate.Value.ToString("dd MMM yyyy")</p>
+                                    }
+
+                                    @if (canManageClearance)
+                                    {
+                                        <div class="termination-record-actions">
+                                            <form method="post" asp-action="UpdateClearanceStatus" asp-route-id="@item.Id" class="membership-inline-form termination-status-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <select name="status" aria-label="Clearance status">
+                                                    @foreach (var target in TerminationWorkflow.NextStatuses(item.Status))
+                                                    {
+                                                        <option value="@target">@target.GetDisplayName()</option>
+                                                    }
+                                                </select>
+                                                <button class="admin-secondary-button" type="submit"><i class="bi bi-arrow-repeat"></i> Update</button>
+                                            </form>
+                                            <a class="admin-secondary-button" asp-action="EditClearance" asp-route-id="@item.Id"><i class="bi bi-pencil"></i> Edit</a>
+                                            <form method="post" asp-action="DeleteClearance" asp-route-id="@item.Id" class="membership-inline-form"
+                                                  data-hr-confirm-form data-confirm-title="Remove Clearance Item" data-confirm-danger="true"
+                                                  data-confirm-message="Remove this clearance item from the checklist?">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button class="admin-secondary-button" type="submit"><i class="bi bi-trash"></i> Remove</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="termination-section-head">
+                    <div class="termination-section-title"><i class="bi bi-clock-history"></i><div><h2>Approval &amp; Audit History</h2><p>Every status change recorded on this request.</p></div></div>
+                </header>
+
+                @if (Model.StatusHistory.Count == 0)
+                {
+                    <p class="customer-empty-copy">No history recorded yet.</p>
+                }
+                else
+                {
+                    <div class="termination-timeline">
+                        @foreach (var history in Model.StatusHistory)
+                        {
+                            <div class="termination-timeline-item">
+                                <span class="termination-timeline-dot @request.Status.GetBadgeClass()"></span>
+                                <div>
+                                    <strong>@(history.FromStatus.HasValue ? $"{history.FromStatus.Value.GetDisplayName()} → {history.ToStatus.GetDisplayName()}" : $"Created as {history.ToStatus.GetDisplayName()}")</strong>
+                                    <small>@PersonName(history.ChangedByUser) &middot; @DateTimeOrFallback(history.ChangedAt)</small>
+                                    @if (!string.IsNullOrWhiteSpace(history.Note))
+                                    {
+                                        <p>@history.Note</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+        </main>
+
+        <aside class="termination-details-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-diagram-2"></i><h2>Workflow</h2></header>
+                @if (!Model.CanManage)
+                {
+                    <p class="customer-empty-copy">Workflow actions are restricted to HR management roles.</p>
+                }
+                else if (Model.AllowedTransitions.Count == 0)
+                {
+                    <p class="customer-empty-copy">No further action is available for this request.</p>
+                }
+                else
+                {
+                    @if (isInProgress)
+                    {
+                        <div class="termination-clearance-gate @(Model.ClearanceComplete ? "is-ready" : "is-blocked")">
+                            @if (Model.ClearanceComplete)
+                            {
+                                <i class="bi bi-check2-circle"></i><span>All mandatory clearance items are cleared.</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-exclamation-triangle"></i><span>@Model.OutstandingMandatoryCount mandatory item(s) still outstanding.</span>
+                            }
+                        </div>
+                    }
+                    <div class="job-pipeline-actions">
+                        @foreach (var target in Model.AllowedTransitions)
+                        {
+                            <form method="post" asp-action="Transition" asp-route-id="@request.Id"
+                                  data-hr-confirm-form
+                                  data-confirm-title="@($"Move to {target.GetDisplayName()}")"
+                                  data-confirm-danger="@(target == TerminationStatus.Rejected ? "true" : "false")"
+                                  data-confirm-message="@($"Move request {request.ReferenceNumber} to {target.GetDisplayName()}?")">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="status" value="@target" />
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                @if (NeedsNote(target))
+                                {
+                                    <textarea name="note" rows="2" maxlength="2000" placeholder="@(target == TerminationStatus.Rejected ? "Reason for rejection (required)" : "Optional remarks")"></textarea>
+                                }
+                                <button class="@TransitionClass(target)" type="submit"><i class="bi @TransitionIcon(target)"></i> Mark @target.GetDisplayName()</button>
+                            </form>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clipboard-check"></i><h2>Clearance Progress</h2></header>
+                <div class="termination-progress">
+                    <div class="hr-progress"><span style="width:@clearancePercent%"></span></div>
+                    <small>@clearancePercent% complete</small>
+                </div>
+                <div class="customer-summary-list">
+                    <div><span>Total Items</span><strong>@Model.TotalCount</strong></div>
+                    <div><span>Cleared</span><strong>@Model.ClearedCount</strong></div>
+                    <div><span>Outstanding (Mandatory)</span><strong>@Model.OutstandingMandatoryCount</strong></div>
+                    <div><span>Ready to Complete</span><strong>@(Model.ClearanceComplete ? "Yes" : "No")</strong></div>
+                </div>
+                @if (canManageClearance)
+                {
+                    <div class="job-pipeline-actions">
+                        <a class="admin-secondary-button" asp-action="CreateClearance" asp-route-requestId="@request.Id"><i class="bi bi-plus-lg"></i> Add Clearance Item</a>
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-person-lines-fill"></i><h2>Employee</h2></header>
+                <div class="customer-summary-list">
+                    <div><span>Name</span><strong>@employee.FirstName @employee.LastName</strong></div>
+                    <div><span>Employee Number</span><strong>@employee.EmployeeNumber</strong></div>
+                    <div><span>Designation</span><strong>@employee.Designation</strong></div>
+                    <div><span>Department</span><strong>@employee.Department</strong></div>
+                    <div><span>Employment Status</span><strong>@employee.EmploymentStatus.GetDisplayName()</strong></div>
+                </div>
+                <div class="job-pipeline-actions">
+                    <a class="admin-secondary-button" asp-controller="Employees" asp-action="Details" asp-route-id="@employee.Id"><i class="bi bi-person-vcard"></i> View Employee</a>
+                </div>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-info-circle"></i><h2>Record Info</h2></header>
+                <div class="customer-summary-list">
+                    <div><span>Reference</span><strong>@request.ReferenceNumber</strong></div>
+                    <div><span>Created</span><strong>@DateTimeOrFallback(request.CreatedAt)</strong></div>
+                    <div><span>Updated</span><strong>@DateTimeOrFallback(request.UpdatedAt)</strong></div>
+                    <div><span>Created By</span><strong>@PersonName(request.CreatedByUser)</strong></div>
+                    <div><span>Documents</span><strong>@Model.Documents.Count</strong></div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<div class="modal fade customer-modal" id="hrConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" data-hr-confirm-title>Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p data-hr-confirm-message>Are you sure?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="admin-action-button" data-hr-confirm-submit>Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

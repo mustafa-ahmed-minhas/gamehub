@@ -1,0 +1,197 @@
+@model GameHub.Models.ViewModels.EmployeeFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Employee" : "Add Employee";
+    Layout = "_AdminLayout";
+    var initials = $"{Model.FirstName}{Model.LastName}".Trim();
+    initials = string.IsNullOrWhiteSpace(initials) ? "N/A" : (initials.Length > 2 ? initials.Substring(0, 2) : initials).ToUpperInvariant();
+    var maxJoiningDate = Model.IsHireFromOffer ? null : DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+}
+
+<section class="arena-page hr-page employee-form-page" data-employee-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>@(Model.IsEditMode ? "Edit Employee" : "Add Employee")</h1>
+            <p>Create and maintain a complete employment profile for your workforce.</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Employees</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="arena-form-main" data-employee-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="ExistingProfileImageUrl" type="hidden" />
+        <input asp-for="OfferId" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        @if (Model.OfferId.HasValue)
+        {
+            <div class="hr-offer-hire-banner">
+                <i class="bi bi-patch-check-fill"></i>
+                <div>
+                    <strong>Hiring from offer @Model.OfferReference</strong>
+                    <span>Review the prefilled details and confirm to create the employee. The offer will be linked to the new record once saved.</span>
+                </div>
+            </div>
+        }
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-briefcase"></i> Employment Overview</h2>
+            <label>
+                <span>Employee ID</span>
+                <input asp-for="EmployeeNumber" readonly placeholder="Auto generated" />
+                <small class="hr-hint">System generated and guaranteed unique.</small>
+            </label>
+            <label>
+                <span>Employment Status *</span>
+                <select asp-for="EmploymentStatus" asp-items="Html.GetEnumSelectList<EmploymentStatus>()"></select>
+                <span asp-validation-for="EmploymentStatus"></span>
+            </label>
+            <label>
+                <span>Department *</span>
+                <select asp-for="Department" asp-items="Model.Departments"><option value="">Select department</option></select>
+                <span asp-validation-for="Department"></span>
+            </label>
+            <label>
+                <span>Designation *</span>
+                <select asp-for="Designation" asp-items="Model.Designations"><option value="">Select designation</option></select>
+                <span asp-validation-for="Designation"></span>
+            </label>
+            <label>
+                <span>Employment Type *</span>
+                <select asp-for="EmploymentType" asp-items="Html.GetEnumSelectList<EmploymentType>()"></select>
+                <span asp-validation-for="EmploymentType"></span>
+            </label>
+            <label>
+                <span>Joining Date *</span>
+                <input asp-for="JoiningDate" type="date" max="@maxJoiningDate" />
+                <span asp-validation-for="JoiningDate"></span>
+            </label>
+            <label>
+                <span>Reporting Manager</span>
+                <select asp-for="ReportingManagerId" asp-items="Model.ReportingManagers"><option value="">Not assigned</option></select>
+                <span asp-validation-for="ReportingManagerId"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person"></i> Personal Information</h2>
+            <label>
+                <span>First Name *</span>
+                <input asp-for="FirstName" placeholder="e.g. Ayesha" maxlength="50" data-employee-preview-first />
+                <span asp-validation-for="FirstName"></span>
+            </label>
+            <label>
+                <span>Last Name *</span>
+                <input asp-for="LastName" placeholder="e.g. Khan" maxlength="50" data-employee-preview-last />
+                <span asp-validation-for="LastName"></span>
+            </label>
+            <label>
+                <span>Date of Birth *</span>
+                <input asp-for="DateOfBirth" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-18).ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="DateOfBirth"></span>
+            </label>
+            <label>
+                <span>Gender *</span>
+                <select asp-for="Gender" asp-items="Html.GetEnumSelectList<Gender>()"></select>
+                <span asp-validation-for="Gender"></span>
+            </label>
+            <label>
+                <span>National ID / CNIC *</span>
+                <input asp-for="NationalIdNumber" placeholder="e.g. 35202-1234567-8" data-check-national-id data-current-id="@Model.Id" />
+                <span asp-validation-for="NationalIdNumber"></span>
+                <em data-national-id-status></em>
+            </label>
+            <label>
+                <span>Phone Number *</span>
+                <input asp-for="PhoneNumber" placeholder="e.g. +92 300 1234567" data-check-phone data-current-id="@Model.Id" />
+                <span asp-validation-for="PhoneNumber"></span>
+                <em data-phone-status></em>
+            </label>
+            <label>
+                <span>Email Address *</span>
+                <input asp-for="Email" placeholder="e.g. ayesha.khan@gamehub.pk" data-check-email data-current-id="@Model.Id" />
+                <span asp-validation-for="Email"></span>
+                <em data-email-status></em>
+            </label>
+            <label class="hr-form-wide employee-photo-field">
+                <span>Profile Photo</span>
+                <div class="employee-photo-row">
+                    <div class="employee-photo-preview" data-employee-photo-preview>
+                        @if (!string.IsNullOrWhiteSpace(Model.ExistingProfileImageUrl))
+                        {
+                            <img src="@Model.ExistingProfileImageUrl" alt="@Model.FirstName" />
+                        }
+                        else
+                        {
+                            @initials
+                        }
+                    </div>
+                    <input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" data-employee-image-input />
+                </div>
+                <small class="hr-hint">Optional. JPG, PNG, or WEBP up to 3 MB.</small>
+                <span asp-validation-for="ProfileImage"></span>
+                @if (!string.IsNullOrWhiteSpace(Model.ExistingProfileImageUrl))
+                {
+                    <label class="customer-toggle"><input asp-for="RemoveProfileImage" type="checkbox" /> Remove existing profile photo</label>
+                }
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-cash-stack"></i> Compensation</h2>
+            <label>
+                <span>Basic Salary (PKR)</span>
+                <input asp-for="BasicSalary" type="number" min="0" step="0.01" placeholder="0.00" />
+                <span asp-validation-for="BasicSalary"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-geo-alt"></i> Contact &amp; Emergency</h2>
+            <label class="hr-form-wide">
+                <span>Employment Address</span>
+                <textarea asp-for="EmploymentAddress" rows="3" maxlength="250" placeholder="Current residential / correspondence address"></textarea>
+                <small class="hr-counter" data-counter-target="EmploymentAddress"></small>
+                <span asp-validation-for="EmploymentAddress"></span>
+            </label>
+            <label>
+                <span>Emergency Contact Name</span>
+                <input asp-for="EmergencyContactName" maxlength="100" placeholder="e.g. Ahmed Khan" />
+                <span asp-validation-for="EmergencyContactName"></span>
+            </label>
+            <label>
+                <span>Emergency Contact Number</span>
+                <input asp-for="EmergencyContactNumber" maxlength="30" placeholder="e.g. +92 300 1234567" />
+                <span asp-validation-for="EmergencyContactNumber"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-journal-text"></i> Internal Notes</h2>
+            <label class="hr-form-wide">
+                <span>Notes</span>
+                <textarea asp-for="Notes" rows="5" maxlength="2000" placeholder="Optional internal notes about the employee"></textarea>
+                <small class="hr-counter" data-counter-target="Notes"></small>
+                <span asp-validation-for="Notes"></span>
+            </label>
+        </section>
+
+        <div class="arena-save-bar" data-save-bar>
+            <a class="admin-secondary-button" asp-action="Index">Cancel</a>
+            <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Add Employee")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-employees.js" asp-append-version="true"></script>
+}

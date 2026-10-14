@@ -82,6 +82,7 @@ namespace GameHub.Data
             await SeedCrmAsync(dbContext);
             await SeedSalesAsync(dbContext);
             await SeedInvoiceDemoAsync(dbContext);
+            await SeedHrAsync(dbContext);
         }
 
         private static async Task SeedInvoiceDemoAsync(ApplicationDbContext db)
@@ -199,6 +200,102 @@ namespace GameHub.Data
             invoice.Items.Add(new SalesInvoiceItem { LineNumber = invoice.Items.Count + 1, DisplayOrder = invoice.Items.Count + 1, ItemType = item.Type, Description = item.Name, Quantity = quantity, UnitOfMeasure = item.Unit, UnitPrice = item.Price, DiscountPercentage = discount, DiscountAmount = discountAmount, TaxPercentage = tax, TaxAmount = taxAmount, LineSubtotal = subtotal, LineTotal = subtotal - discountAmount + taxAmount, ServiceDate = date, CreatedAt = DateTime.UtcNow });
         }
         private static void CalculateInvoice(SalesInvoice invoice) { invoice.Subtotal = invoice.Items.Sum(x => x.LineSubtotal); invoice.DiscountTotal = invoice.Items.Sum(x => x.DiscountAmount); invoice.TaxTotal = invoice.Items.Sum(x => x.TaxAmount); invoice.GrandTotal = invoice.Subtotal - invoice.DiscountTotal + invoice.TaxTotal + invoice.AdjustmentAmount; invoice.OutstandingAmount = invoice.GrandTotal - invoice.PaidAmount; }
+
+        private static async Task SeedHrAsync(ApplicationDbContext dbContext)
+        {
+            if (await dbContext.JobPostings.AnyAsync()) return;
+
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var users = await dbContext.Users.AsNoTracking().Take(3).OrderBy(user => user.Id).ToListAsync();
+            var hiringManagerId = users.ElementAtOrDefault(0)?.Id;
+
+            var coachPosting = new JobPosting
+            {
+                ReferenceNumber = "JOB-000001",
+                JobTitle = "Senior Table Tennis Coach",
+                Department = "Sports & Recreation",
+                EmploymentType = EmploymentType.FullTime,
+                WorkplaceType = WorkplaceType.OnSite,
+                JobLocation = "Lahore, Pakistan",
+                Vacancies = 2,
+                MinimumSalary = 180000m,
+                MaximumSalary = 260000m,
+                Currency = "PKR",
+                ExperienceRequired = "Senior (5-8 years)",
+                MinimumEducation = "Bachelor's Degree",
+                JobDescription = "We are looking for an experienced table tennis coach to lead our competitive training program. The coach will design training plans, prepare athletes for national tournaments, and mentor junior coaching staff while maintaining a safe and motivating training environment.",
+                KeyResponsibilities = "Design and run group and one-on-one training sessions. Prepare athletes for provincial and national tournaments. Monitor player progress and adjust training plans. Mentor assistant coaches and supervise court usage.",
+                Qualifications = "Minimum 5 years of coaching experience with a recognized table tennis federation. Proven track record of developing competitive players. Strong communication and leadership skills.",
+                ApplicationDeadline = today.AddDays(30),
+                Status = JobPostingStatus.Open,
+                HiringManagerUserId = hiringManagerId,
+                Benefits = "Health insurance, gym membership, performance bonus, and paid tournament travel.",
+                IsActive = true,
+                CreatedAt = now,
+                CreatedByUserId = hiringManagerId
+            };
+            coachPosting.Skills.Add(new JobPostingSkill { Skill = "Table Tennis Coaching" });
+            coachPosting.Skills.Add(new JobPostingSkill { Skill = "Player Development" });
+            coachPosting.Skills.Add(new JobPostingSkill { Skill = "Team Leadership" });
+            coachPosting.ScreeningQuestions.Add(new JobPostingScreeningQuestion { Question = "How many years have you coached competitive table tennis players?" });
+
+            var accountantPosting = new JobPosting
+            {
+                ReferenceNumber = "JOB-000002",
+                JobTitle = "Accounts Executive",
+                Department = "Finance",
+                EmploymentType = EmploymentType.FullTime,
+                WorkplaceType = WorkplaceType.Hybrid,
+                JobLocation = "Islamabad, Pakistan",
+                Vacancies = 1,
+                MinimumSalary = 120000m,
+                MaximumSalary = 170000m,
+                Currency = "PKR",
+                ExperienceRequired = "Mid Level (3-5 years)",
+                MinimumEducation = "Bachelor's Degree",
+                JobDescription = "The Accounts Executive will manage day-to-day bookkeeping, sales invoicing, and reconciliation across the arena's sports and fitness operations. The role partners closely with the finance manager to keep month-end close accurate and on time.",
+                KeyResponsibilities = "Post daily sales and membership receipts. Reconcile bank and payment gateway statements. Prepare sales invoices and follow up on receivables. Support month-end close and audit schedules.",
+                Qualifications = "Bachelor's degree in finance or accounting. 3+ years of accounts experience, ideally in retail or services. Strong Excel skills and working knowledge of ERP systems.",
+                ApplicationDeadline = today.AddDays(21),
+                Status = JobPostingStatus.Open,
+                HiringManagerUserId = users.ElementAtOrDefault(1)?.Id,
+                Benefits = "Health insurance and annual performance bonus.",
+                IsActive = true,
+                CreatedAt = now,
+                CreatedByUserId = hiringManagerId
+            };
+            accountantPosting.Skills.Add(new JobPostingSkill { Skill = "Bookkeeping" });
+            accountantPosting.Skills.Add(new JobPostingSkill { Skill = "Reconciliation" });
+            accountantPosting.Skills.Add(new JobPostingSkill { Skill = "Excel" });
+
+            var frontDeskPosting = new JobPosting
+            {
+                ReferenceNumber = "JOB-000003",
+                JobTitle = "Front Desk Receptionist",
+                Department = "Operations",
+                EmploymentType = EmploymentType.PartTime,
+                WorkplaceType = WorkplaceType.OnSite,
+                JobLocation = "Karachi, Pakistan",
+                Vacancies = 3,
+                Currency = "PKR",
+                ExperienceRequired = "Entry Level (0-1 years)",
+                MinimumEducation = "Intermediate / A Levels",
+                JobDescription = "Be the friendly first point of contact for members and guests. The receptionist handles bookings, check-ins, payments, and general inquiries while keeping the front office organized and welcoming.",
+                KeyResponsibilities = "Welcome guests and manage court check-ins. Handle phone and walk-in inquiries. Process daily payments and issue receipts. Keep reception and waiting areas tidy.",
+                Qualifications = "Fluent in English and Urdu. Customer-service mindset and basic computer skills. Flexible availability including evenings and weekends.",
+                ApplicationDeadline = today.AddDays(14),
+                Status = JobPostingStatus.Draft,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedByUserId = hiringManagerId
+            };
+            frontDeskPosting.Skills.Add(new JobPostingSkill { Skill = "Customer Service" });
+            frontDeskPosting.Skills.Add(new JobPostingSkill { Skill = "Communication" });
+
+            dbContext.JobPostings.AddRange(coachPosting, accountantPosting, frontDeskPosting);
+            await dbContext.SaveChangesAsync();
+        }
 
         private static async Task SeedSalesAsync(ApplicationDbContext dbContext)
         {

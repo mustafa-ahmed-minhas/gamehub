@@ -1,0 +1,187 @@
+@model PublicCareersIndexViewModel
+@{
+    ViewData["Title"] = "Careers";
+    Layout = "_PublicLayout";
+
+    var positions = Model.OpenPositions;
+    var positionCount = positions.Count;
+    var departmentCount = positions
+        .Select(position => position.Department)
+        .Where(department => !string.IsNullOrWhiteSpace(department))
+        .Distinct()
+        .Count();
+    var locationCount = positions
+        .Select(position => position.JobLocation)
+        .Where(location => !string.IsNullOrWhiteSpace(location))
+        .Distinct()
+        .Count();
+}
+
+<section class="careers-hero">
+    <div class="container">
+        <div class="careers-hero-copy">
+            <span class="eyebrow-pill"><i class="bi bi-person-workspace"></i> Careers at GameHub</span>
+            <h1>Build the <span>future of play</span></h1>
+            <p class="careers-hero-lead">
+                GameHub Arena runs premium courts, smooth online booking and memorable sporting experiences.
+                We are always looking for people who care about sport, service and quality.
+            </p>
+            <div class="careers-hero-actions">
+                <a class="btn-premium" href="#open-positions"><i class="bi bi-briefcase"></i> Browse Open Roles</a>
+                <a class="btn-ghost-light" asp-controller="Inquiry" asp-action="Index"><i class="bi bi-send"></i> Send a General Inquiry</a>
+            </div>
+            <ul class="careers-hero-stats">
+                <li class="careers-hero-stat">
+                    <strong>@positionCount</strong>
+                    <span>@(positionCount == 1 ? "Open role" : "Open roles")</span>
+                </li>
+                <li class="careers-hero-stat">
+                    <strong>@departmentCount</strong>
+                    <span>@(departmentCount == 1 ? "Department" : "Departments")</span>
+                </li>
+                <li class="careers-hero-stat">
+                    <strong>@locationCount</strong>
+                    <span>@(locationCount == 1 ? "Location" : "Locations")</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+@if (!Model.LoadFailed)
+{
+    <section class="careers-perks-band">
+        <div class="container">
+            <div class="careers-perks">
+                <article class="careers-perk">
+                    <i class="bi bi-rocket-takeoff"></i>
+                    <h3>Grow with purpose</h3>
+                    <p>Real ownership, mentorship and room to build a career in sport and service.</p>
+                </article>
+                <article class="careers-perk">
+                    <i class="bi bi-people"></i>
+                    <h3>A team that cares</h3>
+                    <p>Supportive colleagues, premium facilities and a culture built around people.</p>
+                </article>
+                <article class="careers-perk">
+                    <i class="bi bi-trophy"></i>
+                    <h3>Build something special</h3>
+                    <p>Shape memorable sporting experiences for players across the arena.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+}
+
+<section class="careers-section" id="open-positions">
+    <div class="container">
+        <div class="careers-section-head">
+            <div>
+                <span class="careers-eyebrow">Open Positions</span>
+                <h2 class="careers-section-title">Where you belong next</h2>
+                <p class="careers-section-lead">
+                    Only roles that are currently open and still accepting applications appear here.
+                    Every posting is reviewed and managed by the GameHub recruitment team.
+                </p>
+            </div>
+            @if (!Model.LoadFailed && positionCount > 0)
+            {
+                <span class="careers-count-badge">
+                    <i class="bi bi-briefcase"></i> @positionCount @(positionCount == 1 ? "open role" : "open roles")
+                </span>
+            }
+        </div>
+
+        @if (Model.LoadFailed)
+        {
+            <div class="careers-state careers-state--error" role="alert">
+                <span class="careers-state-icon"><i class="bi bi-exclamation-triangle"></i></span>
+                <h2>We could not load open roles</h2>
+                <p>Something went wrong while loading the current openings. Please try again in a moment.</p>
+                <div class="careers-state-actions">
+                    <a class="btn-premium" asp-action="Index"><i class="bi bi-arrow-clockwise"></i> Try Again</a>
+                    <a class="job-btn-outline" asp-controller="Home" asp-action="Index" asp-fragment="contact"><i class="bi bi-telephone"></i> Contact GameHub</a>
+                </div>
+            </div>
+        }
+        else if (positionCount == 0)
+        {
+            <div class="careers-state">
+                <span class="careers-state-icon"><i class="bi bi-briefcase"></i></span>
+                <h2>No open roles right now</h2>
+                <p>
+                    We do not have any active openings at the moment. New roles are published here the moment
+                    they open, so check back soon or send us your details in the meantime.
+                </p>
+                <div class="careers-state-actions">
+                    <a class="btn-premium" asp-controller="Inquiry" asp-action="Index"><i class="bi bi-send"></i> Send a General Inquiry</a>
+                    <a class="job-btn-outline" asp-controller="Home" asp-action="Index" asp-fragment="contact"><i class="bi bi-telephone"></i> Contact GameHub</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="careers-loading" data-careers-loading>
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span>Loading open roles&hellip;</span>
+            </div>
+
+            <div class="careers-grid">
+                @foreach (var job in positions)
+                {
+                    <article class="job-card reveal">
+                        <div class="job-card-top">
+                            <span class="job-badge job-badge--dept"><i class="bi bi-building"></i> @job.Department</span>
+                            <span class="job-badge job-badge--type"><i class="bi bi-clock"></i> @job.EmploymentType.GetDisplayName()</span>
+                        </div>
+
+                        <h3 class="job-card-title">
+                            <a asp-action="Details" asp-route-id="@job.Id">@job.JobTitle</a>
+                        </h3>
+
+                        <ul class="job-card-meta">
+                            <li><i class="bi bi-geo-alt"></i> @job.JobLocation</li>
+                            <li><i class="bi bi-laptop"></i> @job.WorkplaceType.GetDisplayName()</li>
+                            @if (job.Vacancies > 0)
+                            {
+                                <li><i class="bi bi-people"></i> @(job.Vacancies == 1 ? "1 vacancy" : $"{job.Vacancies} vacancies")</li>
+                            }
+                        </ul>
+
+                        <p class="job-card-desc">@job.JobDescription</p>
+
+                        <div class="job-card-foot">
+                            <div class="job-card-dates">
+                                <span><i class="bi bi-calendar-plus"></i> Posted @job.PostedOn.ToString("dd MMM yyyy")</span>
+                                <span class="is-deadline"><i class="bi bi-hourglass-split"></i> Apply by @job.ApplicationDeadline.ToString("dd MMM yyyy")</span>
+                            </div>
+                            <a class="btn-premium btn-compact job-card-btn" asp-action="Details" asp-route-id="@job.Id">
+                                View Details <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        <div class="careers-cta-band">
+            <div>
+                <h2>Do not see your role?</h2>
+                <p>
+                    We are always meeting talented coaches, arena staff, operations people and digital professionals.
+                    Send us a general inquiry and our team will keep your profile in mind when a matching role opens.
+                </p>
+            </div>
+            <div class="careers-cta-actions">
+                <a class="btn-premium" asp-controller="Inquiry" asp-action="Index"><i class="bi bi-send"></i> Send a General Inquiry</a>
+                <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index"><i class="bi bi-calendar2-check"></i> Explore GameHub</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/public-careers.css" asp-append-version="true" /> }
+
+@section Scripts {
+    <script src="~/js/public-careers.js" asp-append-version="true"></script>
+}

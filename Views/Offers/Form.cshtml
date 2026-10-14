@@ -1,0 +1,208 @@
+@model GameHub.Models.ViewModels.OfferFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Offer" : "Create Offer";
+    Layout = "_AdminLayout";
+
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+    var departmentItems = HRLists.Departments
+        .Select(department => new SelectListItem(department, department))
+        .ToList();
+    if (!string.IsNullOrWhiteSpace(Model.Department) && !HRLists.Departments.Contains(Model.Department))
+    {
+        departmentItems.Add(new SelectListItem(Model.Department, Model.Department));
+    }
+
+    var currencyItems = HRLists.Currencies
+        .Select(currency => new SelectListItem(currency, currency))
+        .ToList();
+    if (!string.IsNullOrWhiteSpace(Model.Currency) && !HRLists.Currencies.Contains(Model.Currency))
+    {
+        currencyItems.Add(new SelectListItem(Model.Currency, Model.Currency));
+    }
+
+    var backAction = Model.IsEditMode ? "Details" : "Index";
+}
+
+<section class="arena-page hr-page employee-form-page" data-offer-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Offer &amp; Hiring</span>
+            <h1>@(Model.IsEditMode ? "Edit Offer" : "Create Offer")</h1>
+            <p>@(Model.IsEditMode ? "Update the offer before it is confirmed by the candidate." : "Draft an offer for a shortlisted candidate - the reference and source posting are linked automatically.")</p>
+        </div>
+        @if (Model.IsEditMode)
+        {
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i> Back to Offer</a>
+        }
+        else
+        {
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Offer &amp; Hiring</a>
+        }
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="arena-form-main">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        @if (Model.IsEditMode)
+        {
+            <input asp-for="JobApplicationId" type="hidden" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person-badge"></i> Candidate &amp; Application</h2>
+            @if (Model.IsEditMode)
+            {
+                <label>
+                    <span>Candidate</span>
+                    <input value="@Model.CandidateName" readonly />
+                </label>
+                <label>
+                    <span>Application Reference</span>
+                    <input value="@Model.ApplicationNumber" readonly />
+                </label>
+            }
+            else
+            {
+                <label class="hr-form-wide">
+                    <span>Candidate / Application *</span>
+                    <select asp-for="JobApplicationId" asp-items="Model.Applications">
+                        <option value="">Select a shortlisted candidate</option>
+                    </select>
+                    <small class="hr-hint">Only shortlisted or interviewed candidates without an active offer can be selected. The job posting is linked automatically.</small>
+                    <span asp-validation-for="JobApplicationId"></span>
+                </label>
+            }
+            <label>
+                <span>Offer Reference</span>
+                <input asp-for="ReferenceNumber" readonly placeholder="Auto generated" />
+                <small class="hr-hint">System generated and guaranteed unique.</small>
+            </label>
+            <label>
+                <span>Linked Job Posting</span>
+                <input value="@(string.IsNullOrWhiteSpace(Model.SourceJobTitle) ? "Selected automatically from the application" : $"{Model.SourceJobTitle} (@Model.SourceJobReference)")" readonly />
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-briefcase"></i> Position Details</h2>
+            <label>
+                <span>Offered Designation *</span>
+                <input asp-for="Designation" maxlength="100" placeholder="e.g. Senior Coach" />
+                <span asp-validation-for="Designation"></span>
+            </label>
+            <label>
+                <span>Department *</span>
+                <select asp-for="Department" asp-items="departmentItems"><option value="">Select department</option></select>
+                <span asp-validation-for="Department"></span>
+            </label>
+            <label>
+                <span>Employment Type *</span>
+                <select asp-for="EmploymentType" asp-items="Html.GetEnumSelectList<EmploymentType>()"></select>
+                <span asp-validation-for="EmploymentType"></span>
+            </label>
+            <label>
+                <span>Work Location *</span>
+                <input asp-for="WorkLocation" maxlength="150" placeholder="e.g. Lahore Arena" />
+                <span asp-validation-for="WorkLocation"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-cash-stack"></i> Compensation</h2>
+            <label>
+                <span>Offered Salary *</span>
+                <input asp-for="OfferedSalary" type="number" min="0.01" step="0.01" placeholder="0.00" />
+                <span asp-validation-for="OfferedSalary"></span>
+            </label>
+            <label>
+                <span>Salary Currency *</span>
+                <select asp-for="Currency" asp-items="currencyItems"></select>
+                <span asp-validation-for="Currency"></span>
+            </label>
+            <label>
+                <span>Salary Frequency *</span>
+                <select asp-for="SalaryFrequency" asp-items="Html.GetEnumSelectList<SalaryFrequency>()"></select>
+                <span asp-validation-for="SalaryFrequency"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-calendar-event"></i> Key Dates</h2>
+            <label>
+                <span>Offer Issue Date *</span>
+                <input asp-for="OfferDate" type="date" />
+                <small class="hr-hint">Defaults to today.</small>
+                <span asp-validation-for="OfferDate"></span>
+            </label>
+            <label>
+                <span>Offer Expiry Date *</span>
+                <input asp-for="ExpiryDate" type="date" min="@today.AddDays(1).ToString("yyyy-MM-dd")" />
+                <small class="hr-hint">Must be later than the issue date.</small>
+                <span asp-validation-for="ExpiryDate"></span>
+            </label>
+            <label>
+                <span>Joining Date *</span>
+                <input asp-for="JoiningDate" type="date" />
+                <span asp-validation-for="JoiningDate"></span>
+            </label>
+            <label>
+                <span>Probation Period (months)</span>
+                <input asp-for="ProbationPeriodMonths" type="number" min="0" max="24" placeholder="Optional" />
+                <small class="hr-hint">Leave blank when no probation applies.</small>
+                <span asp-validation-for="ProbationPeriodMonths"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-person-lines-fill"></i> Reporting &amp; Terms</h2>
+            <label class="hr-form-wide">
+                <span>Reporting Manager</span>
+                <select asp-for="ReportingManagerId" asp-items="Model.ReportingManagers"><option value="">Not assigned</option></select>
+                <small class="hr-hint">Optional. Choose the employee this hire reports to.</small>
+                <span asp-validation-for="ReportingManagerId"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Benefits</span>
+                <textarea asp-for="Benefits" rows="3" maxlength="2000" placeholder="Optional. e.g. health insurance, annual leave, allowances."></textarea>
+                <small class="hr-hint">Up to 2,000 characters.</small>
+                <span asp-validation-for="Benefits"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Additional Terms</span>
+                <textarea asp-for="Terms" rows="4" maxlength="2000" placeholder="Optional. Conditions, notice periods, or special clauses."></textarea>
+                <small class="hr-hint">Up to 2,000 characters.</small>
+                <span asp-validation-for="Terms"></span>
+            </label>
+        </section>
+
+        @if (Model.IsEditMode)
+        {
+            <section class="arena-form-card">
+                <h2><i class="bi bi-file-earmark-pdf"></i> Offer Letter</h2>
+                <p class="hr-hint">The offer letter is generated or uploaded from the offer details page.</p>
+            </section>
+        }
+
+        <div class="arena-form-submit">
+            <a class="admin-secondary-button" asp-action="@(Model.IsEditMode ? "Details" : "Index")" asp-route-id="@Model.Id"><i class="bi bi-x-circle"></i> Cancel</a>
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Create Offer")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

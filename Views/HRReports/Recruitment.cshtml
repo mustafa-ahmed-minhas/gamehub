@@ -1,0 +1,15 @@
+@model GameHub.Models.ViewModels.HRReportPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "_AdminLayout";
+}
+
+<partial name="_ReportPage" model="Model" />
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-reports.js" asp-append-version="true"></script>
+}

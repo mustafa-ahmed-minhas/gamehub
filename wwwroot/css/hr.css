@@ -1,0 +1,1421 @@
+/* ==========================================================================
+   HR Module shared UI layer
+   Screen 1: HR Dashboard
+
+   DESIGN OWNER: the Customer module is the master design.
+   The HR Dashboard is composed from the shared master primitives:
+     arena-*      (arena-setup.css)  page shell, dark header bar, KPI grid,
+                                     card, table, empty state, pagination
+     admin-*      (admin.css)        primary/secondary buttons, labels
+     membership-* (memberships.css)  status badges
+     user-*       (users.css)        identity cells, avatars
+   This file only carries the genuinely HR-specific pieces that the
+   master primitives do not already provide.
+   ========================================================================== */
+
+.hr-page {
+    min-width: 0;
+}
+
+/* The master arena summary grid defaults to 5 columns; the HR dashboard
+   uses 6 summary cards, so mirror the 6 -> 3 -> 1 column tuning the
+   Customer module applies to its own 6-card strip. */
+.hr-page .arena-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+/* Section card headers (Recent Recruitment Activity / Pending HR Tasks). */
+.hr-section-card .hr-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.hr-section-card .hr-card-head h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 950;
+}
+
+.hr-section-card .hr-card-head p {
+    margin: 0.15rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.hr-section-card .hr-card-head .text-action {
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* Tables scroll inside the card instead of breaking the layout. */
+.hr-table-wrap {
+    overflow-x: auto;
+}
+
+.hr-table {
+    min-width: 900px;
+}
+
+.hr-identity {
+    gap: 0.8rem;
+}
+
+.hr-identity small {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+.hr-table .hr-update {
+    color: var(--admin-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Status tones layered on the membership-status-badge base.
+   The palette mirrors the tones already used by the master screens
+   (green / amber / red / purple) plus one blue for in-flight states.
+   -------------------------------------------------------------------------- */
+.hr-tone.new,
+.hr-tone.medium {
+    color: #986710;
+    background: #fff6e7;
+    border-color: rgba(232, 157, 51, 0.18);
+}
+
+.hr-tone.screening,
+.hr-tone.review {
+    color: #6247a3;
+    background: #f1edff;
+    border-color: rgba(98, 71, 163, 0.16);
+}
+
+.hr-tone.interview,
+.hr-tone.progress {
+    color: #2b6f9e;
+    background: #eef6fc;
+    border-color: rgba(43, 111, 158, 0.16);
+}
+
+.hr-tone.offer,
+.hr-tone.low {
+    color: #16643f;
+    background: #eaf8f0;
+    border-color: rgba(35, 146, 91, 0.16);
+}
+
+.hr-tone.hired {
+    color: #0f5132;
+    background: #e0f3e6;
+    border-color: rgba(15, 81, 50, 0.16);
+}
+
+.hr-tone.high,
+.hr-tone.action {
+    color: #9c2629;
+    background: #fff0ef;
+    border-color: rgba(210, 68, 76, 0.16);
+}
+
+.hr-tone.assigned {
+    color: #4e4a42;
+    background: #eee6d8;
+    border-color: rgba(27, 24, 18, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive tuning (matches the master arena breakpoints).
+   -------------------------------------------------------------------------- */
+@media (max-width: 1399px) {
+    .hr-page .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* ==========================================================================
+   Screen 2 — Employee Management
+   ========================================================================== */
+
+/* The Employee index carries exactly four KPI cards. */
+.employees-page .arena-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1399px) {
+    .employees-page .arena-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .employees-page .arena-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ten-column employee table scrolls inside the card. */
+.employees-table {
+    min-width: 1100px;
+}
+
+/* Employee employment-status tones (layered on the hr-tone palette). */
+.hr-tone.active {
+    color: #0f5132;
+    background: #e0f3e6;
+    border-color: rgba(15, 81, 50, 0.16);
+}
+
+.hr-tone.onleave {
+    color: #986710;
+    background: #fff6e7;
+    border-color: rgba(232, 157, 51, 0.18);
+}
+
+.hr-tone.inactive {
+    color: #9c2629;
+    background: #fff0ef;
+    border-color: rgba(210, 68, 76, 0.16);
+}
+
+@media (max-width: 767px) {
+    .hr-page .arena-header .arena-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hr-page .arena-header .admin-action-button,
+    .hr-page .arena-header .admin-secondary-button {
+        width: 100%;
+    }
+}
+
+/* Job posting status tones (layered on the hr-tone palette). */
+.hr-tone.open {
+    color: #16643f;
+    background: #eaf8f0;
+    border-color: rgba(35, 146, 91, 0.16);
+}
+
+.hr-tone.closed {
+    color: #9c2629;
+    background: #fff0ef;
+    border-color: rgba(210, 68, 76, 0.16);
+}
+
+.hr-tone.draft {
+    color: #4e4a42;
+    background: #eee6d8;
+    border-color: rgba(27, 24, 18, 0.08);
+}
+
+/* ==========================================================================
+   Screen 2 — Recruitment Management (hub + candidate / posting details)
+   DESIGN OWNER: the Customer module is the master design. The hub reuses the
+   master summary grid, tabs, toolbar, table, empty state, and pagination; the
+   detail pages reuse the customer profile layout.
+   ========================================================================== */
+
+/* Eleven-column recruitment tables scroll inside their card. */
+.recruitment-table {
+    min-width: 1080px;
+}
+
+.recruitment-page .arena-toolbar {
+    flex-wrap: wrap;
+}
+
+/* Inline workflow forms keep the icon-button actions flush in the row. */
+.membership-inline-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+/* Detail copy sits in readable blocks. */
+.job-posting-copy {
+    margin: 0;
+    color: var(--admin-muted);
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+.job-posting-questions {
+    margin: 0;
+    padding-left: 1.15rem;
+    display: grid;
+    gap: 0.5rem;
+    color: var(--admin-muted);
+}
+
+/* Interview schedule list on the candidate details page. */
+.job-interview-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.job-interview-item {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.85rem;
+}
+
+.job-interview-item > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.job-interview-item > summary::-webkit-details-marker {
+    display: none;
+}
+
+.job-interview-when {
+    display: grid;
+}
+
+.job-interview-when small {
+    color: var(--admin-muted);
+}
+
+.job-interview-meta {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.35rem 0 0.75rem;
+    padding-top: 0.65rem;
+    border-top: 1px dashed var(--admin-border);
+}
+
+.job-interview-meta div {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.job-interview-meta dt {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.job-interview-meta dd {
+    margin: 0;
+}
+
+.job-interview-actions {
+    margin-bottom: 0.5rem;
+}
+
+.job-interview-update {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px dashed var(--admin-border);
+}
+
+.job-interview-update label {
+    display: grid;
+    gap: 0.3rem;
+}
+
+.job-interview-update label span {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.job-interview-update .hr-form-wide,
+.job-interview-update button {
+    grid-column: 1 / -1;
+}
+
+.job-interview-update button {
+    justify-self: start;
+}
+
+.job-pipeline-actions {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+.job-pipeline-actions form,
+.job-pipeline-actions .admin-secondary-button {
+    width: 100%;
+}
+
+@media (max-width: 767px) {
+    .job-interview-update {
+        grid-template-columns: 1fr;
+    }
+}
+.hr-table-empty {
+    padding: 1rem 0.5rem;
+    color: var(--admin-muted);
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Screen 3 — Offer & Hiring (hub + offer form / details)
+   DESIGN OWNER: the Customer module is the master design. The hub reuses the
+   master summary grid, tabs, toolbar, table, empty state, and pagination; the
+   offer details page reuses the customer profile layout.
+   ========================================================================== */
+
+/* The offer index carries exactly six KPI cards. */
+.offers-page .arena-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@media (max-width: 1399px) {
+    .offers-page .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .offers-page .arena-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Twelve-column offer table scrolls inside its card. */
+.offers-table {
+    min-width: 1180px;
+}
+
+/* Offer letter / supporting document list. */
+.offer-document-list {
+    display: grid;
+    gap: 0.6rem;
+}
+
+/* The side-card workflow stacks full-width actions. */
+.offer-details-page .job-pipeline-actions .admin-action-button {
+    width: 100%;
+}
+
+/* Helper copy inside the document cards (outside .arena-form-card). */
+.offer-document-upload .hr-hint {
+    color: var(--admin-muted);
+    font-weight: 800;
+}
+
+.offer-document-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.85rem;
+}
+
+.offer-document-item > .hr-offer-doc-meta {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.offer-document-list .hr-offer-doc-meta strong {
+    overflow-wrap: anywhere;
+}
+
+.offer-document-list .admin-secondary-button {
+    white-space: nowrap;
+}
+
+/* Acknowledgement / metadata blocks on the offer details page. */
+.offer-recorded-meta {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.offer-document-upload {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.offer-document-list .admin-secondary-button,
+.offer-document-item form {
+    flex: none;
+}
+
+/* ==========================================================================
+   Screen 5 — Performance & Warnings (hub, case form, case details)
+   DESIGN OWNER: the Customer module is the master design. The hub reuses the
+   master summary grid, tabs, toolbar, table, empty state, and pagination; the
+   case details page reuses the customer profile / side-card layout.
+   ========================================================================== */
+
+/* The performance hub carries exactly six KPI cards. */
+.performance-page .arena-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@media (max-width: 1399px) {
+    .performance-page .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .performance-page .arena-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* The cases table is wide; it scrolls inside its card. */
+.performance-table {
+    min-width: 1080px;
+}
+
+.hr-record-counts,
+.performance-record-when small {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+/* ---- Case details layout ---- */
+.performance-details-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.performance-details-main,
+.performance-details-side {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+@media (max-width: 1199px) {
+    .performance-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---- Case hero ---- */
+.performance-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+}
+
+.performance-hero-meta {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+    flex: 1 1 22rem;
+    min-width: 0;
+}
+
+.performance-hero-meta > div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.performance-hero-meta > div > span {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.performance-hero-meta strong {
+    font-weight: 800;
+}
+
+@media (max-width: 991px) {
+    .performance-hero-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ---- Status banner ---- */
+.performance-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem 1.1rem;
+    background: #f6f7f9;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+}
+
+.performance-status-banner > i {
+    font-size: 1.25rem;
+    color: var(--admin-gold);
+}
+
+.performance-status-banner strong {
+    display: block;
+    font-weight: 850;
+}
+
+.performance-status-banner span {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+/* ---- Case section headers ---- */
+.performance-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.performance-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.performance-section-title h2 {
+    margin: 0;
+}
+
+/* ---- Record lists (meetings, warnings, plans) ---- */
+.performance-record-list {
+    display: grid;
+    gap: 0.7rem;
+    margin-top: 0.85rem;
+}
+
+.performance-record-item {
+    background: #fbfcfd;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.9rem;
+    overflow: hidden;
+}
+
+.performance-record-item > summary,
+.performance-record-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.95rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.performance-record-item > summary::-webkit-details-marker {
+    display: none;
+}
+
+.performance-record-item.is-static .performance-record-head {
+    cursor: default;
+}
+
+.performance-record-when {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.performance-record-when strong {
+    font-weight: 800;
+}
+
+.performance-record-body {
+    padding: 0.75rem 0.95rem 0.95rem;
+    border-top: 1px dashed var(--admin-border);
+}
+
+.performance-record-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.performance-record-actions form {
+    margin: 0;
+}
+
+.performance-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.performance-progress small {
+    color: var(--admin-muted);
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.performance-overdue {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.6rem 0 0;
+    color: #b42318;
+    font-weight: 800;
+}
+
+/* ---- Progress bars ---- */
+.hr-progress {
+    flex: 1;
+    height: 0.5rem;
+    background: #e9edf2;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.hr-progress span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #3f7d3b, #6bbf59);
+    border-radius: 999px;
+}
+
+.hr-progress-inline {
+    display: inline-block;
+    width: 5.5rem;
+    height: 0.45rem;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+    background: #e9edf2;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.hr-progress-inline span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #3f7d3b, #6bbf59);
+    border-radius: 999px;
+}
+
+/* ---- Case / child-record form pages ---- */
+.performance-form-page {
+    min-width: 0;
+}
+
+/* ==========================================================================
+   Screen 6 — Termination & Clearance (hub, request form, details)
+   DESIGN OWNER: the Customer module is the master design. This screen mirrors
+   the Screen 5 patterns: master summary grid, toolbar, table, empty state,
+   pagination, and the profile / side-card details layout.
+   ========================================================================== */
+
+/* Six KPI cards on the termination hub. */
+.termination-page .arena-summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@media (max-width: 1399px) {
+    .termination-page .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .termination-page .arena-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* The requests table is wide; it scrolls inside its card. */
+.termination-table {
+    min-width: 1180px;
+}
+
+.termination-form-page {
+    min-width: 0;
+}
+
+/* ---- Details layout ---- */
+.termination-details-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.termination-details-main,
+.termination-details-side {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+@media (max-width: 1199px) {
+    .termination-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---- Request hero ---- */
+.termination-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    box-shadow: var(--admin-shadow);
+}
+
+.termination-hero-meta {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+    flex: 1 1 22rem;
+    min-width: 0;
+}
+
+.termination-hero-meta > div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.termination-hero-meta > div > span {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.termination-hero-meta strong {
+    font-weight: 800;
+}
+
+@media (max-width: 991px) {
+    .termination-hero-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ---- Status banner ---- */
+.termination-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem 1.1rem;
+    background: #f6f7f9;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+}
+
+.termination-status-banner > i {
+    font-size: 1.25rem;
+    color: var(--admin-gold);
+}
+
+.termination-status-banner strong {
+    display: block;
+    font-weight: 850;
+}
+
+.termination-status-banner span {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+/* ---- Section headers ---- */
+.termination-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.termination-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.termination-section-title h2 {
+    margin: 0;
+}
+
+/* ---- Record lists (documents, clearance, history) ---- */
+.termination-record-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.termination-record-item {
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    background: #fbfcfe;
+    overflow: hidden;
+}
+
+.termination-record-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+}
+
+.termination-record-when {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.termination-record-when strong {
+    font-weight: 800;
+}
+
+.termination-record-when small {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+.termination-record-body {
+    padding: 0 0.9rem 0.9rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.termination-record-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.termination-record-actions form {
+    margin: 0;
+}
+
+.termination-status-form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.termination-status-form select {
+    min-width: 9rem;
+}
+
+.termination-outstanding,
+.termination-completed {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-weight: 700;
+}
+
+.termination-outstanding {
+    color: #b42318;
+}
+
+.termination-completed {
+    color: #1f7a37;
+}
+
+/* ---- Letter ---- */
+.termination-letter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius);
+    background: #fbfcfe;
+}
+
+.termination-letter-row strong {
+    display: block;
+    font-weight: 800;
+}
+
+.termination-letter-row small {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+.termination-letter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+
+.termination-upload-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.termination-upload-form input[type="file"] {
+    max-width: 20rem;
+}
+
+/* ---- Clearance progress + gate ---- */
+.termination-progress {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 0.85rem;
+}
+
+.termination-progress small {
+    color: var(--admin-muted);
+    font-weight: 800;
+}
+
+.termination-clearance-gate {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.75rem;
+    border-radius: var(--admin-radius);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.termination-clearance-gate.is-ready {
+    background: #eaf7ee;
+    border: 1px solid #b7e0c3;
+    color: #1f7a37;
+}
+
+.termination-clearance-gate.is-blocked {
+    background: #fdf1f0;
+    border: 1px solid #f2c9c4;
+    color: #b42318;
+}
+
+/* ==========================================================================
+   Screen 7: HR Reports
+
+   Composed from the master arena-* primitives (page shell, dark header bar,
+   summary grid, card, table, empty state, pagination). This block only adds
+   the genuinely report-specific pieces: chart cards, insight cards, the report
+   library, filter inputs, and a print-friendly layout.
+   ========================================================================== */
+
+.hr-reports-page {
+    min-width: 0;
+}
+
+.hr-reports-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.45rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.hr-reports-back:hover {
+    color: var(--admin-gold);
+}
+
+.hr-reports-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 800;
+}
+
+.hr-reports-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.2rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.hr-kpi-helper {
+    grid-column: 2;
+    color: var(--admin-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.hr-kpi.positive i {
+    background: #d9f0e1;
+}
+
+.hr-kpi.warning i {
+    background: #fbeccb;
+}
+
+.hr-kpi.risk i {
+    background: #f7d9d5;
+}
+
+/* Detail reports show six to ten KPIs, so they use five columns; the dashboard
+   carries eleven cards and overflows into four. Declared in this order so the
+   dashboard override wins on equal specificity. */
+.hr-reports-page .arena-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.hr-reports-dashboard .arena-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hr-reports-page .arena-toolbar input[type="date"] {
+    min-height: 2.65rem;
+    padding: 0 0.65rem;
+    color: inherit;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.9rem;
+    font-weight: 750;
+}
+
+.hr-reports-summary i {
+    color: var(--admin-gold);
+}
+
+/* ---- Charts ---- */
+.hr-report-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.hr-report-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.hr-report-chart__head h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 950;
+}
+
+.hr-report-chart__head p {
+    margin: 0.15rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.hr-report-chart__canvas {
+    position: relative;
+    height: 16rem;
+}
+
+/* ---- Insights ---- */
+.hr-report-insights {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.hr-report-insight {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+}
+
+.hr-report-insight > i {
+    display: grid;
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    color: #17120a;
+    background: #f3d78f;
+    border-radius: 0.9rem;
+}
+
+.hr-report-insight.positive i {
+    background: #d9f0e1;
+}
+
+.hr-report-insight.warning i {
+    background: #fbeccb;
+}
+
+.hr-report-insight.risk i {
+    background: #f7d9d5;
+}
+
+.hr-report-insight > div {
+    display: grid;
+    gap: 0.05rem;
+    min-width: 0;
+}
+
+.hr-report-insight span {
+    color: var(--admin-muted);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.hr-report-insight strong {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 950;
+    line-height: 1.1;
+}
+
+.hr-report-insight small {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+/* ---- Report library ---- */
+.hr-report-modules .hr-card-head {
+    margin-bottom: 0.9rem;
+}
+
+.hr-report-modules .hr-card-head h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 950;
+}
+
+.hr-report-modules .hr-card-head p {
+    margin: 0.15rem 0 0;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.hr-report-module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.hr-report-module {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 1rem;
+    color: inherit;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 1rem;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.hr-report-module > i:first-child {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    color: #17120a;
+    background: #f3d78f;
+    border-radius: 0.9rem;
+}
+
+.hr-report-module span {
+    display: grid;
+    min-width: 0;
+}
+
+.hr-report-module strong {
+    font-weight: 950;
+}
+
+.hr-report-module small {
+    color: var(--admin-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.hr-report-module > i:last-child {
+    color: var(--admin-muted);
+}
+
+.hr-report-module:hover {
+    border-color: var(--admin-gold);
+    transform: translateY(-1px);
+}
+
+.hr-report-module:hover > i:last-child {
+    color: var(--admin-gold);
+}
+
+/* ---- Table ---- */
+.hr-report-link {
+    color: #8e6640;
+    font-weight: 950;
+    text-decoration: none;
+}
+
+.hr-report-link:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 1399px) {
+    .hr-reports-page .arena-summary-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .hr-reports-dashboard .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1199px) {
+    .hr-reports-page .arena-summary-grid,
+    .hr-reports-dashboard .arena-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .hr-report-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .hr-report-insights {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 991px) {
+    .hr-reports-page .arena-summary-grid,
+    .hr-reports-dashboard .arena-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .hr-reports-page .arena-summary-grid,
+    .hr-reports-dashboard .arena-summary-grid,
+    .hr-report-insights,
+    .hr-report-module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hr-report-chart__canvas {
+        height: 13rem;
+    }
+}
+
+/* ---- Print-friendly output ---- */
+@media print {
+    .admin-sidebar,
+    .admin-overlay,
+    .admin-footer,
+    .arena-pagination,
+    .hr-reports-back,
+    [data-report-print],
+    .hr-reports-filter {
+        display: none !important;
+    }
+
+    .admin-main {
+        margin: 0 !important;
+    }
+
+    .admin-workspace {
+        padding: 0 !important;
+    }
+
+    .arena-header {
+        color: #000 !important;
+        background: #fff !important;
+        border: 1px solid #ccc;
+        box-shadow: none !important;
+    }
+
+    .arena-header h1,
+    .arena-header p,
+    .arena-header .admin-label,
+    .hr-reports-updated {
+        color: #000 !important;
+    }
+
+    .arena-card,
+    .arena-summary-grid article {
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+
+    .hr-report-chart__canvas {
+        height: 12rem;
+    }
+}
+
+/* ---- Audit history timeline ---- */
+.termination-timeline {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.termination-timeline-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.termination-timeline-dot {
+    flex: 0 0 auto;
+    width: 0.65rem;
+    height: 0.65rem;
+    margin-top: 0.4rem;
+    border-radius: 999px;
+    background: var(--admin-gold);
+}
+
+.termination-timeline-item strong {
+    display: block;
+    font-weight: 800;
+}
+
+.termination-timeline-item small {
+    color: var(--admin-muted);
+    font-weight: 700;
+}
+
+.termination-timeline-item p {
+    margin: 0.25rem 0 0;
+}
+
