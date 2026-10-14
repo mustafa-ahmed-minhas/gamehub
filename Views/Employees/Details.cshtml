@@ -1,0 +1,181 @@
+@model GameHub.Models.ViewModels.EmployeeDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.FullName;
+    Layout = "_AdminLayout";
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateOrFallback(DateOnly value) => value.ToString("dd MMM yyyy");
+    string DateTimeOrFallback(DateTime? value) => value?.ToString("dd MMM yyyy hh:mm tt") ?? "Not available";
+}
+
+<section class="users-page customer-details-page customer-profile-page employee-details-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Employees</a>
+            <span class="admin-label">Employee Profile</span>
+            <h1>@Model.FullName</h1>
+            <p>@Model.EmployeeNumber - Complete employment record, personal details, and workforce status.</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Employee</a>
+                <button class="admin-secondary-button" type="button"
+                        data-employee-status
+                        data-url="@Url.Action("ChangeStatus", new { id = Model.Id })"
+                        data-employee="@Model.FullName"
+                        data-status="@Model.EmploymentStatus">
+                    <i class="bi bi-power"></i> Change Status
+                </button>
+            }
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+            {
+                <img class="customer-hero-avatar" src="@Model.ProfileImageUrl" alt="@Model.FullName" />
+            }
+            else
+            {
+                <div class="customer-hero-avatar">@Model.Initials</div>
+            }
+            <div>
+                <h2>@Model.FullName</h2>
+                <p>@Model.Designation · @Model.Department</p>
+                <strong>@Model.EmployeeNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="role-badge">@Model.Department</span>
+                    <span class="status-badge reserved">@Model.Designation</span>
+                    <span class="role-badge membership-role-badge">@Model.EmploymentType.GetDisplayName()</span>
+                    <span class="membership-status-badge hr-tone @Model.EmploymentStatus.GetBadgeClass()"><i></i>@Model.EmploymentStatus.GetDisplayName()</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-telephone"></i><span>Phone Number</span><strong>@Model.PhoneNumber</strong></div>
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@Model.Email</strong></div>
+            <div><i class="bi bi-calendar2-check"></i><span>Joining Date</span><strong>@DateOrFallback(Model.JoiningDate)</strong></div>
+            <div><i class="bi bi-person-lines-fill"></i><span>Reporting Manager</span><strong>@TextOrFallback(Model.ReportingManagerName)</strong></div>
+        </div>
+    </article>
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-briefcase"></i><div><h2>Employment Information</h2><p>Role, department, and workforce status.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Employee ID</dt><dd>@Model.EmployeeNumber</dd></div>
+                    <div><dt>Department</dt><dd>@Model.Department</dd></div>
+                    <div><dt>Designation</dt><dd>@Model.Designation</dd></div>
+                    <div><dt>Employment Type</dt><dd>@Model.EmploymentType.GetDisplayName()</dd></div>
+                    <div><dt>Employment Status</dt><dd>@Model.EmploymentStatus.GetDisplayName()</dd></div>
+                    <div><dt>Joining Date</dt><dd>@DateOrFallback(Model.JoiningDate)</dd></div>
+                    <div><dt>Reporting Manager</dt><dd>@TextOrFallback(Model.ReportingManagerName)</dd></div>
+                    <div><dt>Years of Service</dt><dd>@Math.Max(0, DateOnly.FromDateTime(DateTime.UtcNow).Year - Model.JoiningDate.Year) years</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Personal Information</h2><p>Identity and classification details.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Full Name</dt><dd>@Model.FullName</dd></div>
+                    <div><dt>Date of Birth</dt><dd>@DateOrFallback(Model.DateOfBirth)</dd></div>
+                    <div><dt>Calculated Age</dt><dd>@(Model.CalculatedAge?.ToString() ?? "Not available")</dd></div>
+                    <div><dt>Gender</dt><dd>@Model.Gender.GetDisplayName()</dd></div>
+                    <div><dt>National ID / CNIC</dt><dd>@Model.NationalIdNumber</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-geo-alt"></i><div><h2>Contact &amp; Emergency</h2><p>Primary and emergency contact channels.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Phone Number</dt><dd>@Model.PhoneNumber</dd></div>
+                    <div><dt>Email</dt><dd>@Model.Email</dd></div>
+                    <div><dt>Employment Address</dt><dd>@TextOrFallback(Model.EmploymentAddress)</dd></div>
+                    <div><dt>Emergency Contact Name</dt><dd>@TextOrFallback(Model.EmergencyContactName)</dd></div>
+                    <div><dt>Emergency Contact Number</dt><dd>@TextOrFallback(Model.EmergencyContactNumber)</dd></div>
+                </dl>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-cash-stack"></i><h2>Compensation</h2></header>
+                <dl>
+                    <div><dt>Basic Salary</dt><dd>PKR @((Model.BasicSalary ?? 0).ToString("N2"))</dd></div>
+                </dl>
+                <p>Salary details are maintained in PKR and managed with the finance module.</p>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-person-badge"></i><h2>Workforce Status</h2></header>
+                <strong>@Model.EmploymentStatus.GetDisplayName()</strong>
+                <p>@(Model.EmploymentStatus == EmploymentStatus.Active ? "Employee is currently active and working." : Model.EmploymentStatus == EmploymentStatus.OnLeave ? "Employee is currently on approved leave." : "Employee record is inactive.")</p>
+                @if (Model.CanManage)
+                {
+                    <button class="admin-secondary-button" type="button"
+                            data-employee-status
+                            data-url="@Url.Action("ChangeStatus", new { id = Model.Id })"
+                            data-employee="@Model.FullName"
+                            data-status="@Model.EmploymentStatus"
+                            style="width:100%">
+                        <i class="bi bi-power"></i> Change Employment Status
+                    </button>
+                }
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-notes-card admin-reveal">
+        <header><i class="bi bi-journal-text"></i><div><h2>Notes</h2><span>Internal Use Only</span></div></header>
+        <p>@(string.IsNullOrWhiteSpace(Model.Notes) ? "No internal notes available for this employee." : Model.Notes)</p>
+    </article>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-clock-history"></i><div><h2>Account Information</h2><p>Audit metadata and record state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Employee ID</span><strong>@Model.EmployeeNumber</strong></div>
+            <div><span>Record ID</span><strong>@Model.Id</strong></div>
+            <div><span>Created At</span><strong>@Model.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Updated At</span><strong>@DateTimeOrFallback(Model.UpdatedAt)</strong></div>
+            <div><span>Created By</span><strong>@TextOrFallback(Model.CreatedByName)</strong></div>
+            <div><span>Employment Status</span><strong>@Model.EmploymentStatus.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@Html.AntiForgeryToken()
+<div class="modal fade customer-modal" id="employeeStatusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Change Employment Status</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p data-employee-name>Are you sure?</p>
+                <label class="d-grid gap-2 mt-2">
+                    <span class="small fw-semibold text-muted">New status</span>
+                    <select id="employeeStatusSelect" class="form-select">
+                        @foreach (EmploymentStatus value in Enum.GetValues<EmploymentStatus>())
+                        {
+                            <option value="@value">@value.GetDisplayName()</option>
+                        }
+                    </select>
+                </label>
+            </div>
+            <div class="modal-footer"><button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button><button type="button" class="admin-action-button" data-employee-status-submit>Confirm</button></div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-employees.js" asp-append-version="true"></script>
+}

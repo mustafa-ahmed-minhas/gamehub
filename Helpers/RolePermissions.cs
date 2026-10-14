@@ -25,6 +25,7 @@ namespace GameHub.Helpers
             ["Reports"] = Roles(UserRole.SuperAdmin, UserRole.Admin, UserRole.FinanceManager, UserRole.BookingManager, UserRole.CourtManager, UserRole.StaffManager, UserRole.Viewer),
             ["Settings"] = Roles(UserRole.SuperAdmin, UserRole.Admin),
             ["Users"] = Roles(UserRole.SuperAdmin),
+            ["HR"] = Roles(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer),
             ["CRM"] = Roles(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer),
             ["Sales"] = Roles(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)
         };

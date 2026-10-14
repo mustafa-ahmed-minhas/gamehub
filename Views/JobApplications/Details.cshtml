@@ -1,0 +1,351 @@
+@model GameHub.Models.ViewModels.JobApplicationDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var application = Model.Application;
+    var posting = application.JobPosting;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var canActOnPipeline = Model.CanManage
+        && application.Status != JobApplicationStatus.Hired
+        && application.Status != JobApplicationStatus.Rejected;
+
+    ViewData["Title"] = $"{application.FirstName} {application.LastName}";
+    Layout = "_AdminLayout";
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateOrFallback(DateOnly? value) => value?.ToString("dd MMM yyyy") ?? "Not provided";
+    string DateTimeOrFallback(DateTime? value) => value?.ToString("dd MMM yyyy hh:mm tt") ?? "Not available";
+    string MoneyOrFallback(decimal? value) => value.HasValue ? $"PKR {value.Value:N0}" : "Not specified";
+}
+
+<section class="users-page customer-details-page customer-profile-page job-application-details-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications"><i class="bi bi-arrow-left"></i> Back to Recruitment</a>
+            <span class="admin-label">Job Application</span>
+            <h1>@application.FirstName @application.LastName</h1>
+            <p>@application.ApplicationNumber - Submitted application, documents, and interview pipeline.</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@application.Id"><i class="bi bi-pencil"></i> Edit Application</a>
+                <a class="admin-secondary-button" asp-action="ScheduleInterview" asp-route-id="@application.Id"><i class="bi bi-calendar-plus"></i> Schedule Interview</a>
+                @if (canActOnPipeline && application.Status != JobApplicationStatus.Shortlisted)
+                {
+                    <form method="post" asp-action="Shortlist" asp-route-id="@application.Id" class="d-inline"
+                          data-hr-confirm-form data-confirm-title="Shortlist Candidate"
+                          data-confirm-message="Shortlist @application.FirstName @application.LastName for @posting?.JobTitle?">
+                        @Html.AntiForgeryToken()
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-star"></i> Shortlist</button>
+                    </form>
+                }
+                @if (canActOnPipeline)
+                {
+                    <form method="post" asp-action="Reject" asp-route-id="@application.Id" class="d-inline"
+                          data-hr-confirm-form data-confirm-title="Reject Application" data-confirm-danger="true"
+                          data-confirm-message="Reject the application from @application.FirstName @application.LastName? This cannot be undone.">
+                        @Html.AntiForgeryToken()
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                    </form>
+                }
+            }
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@Model.Initials</div>
+            <div>
+                <h2>@application.FirstName @application.LastName</h2>
+                <p>@(posting?.JobTitle ?? "Position no longer available")</p>
+                <strong>@application.ApplicationNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="membership-status-badge hr-tone @application.Status.GetBadgeClass()"><i></i>@application.Status.GetDisplayName()</span>
+                    @if (posting != null)
+                    {
+                        <span class="role-badge membership-role-badge">@posting.Department</span>
+                        <span class="status-badge reserved">@posting.ReferenceNumber</span>
+                    }
+                    <span class="role-badge">@application.ExperienceYears yrs experience</span>
+                    @if (application.Gender.HasValue)
+                    {
+                        <span class="status-badge reserved">@application.Gender.GetDisplayName()</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-envelope"></i><span>Email</span><strong>@application.Email</strong></div>
+            <div><i class="bi bi-telephone"></i><span>Phone</span><strong>@application.Phone</strong></div>
+            <div><i class="bi bi-calendar2-check"></i><span>Applied On</span><strong>@application.ApplicationDate.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-calendar-event"></i><span>Interviews</span><strong>@Model.Interviews.Count scheduled / held</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@(Model.Interviews.Count == 0 ? 25 : 75)%">
+                <strong>@application.Status.GetDisplayName()</strong>
+                <span>Stage</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Expected Salary</span><strong>@MoneyOrFallback(application.ExpectedSalary)</strong></div>
+                <div><span>Notice Period</span><strong>@TextOrFallback(application.NoticePeriod)</strong></div>
+                <div><span>Highest Education</span><strong>@application.HighestEducation</strong></div>
+                <div>
+                    <span>Next Interview</span>
+                    <strong>@(Model.NextInterview == null ? "Not scheduled" : $"{Model.NextInterview.InterviewDate:dd MMM yyyy} {Model.NextInterview.InterviewTime:HH\\:mm}")</strong>
+                </div>
+            </div>
+        </aside>
+    </article>
+
+    @if (application.Status == JobApplicationStatus.Rejected)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-x-circle"></i>
+            <div>
+                <h2>Application Rejected</h2>
+                <p>This candidate was rejected in the hiring pipeline.</p>
+                <span>Rejected applications cannot be shortlisted or scheduled for interviews.</span>
+            </div>
+        </section>
+    }
+    else if (application.Status == JobApplicationStatus.Hired)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-person-check"></i>
+            <div>
+                <h2>Candidate Hired</h2>
+                <p>This candidate has been hired.</p>
+                <span>Pipeline actions are closed for hired candidates.</span>
+            </div>
+        </section>
+    }
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-briefcase"></i><div><h2>Application Overview</h2><p>Applied position and pipeline status.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Application Number</dt><dd>@application.ApplicationNumber</dd></div>
+                    <div><dt>Position</dt><dd>@(posting?.JobTitle ?? "Not available")</dd></div>
+                    <div><dt>Job Reference</dt><dd>@(posting?.ReferenceNumber ?? "Not available")</dd></div>
+                    <div><dt>Department</dt><dd>@(posting?.Department ?? "Not available")</dd></div>
+                    <div><dt>Employment Type</dt><dd>@(posting?.EmploymentType.GetDisplayName() ?? "Not available")</dd></div>
+                    <div><dt>Status</dt><dd>@application.Status.GetDisplayName()</dd></div>
+                    <div><dt>Applied On</dt><dd>@application.ApplicationDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Experience</dt><dd>@application.ExperienceYears years</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-person-vcard"></i><div><h2>Personal Information</h2><p>Identity and classification details.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Full Name</dt><dd>@application.FirstName @application.LastName</dd></div>
+                    <div><dt>Date of Birth</dt><dd>@DateOrFallback(application.DateOfBirth)</dd></div>
+                    <div><dt>Calculated Age</dt><dd>@(Model.CalculatedAge?.ToString() ?? "Not available")</dd></div>
+                    <div><dt>Gender</dt><dd>@(application.Gender?.GetDisplayName() ?? "Not specified")</dd></div>
+                    <div><dt>National ID / CNIC</dt><dd>@application.NationalIdNumber</dd></div>
+                    <div><dt>City</dt><dd>@application.City</dd></div>
+                    <div><dt>Country</dt><dd>@application.Country</dd></div>
+                    <div><dt>Current Address</dt><dd>@TextOrFallback(application.CurrentAddress)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-mortarboard"></i><div><h2>Experience &amp; Education</h2><p>Professional background and expectations.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Experience</dt><dd>@application.ExperienceYears years</dd></div>
+                    <div><dt>Highest Education</dt><dd>@application.HighestEducation</dd></div>
+                    <div><dt>Current / Previous Employer</dt><dd>@TextOrFallback(application.CurrentEmployer)</dd></div>
+                    <div><dt>Current Job Title</dt><dd>@TextOrFallback(application.CurrentJobTitle)</dd></div>
+                    <div><dt>Expected Salary</dt><dd>@MoneyOrFallback(application.ExpectedSalary)</dd></div>
+                    <div><dt>Notice Period</dt><dd>@TextOrFallback(application.NoticePeriod)</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-link-45deg"></i><div><h2>Links &amp; Cover Letter</h2><p>Candidate profiles and message.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div>
+                        <dt>LinkedIn</dt>
+                        <dd>
+                            @if (!string.IsNullOrWhiteSpace(application.LinkedInUrl))
+                            {
+                                <a class="hr-doc-link" href="@application.LinkedInUrl" target="_blank" rel="noopener noreferrer"><i class="bi bi-linkedin"></i> View profile</a>
+                            }
+                            else
+                            {
+                                <span>Not provided</span>
+                            }
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Portfolio</dt>
+                        <dd>
+                            @if (!string.IsNullOrWhiteSpace(application.PortfolioUrl))
+                            {
+                                <a class="hr-doc-link" href="@application.PortfolioUrl" target="_blank" rel="noopener noreferrer"><i class="bi bi-globe2"></i> View portfolio</a>
+                            }
+                            else
+                            {
+                                <span>Not provided</span>
+                            }
+                        </dd>
+                    </div>
+                </dl>
+                <p class="job-posting-copy">@(string.IsNullOrWhiteSpace(application.CoverLetter) ? "No cover letter submitted." : application.CoverLetter)</p>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-file-earmark-pdf"></i><div><h2>CV &amp; Documents</h2><p>Authorized candidate document downloads.</p></div></header>
+                @if (!Model.CanManage)
+                {
+                    <p class="job-posting-copy">Document downloads are restricted to HR management roles.</p>
+                }
+                else
+                {
+                    <div class="hr-doc-list">
+                        <a class="hr-doc-link" asp-action="DownloadCv" asp-route-id="@application.Id" title="Download CV">
+                            <i class="bi bi-file-earmark-pdf"></i> @(string.IsNullOrWhiteSpace(application.CvOriginalFileName) ? $"CV-{application.ApplicationNumber}.pdf" : application.CvOriginalFileName)
+                        </a>
+                        @foreach (var document in application.Documents.OrderBy(item => item.Id))
+                        {
+                            <a class="hr-doc-link" asp-action="DownloadDocument" asp-route-id="@document.Id" title="Download @document.OriginalFileName">
+                                <i class="bi bi-paperclip"></i> @document.OriginalFileName
+                            </a>
+                        }
+                    </div>
+                }
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-diagram-3"></i><h2>Pipeline</h2></header>
+                <strong>@application.Status.GetDisplayName()</strong>
+                <p>Applications move from Submitted to Screening, Shortlisted, Interview, and beyond.</p>
+                @if (Model.CanManage)
+                {
+                    <div class="job-pipeline-actions">
+                        <a class="admin-secondary-button" asp-action="ScheduleInterview" asp-route-id="@application.Id"><i class="bi bi-calendar-plus"></i> Schedule Interview</a>
+                        @if (canActOnPipeline && application.Status != JobApplicationStatus.Shortlisted)
+                        {
+                            <form method="post" asp-action="Shortlist" asp-route-id="@application.Id"
+                                  data-hr-confirm-form data-confirm-title="Shortlist Candidate"
+                                  data-confirm-message="Shortlist @application.FirstName @application.LastName?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-secondary-button" type="submit"><i class="bi bi-star"></i> Shortlist</button>
+                            </form>
+                        }
+                        @if (canActOnPipeline)
+                        {
+                            <form method="post" asp-action="Reject" asp-route-id="@application.Id"
+                                  data-hr-confirm-form data-confirm-title="Reject Application" data-confirm-danger="true"
+                                  data-confirm-message="Reject the application from @application.FirstName @application.LastName?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-secondary-button" type="submit"><i class="bi bi-x-circle"></i> Reject</button>
+                            </form>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-calendar-event"></i><h2>Interviews</h2></header>
+                @if (Model.Interviews.Count == 0)
+                {
+                    <p class="customer-empty-copy">No interviews scheduled yet.</p>
+                }
+                else
+                {
+                    <div class="job-interview-list">
+                        @foreach (var interview in Model.Interviews)
+                        {
+                            <details class="job-interview-item" open="@(interview.Status == InterviewStatus.Scheduled)">
+                                <summary>
+                                    <span class="job-interview-when">
+                                        <strong>@interview.InterviewDate.ToString("dd MMM yyyy")</strong>
+                                        <small>@interview.InterviewTime.ToString("HH\\:mm") &middot; @interview.InterviewType.GetDisplayName()</small>
+                                    </span>
+                                    <span class="membership-status-badge hr-tone @interview.Status.GetBadgeClass()"><i></i>@interview.Status.GetDisplayName()</span>
+                                </summary>
+                                <dl class="job-interview-meta">
+                                    <div><dt>Interviewer</dt><dd>@interview.Interviewer</dd></div>
+                                    <div><dt>Location / Link</dt><dd>@TextOrFallback(interview.Location)</dd></div>
+                                    <div><dt>Outcome</dt><dd><span class="membership-status-badge hr-tone @interview.Outcome.GetBadgeClass()"><i></i>@interview.Outcome.GetDisplayName()</span></dd></div>
+                                    @if (!string.IsNullOrWhiteSpace(interview.Notes))
+                                    {
+                                        <div><dt>Notes</dt><dd>@interview.Notes</dd></div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(interview.Feedback))
+                                    {
+                                        <div><dt>Feedback</dt><dd>@interview.Feedback</dd></div>
+                                    }
+                                </dl>
+                                @if (Model.CanManage)
+                                {
+                                    <div class="job-interview-actions">
+                                        <a class="text-action" asp-action="EditInterview" asp-route-id="@interview.Id">Reschedule / Edit <i class="bi bi-arrow-right"></i></a>
+                                    </div>
+                                    <form method="post" asp-action="UpdateInterview" asp-route-id="@interview.Id" class="job-interview-update" data-interview-update>
+                                        @Html.AntiForgeryToken()
+                                        <label>
+                                            <span>Status</span>
+                                            <select name="status" asp-items="Html.GetEnumSelectList<InterviewStatus>()" data-selected="@interview.Status"></select>
+                                        </label>
+                                        <label>
+                                            <span>Outcome</span>
+                                            <select name="outcome" asp-items="Html.GetEnumSelectList<InterviewOutcome>()" data-selected="@interview.Outcome"></select>
+                                        </label>
+                                        <label class="hr-form-wide">
+                                            <span>Feedback</span>
+                                            <input name="feedback" maxlength="2000" value="@interview.Feedback" placeholder="Optional outcome notes" />
+                                        </label>
+                                        <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> Save Update</button>
+                                    </form>
+                                }
+                            </details>
+                        }
+                    </div>
+                }
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-clock-history"></i><div><h2>Account Information</h2><p>Audit metadata and record state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Application ID</span><strong>@application.Id</strong></div>
+            <div><span>Application Number</span><strong>@application.ApplicationNumber</strong></div>
+            <div><span>Created At</span><strong>@application.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Updated At</span><strong>@DateTimeOrFallback(application.UpdatedAt)</strong></div>
+            <div><span>Created By</span><strong>@(application.CreatedByUser == null ? "Not available" : $"{application.CreatedByUser.FirstName} {application.CreatedByUser.LastName}".Trim())</strong></div>
+            <div><span>Application Status</span><strong>@application.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@Html.AntiForgeryToken()
+<div class="modal fade customer-modal" id="hrConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" data-hr-confirm-title>Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p data-hr-confirm-message>Are you sure?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="admin-action-button" data-hr-confirm-submit>Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

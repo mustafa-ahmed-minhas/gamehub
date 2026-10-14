@@ -1,0 +1,204 @@
+@model GameHub.Models.ViewModels.TerminationIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Termination & Clearance";
+    Layout = "_AdminLayout";
+
+    var hasFilters = !string.IsNullOrWhiteSpace(Model.Search)
+        || Model.EmployeeId.HasValue
+        || Model.Status.HasValue
+        || Model.TerminationType.HasValue;
+
+    var start = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 3);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 6);
+    pageStart = Math.Max(1, pageEnd - 6);
+}
+
+@functions {
+    private string ListUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            search = Model.Search,
+            employeeId = Model.EmployeeId,
+            status = Model.Status,
+            terminationType = Model.TerminationType,
+            sort = Model.SortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+}
+
+<section class="arena-page hr-page termination-page" data-termination-index>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>Termination &amp; Clearance</h1>
+            <p>Manage termination requests, approver decisions, letters, and employee clearance.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-box-arrow-right"></i> New Request</a>
+            }
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article><i class="bi bi-collection"></i><span>Total Requests</span><strong>@Model.TotalRequests</strong></article>
+        <article><i class="bi bi-hourglass-split"></i><span>Pending Approval</span><strong>@Model.PendingApproval</strong></article>
+        <article><i class="bi bi-check2-square"></i><span>Approved</span><strong>@Model.Approved</strong></article>
+        <article><i class="bi bi-arrow-repeat"></i><span>In Progress</span><strong>@Model.InProgress</strong></article>
+        <article><i class="bi bi-clipboard-check"></i><span>Pending Clearance</span><strong>@Model.PendingClearance</strong></article>
+        <article><i class="bi bi-flag"></i><span>Completed</span><strong>@Model.Completed</strong></article>
+    </div>
+
+    <section class="arena-card">
+        <form class="arena-toolbar" method="get" data-termination-filters>
+            <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search requests..." aria-label="Search requests" autocomplete="off" data-live-search /></div>
+            <select name="employeeId" data-filter-select>
+                <option value="">All Employees</option>
+                @foreach (var employee in Model.EmployeeOptions)
+                {
+                    <option value="@employee.Value" selected="@(Model.EmployeeId.HasValue && Model.EmployeeId.Value.ToString() == employee.Value)">@employee.Text</option>
+                }
+            </select>
+            <select name="status" data-filter-select>
+                <option value="">All Status</option>
+                @foreach (TerminationStatus value in Enum.GetValues<TerminationStatus>())
+                {
+                    <option value="@value" selected="@(Model.Status == value)">@value.GetDisplayName()</option>
+                }
+            </select>
+            <select name="terminationType" data-filter-select>
+                <option value="">All Reasons</option>
+                @foreach (TerminationType value in Enum.GetValues<TerminationType>())
+                {
+                    <option value="@value" selected="@(Model.TerminationType == value)">@value.GetDisplayName()</option>
+                }
+            </select>
+            <select name="sort" data-filter-select>
+                <option value="newest" selected="@(Model.SortBy == "newest")">Newest First</option>
+                <option value="oldest" selected="@(Model.SortBy == "oldest")">Oldest First</option>
+                <option value="employee" selected="@(Model.SortBy == "employee")">Employee A-Z</option>
+                <option value="request" selected="@(Model.SortBy == "request")">Recently Requested</option>
+                <option value="lastday" selected="@(Model.SortBy == "lastday")">Last Working Day</option>
+                <option value="status" selected="@(Model.SortBy == "status")">Status</option>
+            </select>
+            <select name="pageSize" data-filter-select>
+                @foreach (var size in new[] { 10, 25, 50 })
+                {
+                    <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                }
+            </select>
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Clear</a>
+        </form>
+
+        @if (!Model.Requests.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi bi-box-arrow-right"></i>
+                <h2>@(hasFilters ? "No Matching Requests" : "No Termination Requests Yet")</h2>
+                <p>@(hasFilters ? "Try changing or clearing your filters." : "Raise your first termination request to begin the clearance process.")</p>
+                @if (hasFilters)
+                {
+                    <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                }
+                else if (Model.CanManage)
+                {
+                    <a class="admin-action-button" asp-action="Create"><i class="bi bi-box-arrow-right"></i> New Request</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="hr-table-wrap">
+                <table class="arena-table hr-table termination-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Reference</th>
+                            <th scope="col">Employee</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Requested</th>
+                            <th scope="col">Last Working Day</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Clearance</th>
+                            <th scope="col">Letter</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Requests)
+                        {
+                            var percent = item.TotalItems == 0 ? 0 : (int)Math.Round(item.ClearedItems * 100.0 / item.TotalItems);
+                            <tr data-termination-row="@item.Id">
+                                <td data-label="Reference"><span class="membership-code">@item.ReferenceNumber</span></td>
+                                <td data-label="Employee">
+                                    <div class="user-cell hr-identity">
+                                        <span class="user-avatar membership-table-avatar">@item.Initials</span>
+                                        <div>
+                                            <strong>@item.EmployeeName</strong>
+                                            <small>@item.EmployeeNumber &middot; @item.Designation</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Type"><span class="role-badge membership-role-badge">@item.TerminationType.GetDisplayName()</span></td>
+                                <td data-label="Requested">@item.RequestDate.ToString("dd MMM yyyy")</td>
+                                <td data-label="Last Working Day">@item.ProposedLastWorkingDay.ToString("dd MMM yyyy")</td>
+                                <td data-label="Status">
+                                    <span class="membership-status-badge hr-tone @item.Status.GetBadgeClass()"><i></i>@item.Status.GetDisplayName()</span>
+                                </td>
+                                <td data-label="Clearance">
+                                    <span class="hr-progress-inline"><span style="width:@percent%"></span></span>
+                                    <small class="hr-record-counts">@item.ClearedItems / @item.TotalItems</small>
+                                </td>
+                                <td data-label="Letter">
+                                    @if (item.HasLetter)
+                                    {
+                                        <span class="membership-status-badge hr-tone offer"><i></i>Ready</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="termination-muted">None</span>
+                                    }
+                                </td>
+                                <td data-label="Actions">
+                                    <div class="membership-action-menu">
+                                        <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.Id" data-tooltip="View request" aria-label="View request"><i class="bi bi-eye"></i></a>
+                                        @if (Model.CanManage && item.Status == TerminationStatus.Draft)
+                                        {
+                                            <a class="membership-icon-button" asp-action="Edit" asp-route-id="@item.Id" data-tooltip="Edit request" aria-label="Edit request"><i class="bi bi-pencil"></i></a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="arena-pagination">
+                <span>Showing @start-@end of @Model.TotalRecords requests</span>
+                <nav>
+                    <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : ListUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                    @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                    {
+                        <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@ListUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                    }
+                    <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : ListUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                </nav>
+            </div>
+        }
+    </section>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,93 @@
+@model GameHub.Models.ViewModels.ClearanceItemFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = Model.IsEditMode ? "Edit Clearance Item" : "New Clearance Item";
+    Layout = "_AdminLayout";
+
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+}
+
+<section class="arena-page hr-page termination-form-page" data-clearance-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Employee Clearance</span>
+            <h1>@(Model.IsEditMode ? "Edit Clearance Item" : "New Clearance Item")</h1>
+            <p>@Model.ReferenceNumber@(string.IsNullOrWhiteSpace(Model.EmployeeName) ? string.Empty : $" \u00b7 {Model.EmployeeName}")</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.TerminationRequestId"><i class="bi bi-arrow-left"></i> Back to Request</a>
+    </header>
+
+    <form asp-action="@(Model.IsEditMode ? "EditClearance" : "CreateClearance")" asp-route-id="@Model.Id" method="post" class="arena-form-main" data-hr-submit-once>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="TerminationRequestId" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-clipboard-check"></i> Clearance Item</h2>
+            <label>
+                <span>Category *</span>
+                <select asp-for="Category" asp-items="Html.GetEnumSelectList<ClearanceCategory>()"></select>
+                <span asp-validation-for="Category"></span>
+            </label>
+            <label>
+                <span>Status *</span>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<ClearanceStatus>()"></select>
+                <small class="hr-hint">Marking an item Cleared sets the completion date automatically.</small>
+                <span asp-validation-for="Status"></span>
+            </label>
+            <label>
+                <span>Responsible Person</span>
+                <input asp-for="ResponsiblePerson" maxlength="120" placeholder="e.g. Ayesha Khan" />
+                <span asp-validation-for="ResponsiblePerson"></span>
+            </label>
+            <label>
+                <span>Responsible Department</span>
+                <select asp-for="ResponsibleDepartment" asp-items="Model.DepartmentOptions">
+                    <option value="">Not assigned</option>
+                </select>
+                <span asp-validation-for="ResponsibleDepartment"></span>
+            </label>
+            <label>
+                <span>Completion Date</span>
+                <input asp-for="CompletedDate" type="date" max="@today.ToString("yyyy-MM-dd")" />
+                <small class="hr-hint">Required when the item is Cleared; set automatically if left blank.</small>
+                <span asp-validation-for="CompletedDate"></span>
+            </label>
+            <label class="hr-form-wide customer-toggle">
+                <input asp-for="IsMandatory" type="checkbox" />
+                <span>Mandatory item (blocks final completion until cleared)</span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-card-text"></i> Outstanding Items &amp; Notes</h2>
+            <label class="hr-form-wide">
+                <span>Outstanding Items / Dues</span>
+                <textarea asp-for="OutstandingItems" rows="4" maxlength="2000" placeholder="List any assets, handover tasks, or dues that remain outstanding."></textarea>
+                <span asp-validation-for="OutstandingItems"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Remarks</span>
+                <textarea asp-for="Remarks" rows="3" maxlength="2000" placeholder="Optional notes recorded by the responsible department."></textarea>
+                <span asp-validation-for="Remarks"></span>
+            </label>
+        </section>
+
+        <div class="arena-form-submit">
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.TerminationRequestId"><i class="bi bi-x-circle"></i> Cancel</a>
+            <button class="admin-action-button" type="submit"><i class="bi bi-check2-circle"></i> @(Model.IsEditMode ? "Save Changes" : "Add Item")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

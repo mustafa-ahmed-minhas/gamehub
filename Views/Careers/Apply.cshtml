@@ -1,0 +1,305 @@
+@model PublicJobApplicationViewModel
+@{
+    Layout = "_PublicLayout";
+    var posting = Model.JobPosting;
+    var form = Model.Form;
+    var maxDob = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-18)).ToString("yyyy-MM-dd");
+}
+
+@if (Model.LoadFailed)
+{
+    <section class="job-apply-hero">
+        <div class="container">
+            <a class="careers-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Careers</a>
+            <span class="eyebrow-pill"><i class="bi bi-pencil-square"></i> Job Application</span>
+            <h1>Application</h1>
+        </div>
+    </section>
+
+    <section class="job-apply-body">
+        <div class="container">
+            <div class="careers-state careers-state--error" role="alert">
+                <span class="careers-state-icon"><i class="bi bi-exclamation-triangle"></i></span>
+                <h2>We could not open this application</h2>
+                <p>Something went wrong while loading the application form. Please try again in a moment.</p>
+                <div class="careers-state-actions">
+                    <a class="btn-premium" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Careers</a>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section class="job-apply-hero">
+        <div class="container">
+            <a class="careers-back-link" asp-action="Details" asp-route-id="@posting.Id"><i class="bi bi-arrow-left"></i> Back to job details</a>
+            <span class="eyebrow-pill"><i class="bi bi-pencil-square"></i> Job Application</span>
+            <h1>Apply for @posting.JobTitle</h1>
+            <ul class="careers-hero-meta">
+                <li><i class="bi bi-hash"></i> @posting.ReferenceNumber</li>
+                <li><i class="bi bi-building"></i> @posting.Department</li>
+                <li><i class="bi bi-geo-alt"></i> @posting.JobLocation</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="job-apply-body">
+        <div class="container job-apply-layout">
+            @if (Model.DuplicateDetected)
+            {
+                <div class="job-duplicate" role="status">
+                    <span class="job-duplicate-icon"><i class="bi bi-info-circle"></i></span>
+                    <h2>You have already applied to this role</h2>
+                    <p>
+                        We already received an application for <strong>@posting.JobTitle</strong> that matches this
+                        email address, phone number, or National ID. Only one application per person per role is
+                        allowed, so this submission was not saved.
+                    </p>
+                    <div class="job-duplicate-actions">
+                        <a class="btn-premium" asp-action="Index"><i class="bi bi-grid"></i> Browse other roles</a>
+                        <a class="job-btn-outline" asp-action="Details" asp-route-id="@posting.Id"><i class="bi bi-arrow-left"></i> Back to job details</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <form method="post" enctype="multipart/form-data" class="job-apply-form" data-job-apply-form asp-action="Apply" asp-route-id="@posting.Id">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="Form.JobPostingId" type="hidden" />
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger job-validation-summary"></div>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-briefcase"></i> Position</h2>
+                        <div class="job-posting-lock">
+                            <i class="bi bi-briefcase"></i>
+                            <div>
+                                <strong>@posting.JobTitle</strong>
+                                <span>@posting.ReferenceNumber &middot; @posting.Department &middot; @posting.JobLocation</span>
+                            </div>
+                        </div>
+                        <p class="job-field-hint">You are applying for this specific role. The position is fixed to the posting you opened.</p>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-person"></i> Personal Information</h2>
+                        <div class="job-fields">
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.FirstName" class="form-control" placeholder="First name" maxlength="50" required />
+                                    <label asp-for="Form.FirstName">First Name *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.FirstName"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.LastName" class="form-control" placeholder="Last name" maxlength="50" required />
+                                    <label asp-for="Form.LastName">Last Name *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.LastName"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.DateOfBirth" type="date" class="form-control" max="@maxDob" />
+                                    <label asp-for="Form.DateOfBirth">Date of Birth</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.DateOfBirth"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <select asp-for="Form.Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()">
+                                        <option value="">Not specified</option>
+                                    </select>
+                                    <label asp-for="Form.Gender">Gender</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.Gender"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.City" class="form-control" placeholder="City" maxlength="80" required />
+                                    <label asp-for="Form.City">City *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.City"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <select asp-for="Form.Country" class="form-select" asp-items="form.Countries"></select>
+                                    <label asp-for="Form.Country">Country *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.Country"></span>
+                            </div>
+                            <div class="job-field wide">
+                                <div class="form-floating">
+                                    <input asp-for="Form.CurrentAddress" class="form-control" placeholder="Current address" maxlength="250" />
+                                    <label asp-for="Form.CurrentAddress">Current Address (optional)</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.CurrentAddress"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-telephone"></i> Contact &amp; Identity</h2>
+                        <div class="job-fields">
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.Email" type="email" class="form-control" placeholder="Email" maxlength="254" required />
+                                    <label asp-for="Form.Email">Email Address *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.Email"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.Phone" class="form-control" placeholder="Phone" maxlength="30" required />
+                                    <label asp-for="Form.Phone">Phone Number *</label>
+                                </div>
+                                <small class="job-field-hint">Include the country code, e.g. +92 300 1234567.</small>
+                                <span class="job-field-error" asp-validation-for="Form.Phone"></span>
+                            </div>
+                            <div class="job-field wide">
+                                <div class="form-floating">
+                                    <input asp-for="Form.NationalIdNumber" class="form-control" placeholder="National ID" maxlength="30" required />
+                                    <label asp-for="Form.NationalIdNumber">National ID Number *</label>
+                                </div>
+                                <small class="job-field-hint">For Pakistan, enter the 13-digit CNIC. Hyphens are optional.</small>
+                                <span class="job-field-error" asp-validation-for="Form.NationalIdNumber"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-mortarboard"></i> Experience &amp; Education</h2>
+                        <div class="job-fields">
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.ExperienceYears" type="number" min="0" max="50" class="form-control" placeholder="Years" required />
+                                    <label asp-for="Form.ExperienceYears">Experience in Years *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.ExperienceYears"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <select asp-for="Form.HighestEducation" class="form-select" asp-items="form.EducationLevels">
+                                        <option value="">Select education level</option>
+                                    </select>
+                                    <label asp-for="Form.HighestEducation">Highest Education *</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.HighestEducation"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.CurrentEmployer" class="form-control" placeholder="Employer" maxlength="150" />
+                                    <label asp-for="Form.CurrentEmployer">Current / Previous Employer</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.CurrentEmployer"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.CurrentJobTitle" class="form-control" placeholder="Job title" maxlength="100" />
+                                    <label asp-for="Form.CurrentJobTitle">Current Job Title</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.CurrentJobTitle"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.ExpectedSalary" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+                                    <label asp-for="Form.ExpectedSalary">Expected Salary</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.ExpectedSalary"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <select asp-for="Form.NoticePeriod" class="form-select" asp-items="form.NoticePeriods">
+                                        <option value="">Select notice period</option>
+                                    </select>
+                                    <label asp-for="Form.NoticePeriod">Notice Period</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.NoticePeriod"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-link-45deg"></i> Links &amp; Cover Letter</h2>
+                        <div class="job-fields">
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.LinkedInUrl" type="url" class="form-control" placeholder="https://www.linkedin.com/in/..." maxlength="300" />
+                                    <label asp-for="Form.LinkedInUrl">LinkedIn Profile</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.LinkedInUrl"></span>
+                            </div>
+                            <div class="job-field">
+                                <div class="form-floating">
+                                    <input asp-for="Form.PortfolioUrl" type="url" class="form-control" placeholder="https://..." maxlength="300" />
+                                    <label asp-for="Form.PortfolioUrl">Portfolio URL</label>
+                                </div>
+                                <span class="job-field-error" asp-validation-for="Form.PortfolioUrl"></span>
+                            </div>
+                            <div class="job-field wide">
+                                <div class="form-floating">
+                                    <textarea asp-for="Form.CoverLetter" class="form-control" maxlength="3000" placeholder="Cover letter"></textarea>
+                                    <label asp-for="Form.CoverLetter">Cover Letter (optional)</label>
+                                </div>
+                                <small class="job-field-hint" data-job-counter-target="Form.CoverLetter"></small>
+                                <span class="job-field-error" asp-validation-for="Form.CoverLetter"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-file-earmark-pdf"></i> CV / Resume</h2>
+                        <label class="job-file-field">
+                            <span>CV / Resume (PDF) *</span>
+                            <input asp-for="Form.CvFile" type="file" accept=".pdf,application/pdf" required data-job-file-input="cv" />
+                            <small class="job-field-hint">PDF only, up to 5 MB. Your file is stored securely with a generated name.</small>
+                            <span class="job-field-error" asp-validation-for="Form.CvFile"></span>
+                            <div class="job-file-list" data-job-file-list="cv"></div>
+                        </label>
+                    </section>
+
+                    <section class="job-form-section">
+                        <h2><i class="bi bi-paperclip"></i> Supporting Documents</h2>
+                        <label class="job-file-field">
+                            <span>Add Supporting Documents <em>(optional, max 3)</em></span>
+                            <input type="file" name="Form.SupportingDocuments" accept=".pdf,application/pdf" multiple data-job-file-input="docs" />
+                            <small class="job-field-hint">PDF only, up to 5 MB per file and a maximum of 3 files.</small>
+                            <span class="job-field-error" asp-validation-for="Form.SupportingDocuments"></span>
+                            <div class="job-file-list" data-job-file-list="docs"></div>
+                        </label>
+                    </section>
+
+                    <div class="job-form-actions">
+                        <button class="btn-premium" type="submit" data-job-apply-submit><i class="bi bi-send"></i> Submit Application</button>
+                        <a class="job-btn-outline" asp-action="Details" asp-route-id="@posting.Id">Cancel</a>
+                    </div>
+                </form>
+
+                <aside class="job-apply-side">
+                    <div class="job-side-card">
+                        <h2>What happens next?</h2>
+                        <div class="job-side-step"><i class="bi bi-1-circle"></i><span>Your application is stored with a unique reference number.</span></div>
+                        <div class="job-side-step"><i class="bi bi-2-circle"></i><span>The recruitment team reviews your details and CV.</span></div>
+                        <div class="job-side-step"><i class="bi bi-3-circle"></i><span>Shortlisted candidates are contacted for an interview.</span></div>
+                    </div>
+                    <div class="job-side-card">
+                        <h2>Before you submit</h2>
+                        <ul class="job-side-list">
+                            <li>Apply once per role &mdash; duplicate applications are blocked.</li>
+                            <li>Make sure your email and phone number are correct.</li>
+                            <li>Upload your CV as a PDF.</li>
+                        </ul>
+                    </div>
+                </aside>
+            }
+        </div>
+    </section>
+}
+
+@section Styles { <link rel="stylesheet" href="~/css/public-careers.css" asp-append-version="true" /> }
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/public-careers.js" asp-append-version="true"></script>
+}

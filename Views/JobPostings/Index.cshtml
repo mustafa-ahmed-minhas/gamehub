@@ -1,0 +1,137 @@
+@model GameHub.Models.ViewModels.JobPostingIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Job Postings";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page hr-page job-postings-page" data-job-postings-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Recruitment</span>
+            <h1>Job Postings</h1>
+            <p>Manage open positions, requirements, and hiring deadlines.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-journal-plus"></i> Add Job Posting</a>
+            }
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article>
+            <i class="bi bi-briefcase"></i>
+            <span>Total Postings</span>
+            <strong>@Model.TotalPostings</strong>
+        </article>
+        <article>
+            <i class="bi bi-unlock"></i>
+            <span>Open Positions</span>
+            <strong>@Model.OpenPostings</strong>
+        </article>
+        <article>
+            <i class="bi bi-person-vcard"></i>
+            <span>Applications</span>
+            <strong>@Model.TotalApplications</strong>
+        </article>
+        <article>
+            <i class="bi bi-hourglass-split"></i>
+            <span>Expiring Soon</span>
+            <strong>@Model.ExpiringSoon</strong>
+        </article>
+    </div>
+
+    <section class="arena-card hr-section-card" aria-label="Job postings list">
+        <div class="hr-card-head">
+            <div>
+                <h2>All Job Postings</h2>
+                <p>Latest openings and their hiring status</p>
+            </div>
+            <a class="text-action" asp-controller="Recruitment" asp-action="Index">Back to Recruitment <i class="bi bi-arrow-right"></i></a>
+        </div>
+
+        @if (Model.Postings.Count == 0)
+        {
+            <div class="arena-empty">
+                <i class="bi bi-briefcase"></i>
+                <h2>No job postings yet</h2>
+                <p>Create your first job posting to start collecting applications.</p>
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-journal-plus"></i> Add Job Posting</a>
+            </div>
+        }
+        else
+        {
+            <div class="hr-table-wrap">
+                <table class="arena-table hr-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Reference</th>
+                            <th scope="col">Position</th>
+                            <th scope="col">Department</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Deadline</th>
+                            <th scope="col">Vacancies</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var posting in Model.Postings)
+                        {
+                            var isExpired = posting.ApplicationDeadline < DateOnly.FromDateTime(DateTime.UtcNow);
+                            var statusTone = posting.Status switch
+                            {
+                                JobPostingStatus.Open => "open",
+                                JobPostingStatus.Closed => "closed",
+                                _ => "draft"
+                            };
+                            <tr>
+                                <td data-label="Reference"><span class="membership-code">@posting.ReferenceNumber</span></td>
+                                <td data-label="Position">
+                                    <div class="user-cell hr-identity">
+                                        <span class="user-avatar">@posting.JobTitle.TrimStart().FirstOrDefault()</span>
+                                        <div>
+                                            <strong>@posting.JobTitle</strong>
+                                            <small>@posting.WorkplaceType.GetDisplayName() &middot; @posting.JobLocation</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Department"><span class="membership-code">@posting.Department</span></td>
+                                <td data-label="Type">@posting.EmploymentType.GetDisplayName()</td>
+                                <td data-label="Status">
+                                    <span class="membership-status-badge hr-tone @statusTone"><i></i>@posting.Status.GetDisplayName()</span>
+                                </td>
+                                <td data-label="Deadline">
+                                    <strong>@posting.ApplicationDeadline.ToString("dd MMM yyyy")</strong>
+                                    @if (isExpired && posting.Status == JobPostingStatus.Open)
+                                    {
+                                        <small class="hr-update">Expired</small>
+                                    }
+                                </td>
+                                <td data-label="Vacancies"><strong>@posting.Vacancies</strong></td>
+                                <td data-label="Action">
+                                    <div class="membership-action-menu">
+                                        <a class="membership-icon-button" asp-action="Details" asp-route-id="@posting.Id" data-tooltip="View" aria-label="View job posting"><i class="bi bi-eye"></i></a>
+                                        @if (Model.CanManage)
+                                        {
+                                            <a class="membership-icon-button" asp-action="Edit" asp-route-id="@posting.Id" data-tooltip="Edit" aria-label="Edit job posting"><i class="bi bi-pencil"></i></a>
+                                            <a class="membership-icon-button" asp-controller="JobApplications" asp-action="Create" asp-route-jobPostingId="@posting.Id" data-tooltip="Apply" aria-label="Add application"><i class="bi bi-person-plus"></i></a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}

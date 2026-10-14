@@ -1,0 +1,242 @@
+@model GameHub.Models.ViewModels.JobPostingDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var posting = Model.Posting;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var isExpired = posting.ApplicationDeadline < today;
+    var acceptingApplications = posting.Status == JobPostingStatus.Open && !isExpired;
+    var statusTone = posting.Status switch
+    {
+        JobPostingStatus.Open => "open",
+        JobPostingStatus.Closed => "closed",
+        _ => "draft"
+    };
+
+    ViewData["Title"] = posting.JobTitle;
+    Layout = "_AdminLayout";
+
+    string DateTimeOrFallback(DateTime? value) => value?.ToString("dd MMM yyyy hh:mm tt") ?? "Not available";
+    string SalaryRange()
+    {
+        if (posting.MinimumSalary.HasValue && posting.MaximumSalary.HasValue)
+        {
+            return $"{posting.Currency} {posting.MinimumSalary.Value:N0} - {posting.MaximumSalary.Value:N0}";
+        }
+        if (posting.MinimumSalary.HasValue)
+        {
+            return $"{posting.Currency} {posting.MinimumSalary.Value:N0}+";
+        }
+        if (posting.MaximumSalary.HasValue)
+        {
+            return $"Up to {posting.Currency} {posting.MaximumSalary.Value:N0}";
+        }
+        return "Not disclosed";
+    }
+}
+
+<section class="users-page customer-details-page customer-profile-page job-posting-details-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-controller="Recruitment" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Recruitment</a>
+            <span class="admin-label">Job Posting</span>
+            <h1>@posting.JobTitle</h1>
+            <p>@posting.ReferenceNumber - Full posting details, hiring criteria, and linked applications.</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Edit" asp-route-id="@posting.Id"><i class="bi bi-pencil"></i> Edit Job Posting</a>
+                @if (acceptingApplications)
+                {
+                    <a class="admin-secondary-button" asp-controller="JobApplications" asp-action="Create" asp-route-jobPostingId="@posting.Id"><i class="bi bi-person-plus"></i> Add Application</a>
+                }
+            }
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@posting.JobTitle.TrimStart().FirstOrDefault()</div>
+            <div>
+                <h2>@posting.JobTitle</h2>
+                <p>@posting.Department</p>
+                <strong>@posting.ReferenceNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="membership-status-badge hr-tone @statusTone"><i></i>@posting.Status.GetDisplayName()</span>
+                    <span class="role-badge membership-role-badge">@posting.EmploymentType.GetDisplayName()</span>
+                    <span class="status-badge reserved">@posting.WorkplaceType.GetDisplayName()</span>
+                    <span class="role-badge">@posting.Vacancies @(posting.Vacancies == 1 ? "Vacancy" : "Vacancies")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-geo-alt"></i><span>Location</span><strong>@posting.JobLocation</strong></div>
+            <div><i class="bi bi-calendar-event"></i><span>Application Deadline</span><strong>@posting.ApplicationDeadline.ToString("dd MMM yyyy")</strong></div>
+            <div><i class="bi bi-person-badge"></i><span>Hiring Manager</span><strong>@(posting.HiringManager == null ? "Not assigned" : $"{posting.HiringManager.FirstName} {posting.HiringManager.LastName}".Trim())</strong></div>
+            <div><i class="bi bi-inbox"></i><span>Applications</span><strong>@Model.Applications.Count</strong></div>
+        </div>
+    </article>
+
+    @if (!acceptingApplications)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-exclamation-triangle"></i>
+            <div>
+                <h2>Not accepting applications</h2>
+                <p>@(isExpired ? "The application deadline has passed." : "This posting is not marked as open.")</p>
+                <span>Candidates cannot submit new applications for this posting.</span>
+            </div>
+        </section>
+    }
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-briefcase"></i><div><h2>Job Overview</h2><p>Role, location, and hiring summary.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Reference</dt><dd>@posting.ReferenceNumber</dd></div>
+                    <div><dt>Department</dt><dd>@posting.Department</dd></div>
+                    <div><dt>Employment Type</dt><dd>@posting.EmploymentType.GetDisplayName()</dd></div>
+                    <div><dt>Workplace Type</dt><dd>@posting.WorkplaceType.GetDisplayName()</dd></div>
+                    <div><dt>Vacancies</dt><dd>@posting.Vacancies</dd></div>
+                    <div><dt>Status</dt><dd>@posting.Status.GetDisplayName()</dd></div>
+                    <div><dt>Experience Required</dt><dd>@posting.ExperienceRequired</dd></div>
+                    <div><dt>Minimum Education</dt><dd>@posting.MinimumEducation</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-file-earmark-text"></i><div><h2>Job Description</h2><p>Overview of the role and team.</p></div></header>
+                <p class="job-posting-copy">@posting.JobDescription</p>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-list-check"></i><div><h2>Key Responsibilities</h2><p>Day-to-day duties for this role.</p></div></header>
+                <p class="job-posting-copy">@posting.KeyResponsibilities</p>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-patch-check"></i><div><h2>Qualifications &amp; Requirements</h2><p>What candidates must bring.</p></div></header>
+                <p class="job-posting-copy">@posting.Qualifications</p>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-inbox"></i><div><h2>Linked Applications</h2><p>Candidates who applied for this posting.</p></div></header>
+                @if (Model.Applications.Count == 0)
+                {
+                    <p class="job-posting-copy">No applications have been received for this posting yet.</p>
+                }
+                else
+                {
+                    <div class="hr-table-wrap">
+                        <table class="arena-table hr-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Reference</th>
+                                    <th scope="col">Candidate</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Applied</th>
+                                    <th scope="col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var application in Model.Applications)
+                                {
+                                    var initials = (application.FirstName.FirstOrDefault().ToString()
+                                        + application.LastName.FirstOrDefault().ToString()).ToUpperInvariant();
+                                    <tr>
+                                        <td data-label="Reference"><span class="membership-code">@application.ApplicationNumber</span></td>
+                                        <td data-label="Candidate">
+                                            <div class="user-cell hr-identity">
+                                                <span class="user-avatar">@initials</span>
+                                                <div>
+                                                    <strong>@application.FirstName @application.LastName</strong>
+                                                    <small>@application.Email</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td data-label="Status">
+                                            <span class="membership-status-badge hr-tone @application.Status.GetBadgeClass()"><i></i>@application.Status.GetDisplayName()</span>
+                                        </td>
+                                        <td data-label="Applied"><strong>@application.ApplicationDate.ToString("dd MMM yyyy")</strong></td>
+                                        <td data-label="Action">
+                                            <a class="membership-icon-button" asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id" data-tooltip="View" aria-label="View application"><i class="bi bi-eye"></i></a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-cash-stack"></i><h2>Compensation</h2></header>
+                <dl>
+                    <div><dt>Salary Range</dt><dd>@SalaryRange()</dd></div>
+                    <div><dt>Currency</dt><dd>@posting.Currency</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-tags"></i><h2>Required Skills</h2></header>
+                @if (posting.Skills.Count == 0)
+                {
+                    <p class="customer-empty-copy">No specific skills listed.</p>
+                }
+                else
+                {
+                    <div class="customer-chip-list">
+                        @foreach (var skill in posting.Skills.OrderBy(item => item.Id))
+                        {
+                            <span><i class="bi bi-check2-circle"></i>@skill.Skill</span>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-patch-question"></i><h2>Screening Questions</h2></header>
+                @if (posting.ScreeningQuestions.Count == 0)
+                {
+                    <p class="customer-empty-copy">No screening questions configured.</p>
+                }
+                else
+                {
+                    <ol class="job-posting-questions">
+                        @foreach (var question in posting.ScreeningQuestions.OrderBy(item => item.Id))
+                        {
+                            <li>@question.Question</li>
+                        }
+                    </ol>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-gift"></i><h2>Benefits</h2></header>
+                <p>@(string.IsNullOrWhiteSpace(posting.Benefits) ? "No benefits listed." : posting.Benefits)</p>
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-clock-history"></i><div><h2>Account Information</h2><p>Audit metadata and posting state.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Posting ID</span><strong>@posting.Id</strong></div>
+            <div><span>Reference</span><strong>@posting.ReferenceNumber</strong></div>
+            <div><span>Created At</span><strong>@posting.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Updated At</span><strong>@DateTimeOrFallback(posting.UpdatedAt)</strong></div>
+            <div><span>Created By</span><strong>@(posting.CreatedByUser == null ? "Not available" : $"{posting.CreatedByUser.FirstName} {posting.CreatedByUser.LastName}".Trim())</strong></div>
+            <div><span>Posting Status</span><strong>@posting.Status.GetDisplayName()</strong></div>
+        </div>
+    </article>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}

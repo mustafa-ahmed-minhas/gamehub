@@ -1,0 +1,452 @@
+@model GameHub.Models.ViewModels.OfferDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var offer = Model.Offer;
+    var application = Model.Application;
+    var posting = application.JobPosting;
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+    var isDraft = offer.Status == JobOfferStatus.Draft;
+    var isPending = offer.Status == JobOfferStatus.PendingAcceptance;
+    var isAccepted = offer.Status == JobOfferStatus.Accepted;
+    var isHired = offer.Status == JobOfferStatus.Hired;
+    var isExpired = offer.Status == JobOfferStatus.Expired;
+    var isOpen = isDraft || isPending;
+    var expiryShown = offer.ExpiryDate.ToString("dd MMM yyyy");
+
+    var stageValue = offer.Status switch
+    {
+        JobOfferStatus.Accepted => 100,
+        JobOfferStatus.Hired => 100,
+        JobOfferStatus.Rejected => 100,
+        JobOfferStatus.Withdrawn => 100,
+        JobOfferStatus.Expired => 100,
+        JobOfferStatus.PendingAcceptance => 70,
+        _ => 35
+    };
+
+    ViewData["Title"] = $"Offer {offer.ReferenceNumber}";
+    Layout = "_AdminLayout";
+
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateTimeOrFallback(DateTime? value) => value?.ToString("dd MMM yyyy hh:mm tt") ?? "Not available";
+
+    var manager = Model.ReportingManagerName;
+}
+
+<section class="users-page customer-details-page customer-profile-page offer-details-page">
+    <header class="customer-profile-header admin-reveal">
+        <div class="customer-profile-title">
+            <a class="customer-back-link" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Offer &amp; Hiring</a>
+            <span class="admin-label">Job Offer</span>
+            <h1>@Model.CandidateName</h1>
+            <p>@offer.ReferenceNumber - @offer.Designation, @offer.Department.</p>
+        </div>
+        <div class="customer-detail-actions">
+            @if (Model.CanManage && isOpen)
+            {
+                <a class="admin-secondary-button" asp-action="Edit" asp-route-id="@offer.Id"><i class="bi bi-pencil"></i> Edit Offer</a>
+            }
+            @if (Model.CanManage && isDraft)
+            {
+                <form method="post" asp-action="Issue" asp-route-id="@offer.Id" class="d-inline"
+                      data-hr-confirm-form data-confirm-title="Issue Offer"
+                      data-confirm-message="Issue offer @offer.ReferenceNumber to @Model.CandidateName? The offer becomes pending acceptance.">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="admin-action-button" type="submit"><i class="bi bi-send"></i> Issue Offer</button>
+                </form>
+            }
+            @if (Model.CanManage && (isDraft || isPending))
+            {
+                <form method="post" asp-action="Accept" asp-route-id="@offer.Id" class="d-inline"
+                      data-hr-confirm-form data-confirm-title="Mark Accepted"
+                      data-confirm-message="Mark offer @offer.ReferenceNumber as accepted by @Model.CandidateName?">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="admin-secondary-button" type="submit"><i class="bi bi-patch-check"></i> Mark Accepted</button>
+                </form>
+            }
+            @if (Model.CanManage && isPending)
+            {
+                <form method="post" asp-action="Reject" asp-route-id="@offer.Id" class="d-inline"
+                      data-hr-confirm-form data-confirm-title="Mark Rejected" data-confirm-danger="true"
+                      data-confirm-message="Mark offer @offer.ReferenceNumber as rejected by @Model.CandidateName?">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="admin-secondary-button" type="submit"><i class="bi bi-x-circle"></i> Mark Rejected</button>
+                </form>
+            }
+            @if (Model.CanManage && isOpen)
+            {
+                <form method="post" asp-action="Withdraw" asp-route-id="@offer.Id" class="d-inline"
+                      data-hr-confirm-form data-confirm-title="Withdraw Offer" data-confirm-danger="true"
+                      data-confirm-message="Withdraw offer @offer.ReferenceNumber? This closes the offer.">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="admin-secondary-button" type="submit"><i class="bi bi-slash-circle"></i> Withdraw</button>
+                </form>
+            }
+            @if (Model.CanManage && isAccepted && offer.EmployeeId == null)
+            {
+                <a class="admin-action-button" asp-action="RecordJoining" asp-route-id="@offer.Id"><i class="bi bi-person-plus"></i> Record Joining</a>
+            }
+            @if (offer.EmployeeId.HasValue)
+            {
+                <a class="admin-secondary-button" asp-controller="Employees" asp-action="Details" asp-route-id="@offer.EmployeeId"><i class="bi bi-person-badge"></i> View Employee</a>
+            }
+        </div>
+    </header>
+
+    <article class="customer-profile-hero admin-reveal">
+        <div class="customer-hero-identity">
+            <div class="customer-hero-avatar">@Model.Initials</div>
+            <div>
+                <h2>@Model.CandidateName</h2>
+                <p>@offer.Designation</p>
+                <strong>@offer.ReferenceNumber</strong>
+                <div class="customer-profile-badges">
+                    <span class="membership-status-badge hr-tone @offer.Status.GetBadgeClass()"><i></i>@offer.Status.GetDisplayName()</span>
+                    <span class="role-badge membership-role-badge">@offer.Department</span>
+                    <span class="role-badge membership-role-badge">@offer.EmploymentType.GetDisplayName()</span>
+                    @if (posting != null)
+                    {
+                        <span class="status-badge reserved">@posting.ReferenceNumber</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="customer-hero-contact">
+            <div><i class="bi bi-envelope"></i><span>Candidate Email</span><strong>@application.Email</strong></div>
+            <div><i class="bi bi-telephone"></i><span>Phone</span><strong>@application.Phone</strong></div>
+            <div><i class="bi bi-geo-alt"></i><span>Work Location</span><strong>@offer.WorkLocation</strong></div>
+            <div><i class="bi bi-calendar2-check"></i><span>Joining Date</span><strong>@offer.JoiningDate.ToString("dd MMM yyyy")</strong></div>
+        </div>
+
+        <aside class="customer-hero-summary">
+            <div class="profile-ring" style="--value:@(stageValue)%">
+                <strong>@offer.Status.GetDisplayName()</strong>
+                <span>Offer Stage</span>
+            </div>
+            <div class="customer-summary-list">
+                <div><span>Compensation</span><strong>@offer.Currency @offer.OfferedSalary.ToString("N0")</strong></div>
+                <div><span>Frequency</span><strong>@offer.SalaryFrequency.GetDisplayName()</strong></div>
+                <div><span>Issued</span><strong>@offer.OfferDate.ToString("dd MMM yyyy")</strong></div>
+                <div><span>Expires</span><strong class="@(offer.Status != JobOfferStatus.Draft && offer.ExpiryDate < today ? "customer-danger-text" : "")">@expiryShown</strong></div>
+            </div>
+        </aside>
+    </article>
+
+    @if (isHired)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-person-check"></i>
+            <div>
+                <h2>Offer Converted to Employee</h2>
+                <p>@Model.CandidateName joined through this offer.</p>
+                <span>The employee record is linked to offer @offer.ReferenceNumber.</span>
+            </div>
+        </section>
+    }
+    else if (offer.Status == JobOfferStatus.Rejected)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-x-circle"></i>
+            <div>
+                <h2>Offer Rejected</h2>
+                <p>The candidate declined this offer.</p>
+                <span>Rejected offers are closed; you may create a replacement offer if needed.</span>
+            </div>
+        </section>
+    }
+    else if (offer.Status == JobOfferStatus.Withdrawn)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-slash-circle"></i>
+            <div>
+                <h2>Offer Withdrawn</h2>
+                <p>This offer was withdrawn by HR.</p>
+                <span>Withdrawn offers are closed and cannot be issued or accepted.</span>
+            </div>
+        </section>
+    }
+    else if (isExpired || (isPending && offer.ExpiryDate < today))
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-hourglass-bottom"></i>
+            <div>
+                <h2>Offer Expired</h2>
+                <p>This offer passed its expiry date.</p>
+                <span>Expired offers cannot be accepted. Create a new offer to continue.</span>
+            </div>
+        </section>
+    }
+    else if (isAccepted)
+    {
+        <section class="customer-blacklist-banner admin-reveal">
+            <i class="bi bi-patch-check"></i>
+            <div>
+                <h2>Offer Accepted</h2>
+                <p>@Model.CandidateName accepted this offer.</p>
+                <span>Use the hiring action to create the employee record when the candidate joins.</span>
+            </div>
+        </section>
+    }
+
+    <div class="customer-profile-layout">
+        <main class="customer-profile-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-briefcase"></i><div><h2>Offer Overview</h2><p>Position, dates, and structure.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Offer Reference</dt><dd>@offer.ReferenceNumber</dd></div>
+                    <div><dt>Application</dt><dd>@application.ApplicationNumber</dd></div>
+                    <div><dt>Candidate</dt><dd>@Model.CandidateName</dd></div>
+                    <div><dt>Offered Designation</dt><dd>@offer.Designation</dd></div>
+                    <div><dt>Department</dt><dd>@offer.Department</dd></div>
+                    <div><dt>Employment Type</dt><dd>@offer.EmploymentType.GetDisplayName()</dd></div>
+                    <div><dt>Work Location</dt><dd>@offer.WorkLocation</dd></div>
+                    <div><dt>Reporting Manager</dt><dd>@TextOrFallback(manager)</dd></div>
+                    <div><dt>Probation Period</dt><dd>@(offer.ProbationPeriodMonths.HasValue ? $"{offer.ProbationPeriodMonths} month(s)" : "Not applicable")</dd></div>
+                    <div>
+                        <dt>Linked Job Posting</dt>
+                        <dd>@(posting == null ? "Not available" : $"{posting.JobTitle} ({posting.ReferenceNumber})")</dd>
+                    </div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-cash-stack"></i><div><h2>Compensation</h2><p>Offered package and key dates.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Offered Salary</dt><dd>@offer.Currency @offer.OfferedSalary.ToString("N2")</dd></div>
+                    <div><dt>Salary Frequency</dt><dd>@offer.SalaryFrequency.GetDisplayName()</dd></div>
+                    <div><dt>Offer Issue Date</dt><dd>@offer.OfferDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Offer Expiry Date</dt><dd>@expiryShown</dd></div>
+                    <div><dt>Joining Date</dt><dd>@offer.JoiningDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Probation Period</dt><dd>@(offer.ProbationPeriodMonths.HasValue ? $"{offer.ProbationPeriodMonths} month(s)" : "Not applicable")</dd></div>
+                </dl>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-list-check"></i><div><h2>Benefits &amp; Terms</h2><p>What the offer includes.</p></div></header>
+                <h3 class="admin-label">Benefits</h3>
+                <p class="job-posting-copy">@TextOrFallback(offer.Benefits)</p>
+                <h3 class="admin-label">Additional Terms</h3>
+                <p class="job-posting-copy">@TextOrFallback(offer.Terms)</p>
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-clipboard-check"></i><div><h2>Candidate &amp; Application</h2><p>Context for this offer.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Candidate</dt><dd>@Model.CandidateName</dd></div>
+                    <div><dt>Email</dt><dd>@application.Email</dd></div>
+                    <div><dt>Phone</dt><dd>@application.Phone</dd></div>
+                    <div><dt>Application Number</dt><dd>@application.ApplicationNumber</dd></div>
+                    <div><dt>Application Status</dt><dd>@application.Status.GetDisplayName()</dd></div>
+                    <div><dt>Applied Position</dt><dd>@(posting?.JobTitle ?? "Not available")</dd></div>
+                </dl>
+                <div class="job-pipeline-actions">
+                    <a class="admin-secondary-button" asp-controller="JobApplications" asp-action="Details" asp-route-id="@application.Id"><i class="bi bi-eye"></i> View Application</a>
+                </div>
+            </article>
+        </main>
+
+        <aside class="customer-profile-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-diagram-2"></i><h2>Workflow</h2></header>
+                <p class="customer-empty-copy">
+                    @(isDraft ? "This offer is a draft. Issue it to request acceptance."
+                        : isPending ? "Awaiting the candidate's response before the expiry date."
+                        : isAccepted ? "Accepted. Record the joining to create the employee."
+                        : isHired ? "Completed. The employee record has been created."
+                        : "This offer is closed.")
+                </p>
+                @if (Model.CanManage)
+                {
+                    <div class="job-pipeline-actions">
+                        @if (isDraft)
+                        {
+                            <form method="post" asp-action="Issue" asp-route-id="@offer.Id"
+                                  data-hr-confirm-form data-confirm-title="Issue Offer"
+                                  data-confirm-message="Issue offer @offer.ReferenceNumber now?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-action-button" type="submit"><i class="bi bi-send"></i> Issue Offer</button>
+                            </form>
+                        }
+                        @if (isDraft || isPending)
+                        {
+                            <form method="post" asp-action="Accept" asp-route-id="@offer.Id"
+                                  data-hr-confirm-form data-confirm-title="Mark Accepted"
+                                  data-confirm-message="Mark offer @offer.ReferenceNumber as accepted?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-secondary-button" type="submit"><i class="bi bi-patch-check"></i> Mark Accepted</button>
+                            </form>
+                        }
+                        @if (isPending)
+                        {
+                            <form method="post" asp-action="Reject" asp-route-id="@offer.Id"
+                                  data-hr-confirm-form data-confirm-title="Mark Rejected" data-confirm-danger="true"
+                                  data-confirm-message="Mark offer @offer.ReferenceNumber as rejected?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-secondary-button" type="submit"><i class="bi bi-x-circle"></i> Mark Rejected</button>
+                            </form>
+                        }
+                        @if (isOpen)
+                        {
+                            <form method="post" asp-action="Withdraw" asp-route-id="@offer.Id"
+                                  data-hr-confirm-form data-confirm-title="Withdraw Offer" data-confirm-danger="true"
+                                  data-confirm-message="Withdraw offer @offer.ReferenceNumber?">
+                                @Html.AntiForgeryToken()
+                                <button class="admin-secondary-button" type="submit"><i class="bi bi-slash-circle"></i> Withdraw Offer</button>
+                            </form>
+                        }
+                        @if (isAccepted && offer.EmployeeId == null)
+                        {
+                            <a class="admin-action-button" asp-action="RecordJoining" asp-route-id="@offer.Id"><i class="bi bi-person-plus"></i> Record Joining &amp; Hire</a>
+                        }
+                        @if (offer.EmployeeId.HasValue)
+                        {
+                            <a class="admin-secondary-button" asp-controller="Employees" asp-action="Details" asp-route-id="@offer.EmployeeId"><i class="bi bi-person-badge"></i> View Employee</a>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-file-earmark-pdf"></i><h2>Offer Letter</h2></header>
+                @if (!Model.CanManage)
+                {
+                    <p class="customer-empty-copy">Letter management is restricted to HR management roles.</p>
+                }
+                else
+                {
+                    @if (Model.Letter == null)
+                    {
+                        <p class="customer-empty-copy">No offer letter attached yet.</p>
+                    }
+                    else
+                    {
+                        <div class="offer-document-list">
+                            <div class="offer-document-item">
+                                <span class="hr-offer-doc-meta">
+                                    <strong>@Model.Letter.OriginalFileName</strong>
+                                    <span>@((Model.Letter.FileSize / 1024d).ToString("N0")) KB &middot; @(Model.Letter.IsGenerated ? "Generated" : "Uploaded")</span>
+                                </span>
+                                <a class="membership-icon-button" asp-action="DownloadLetter" asp-route-id="@offer.Id" title="Download letter" aria-label="Download letter"><i class="bi bi-download"></i></a>
+                            </div>
+                        </div>
+                        <div class="job-pipeline-actions">
+                            <a class="admin-secondary-button" asp-action="PreviewLetter" asp-route-id="@offer.Id" target="_blank" rel="noopener"><i class="bi bi-eye"></i> Preview</a>
+                        </div>
+                    }
+
+                    <div class="job-pipeline-actions">
+                        <form method="post" asp-action="GenerateLetter" asp-route-id="@offer.Id"
+                              data-hr-confirm-form data-confirm-title="Generate Offer Letter"
+                              data-confirm-message="Generate a professional offer letter PDF for @offer.ReferenceNumber? Any existing letter will be replaced.">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button class="admin-secondary-button" type="submit"><i class="bi bi-magic"></i> Generate Letter</button>
+                        </form>
+                    </div>
+                    <form class="offer-document-upload" asp-action="UploadLetter" asp-route-id="@offer.Id" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <input type="file" name="letter" accept=".pdf,application/pdf" aria-label="Upload offer letter" />
+                        <small class="hr-hint">PDF only, up to 5 MB. Replaces the current letter.</small>
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-upload"></i> Upload Letter</button>
+                    </form>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-paperclip"></i><h2>Supporting Documents</h2></header>
+                @if (!Model.CanManage)
+                {
+                    <p class="customer-empty-copy">Document downloads are restricted to HR management roles.</p>
+                }
+                else
+                {
+                    var supporting = offer.Documents.Where(document => !document.IsLetter).OrderByDescending(document => document.Id).ToList();
+                    if (supporting.Count == 0)
+                    {
+                        <p class="customer-empty-copy">No supporting documents uploaded.</p>
+                    }
+                    else
+                    {
+                        <div class="offer-document-list">
+                            @foreach (var document in supporting)
+                            {
+                                <div class="offer-document-item">
+                                    <span class="hr-offer-doc-meta">
+                                        <strong>@document.OriginalFileName</strong>
+                                        <span>@((document.FileSize / 1024d).ToString("N0")) KB</span>
+                                    </span>
+                                    <a class="membership-icon-button" asp-action="DownloadDocument" asp-route-id="@document.Id" title="Download" aria-label="Download document"><i class="bi bi-download"></i></a>
+                                    <form method="post" asp-action="DeleteDocument" asp-route-id="@document.Id" class="membership-inline-form"
+                                          data-hr-confirm-form data-confirm-title="Remove Document" data-confirm-danger="true"
+                                          data-confirm-message="Remove @document.OriginalFileName from this offer?">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button class="membership-icon-button" type="submit" title="Remove" aria-label="Remove document"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <form class="offer-document-upload" asp-action="UploadDocuments" asp-route-id="@offer.Id" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <input type="file" name="documents" accept=".pdf,application/pdf" multiple />
+                        <small class="hr-hint">PDF only, up to 5 MB each. Maximum 5 documents.</small>
+                        <button class="admin-secondary-button" type="submit"><i class="bi bi-upload"></i> Upload Documents</button>
+                    </form>
+                }
+            </article>
+        </aside>
+    </div>
+
+    <article class="customer-audit-card admin-reveal">
+        <header><i class="bi bi-clock-history"></i><div><h2>Record Information</h2><p>Audit metadata and workflow timestamps.</p></div></header>
+        <div class="customer-audit-grid">
+            <div><span>Offer ID</span><strong>@offer.Id</strong></div>
+            <div><span>Offer Reference</span><strong>@offer.ReferenceNumber</strong></div>
+            <div><span>Status</span><strong>@offer.Status.GetDisplayName()</strong></div>
+            <div><span>Created At</span><strong>@offer.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+            <div><span>Updated At</span><strong>@DateTimeOrFallback(offer.UpdatedAt)</strong></div>
+            <div><span>Created By</span><strong>@(offer.CreatedByUser == null ? "Not available" : $"{offer.CreatedByUser.FirstName} {offer.CreatedByUser.LastName}".Trim())</strong></div>
+            <div><span>Issued At</span><strong>@DateTimeOrFallback(offer.IssuedAt)</strong></div>
+            <div><span>Responded At</span><strong>@DateTimeOrFallback(offer.RespondedAt)</strong></div>
+            <div><span>Withdrawn At</span><strong>@DateTimeOrFallback(offer.WithdrawnAt)</strong></div>
+            <div><span>Joining Recorded</span><strong>@DateTimeOrFallback(offer.JoiningRecordedAt)</strong></div>
+            <div><span>Reporting Manager</span><strong>@(manager ?? "Not assigned")</strong></div>
+            <div><span>Application</span><strong>@application.ApplicationNumber</strong></div>
+        </div>
+    </article>
+</section>
+
+<div class="modal fade customer-modal" id="hrConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" data-hr-confirm-title>Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p data-hr-confirm-message>Are you sure?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="admin-action-button" data-hr-confirm-submit>Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

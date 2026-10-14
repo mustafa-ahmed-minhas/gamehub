@@ -1,0 +1,100 @@
+@model GameHub.Models.ViewModels.HRReportDashboardViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "HR Reports";
+    Layout = "_AdminLayout";
+    var chartJson = JsonSerializer.Serialize(Model.Charts).Replace("</", "<\\/");
+}
+
+<section class="arena-page hr-page hr-reports-page hr-reports-dashboard">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>HR Reports</h1>
+            <p>Workforce, recruitment, performance and offboarding analytics built from live HR records.</p>
+        </div>
+        <div class="arena-actions">
+            <span class="hr-reports-updated"><i class="bi bi-clock-history"></i> Updated @Model.RefreshedAt.ToLocalTime().ToString("dd MMM, HH:mm")</span>
+            <button type="button" class="admin-secondary-button" data-report-print><i class="bi bi-printer"></i> Print</button>
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        @foreach (var kpi in Model.Kpis)
+        {
+            <article class="hr-kpi @kpi.Tone">
+                <i class="bi @kpi.Icon"></i>
+                <span>@kpi.Label</span>
+                <strong>@kpi.Value</strong>
+                <small class="hr-kpi-helper">@kpi.Helper</small>
+            </article>
+        }
+    </div>
+
+    @if (Model.Charts.Any())
+    {
+        <section class="hr-report-charts" aria-label="HR analytics charts">
+            @foreach (var chart in Model.Charts)
+            {
+                <article class="arena-card hr-report-chart">
+                    <div class="hr-report-chart__head">
+                        <h2>@chart.Title</h2>
+                        <p>@chart.Subtitle</p>
+                    </div>
+                    <div class="hr-report-chart__canvas">
+                        <canvas id="@chart.Id" role="img" aria-label="@chart.Title"></canvas>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+
+    @if (Model.Insights.Any())
+    {
+        <section class="hr-report-insights" aria-label="HR insights">
+            @foreach (var insight in Model.Insights)
+            {
+                <article class="arena-card hr-report-insight @insight.Tone">
+                    <i class="bi @insight.Icon"></i>
+                    <div>
+                        <span>@insight.Label</span>
+                        <strong>@insight.Value</strong>
+                        <small>@insight.Detail</small>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+
+    <section class="arena-card hr-report-modules" aria-label="Report library">
+        <div class="hr-card-head">
+            <div>
+                <h2>Report Library</h2>
+                <p>Open a detailed report to filter, chart and export the underlying records</p>
+            </div>
+        </div>
+        <div class="hr-report-module-grid">
+            @foreach (var module in Model.Modules)
+            {
+                <a class="hr-report-module" asp-action="@module.Action">
+                    <i class="bi @module.Icon"></i>
+                    <span>
+                        <strong>@module.Title</strong>
+                        <small>@module.Description</small>
+                    </span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            }
+        </div>
+    </section>
+</section>
+
+<script type="application/json" id="hrReportChartData">@Html.Raw(chartJson)</script>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-reports.js" asp-append-version="true"></script>
+}

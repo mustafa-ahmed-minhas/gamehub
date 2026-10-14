@@ -1,0 +1,232 @@
+@model GameHub.Models.ViewModels.HRReportPageViewModel
+@using System.Text.Json
+@{
+    var f = Model.Filter;
+    var start = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 3);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 6);
+    pageStart = Math.Max(1, pageEnd - 6);
+
+    var exportRoute = new Dictionary<string, string>
+    {
+        ["report"] = Model.ReportKey,
+        ["preset"] = f.Preset ?? "all",
+        ["startDate"] = f.StartDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+        ["endDate"] = f.EndDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+        ["department"] = f.Department ?? string.Empty,
+        ["status"] = f.Status ?? string.Empty,
+        ["category"] = f.Category ?? string.Empty,
+        ["search"] = f.Search ?? string.Empty,
+        ["sortBy"] = f.SortBy ?? "newest",
+        ["pageSize"] = Model.PageSize.ToString()
+    };
+
+    var chartJson = JsonSerializer.Serialize(Model.Charts).Replace("</", "<\\/");
+}
+
+@functions {
+    private string ListUrl(int? page = null)
+        => Url.Action(Model.ActionName, new
+        {
+            preset = Model.Filter.Preset,
+            startDate = Model.Filter.StartDate?.ToString("yyyy-MM-dd"),
+            endDate = Model.Filter.EndDate?.ToString("yyyy-MM-dd"),
+            department = Model.Filter.Department,
+            status = Model.Filter.Status,
+            category = Model.Filter.Category,
+            search = Model.Filter.Search,
+            sortBy = Model.Filter.SortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+}
+
+<section class="arena-page hr-page hr-reports-page">
+    <header class="arena-header">
+        <div>
+            <a class="hr-reports-back" asp-action="Index"><i class="bi bi-arrow-left"></i> HR Reports</a>
+            <span class="admin-label">Human Resources</span>
+            <h1>@Model.Title</h1>
+            <p>@Model.Description</p>
+        </div>
+        <div class="arena-actions hr-reports-actions">
+            <span class="hr-reports-updated"><i class="bi bi-clock-history"></i> Updated @Model.RefreshedAt.ToLocalTime().ToString("dd MMM, HH:mm")</span>
+            <button type="button" class="admin-secondary-button" data-report-print><i class="bi bi-printer"></i> Print</button>
+            <a class="admin-action-button" asp-action="Export" asp-all-route-data="exportRoute"><i class="bi bi-filetype-csv"></i> Export CSV</a>
+        </div>
+    </header>
+
+    <section class="arena-card hr-reports-filter" aria-label="Report filters">
+        <form class="arena-toolbar" method="get" asp-controller="HRReports" asp-action="@Model.ActionName" data-hr-reports-filters>
+            <select name="preset" data-filter-select aria-label="Date range">
+                <option value="all" selected="@(f.Preset == "all")">All Time</option>
+                <option value="this-month" selected="@(f.Preset == "this-month")">This Month</option>
+                <option value="last-month" selected="@(f.Preset == "last-month")">Last Month</option>
+                <option value="this-quarter" selected="@(f.Preset == "this-quarter")">This Quarter</option>
+                <option value="this-year" selected="@(f.Preset == "this-year")">This Year</option>
+                <option value="last-year" selected="@(f.Preset == "last-year")">Last Year</option>
+                <option value="custom" selected="@(f.Preset == "custom")">Custom Range</option>
+            </select>
+            <input type="date" name="startDate" value="@(f.StartDate?.ToString("yyyy-MM-dd"))" aria-label="Start date" />
+            <input type="date" name="endDate" value="@(f.EndDate?.ToString("yyyy-MM-dd"))" aria-label="End date" />
+            <select name="department" data-filter-select aria-label="Department">
+                <option value="">All Departments</option>
+                @foreach (var department in Model.Departments)
+                {
+                    <option value="@department" selected="@(f.Department == department)">@department</option>
+                }
+            </select>
+            <select name="status" data-filter-select aria-label="@Model.StatusLabel">
+                <option value="">All @Model.StatusLabel</option>
+                @foreach (var option in Model.StatusOptions)
+                {
+                    <option value="@option.Value" selected="@(f.Status == option.Value)">@option.Text</option>
+                }
+            </select>
+            @if (Model.CategoryOptions.Any())
+            {
+                <select name="category" data-filter-select aria-label="@Model.CategoryLabel">
+                    <option value="">All @Model.CategoryLabel</option>
+                    @foreach (var option in Model.CategoryOptions)
+                    {
+                        <option value="@option.Value" selected="@(f.Category == option.Value)">@option.Text</option>
+                    }
+                </select>
+            }
+            <div class="arena-search hr-reports-search"><i class="bi bi-search"></i><input name="search" value="@f.Search" placeholder="Search report..." aria-label="Search report" autocomplete="off" /></div>
+            <select name="sortBy" data-filter-select aria-label="Sort">
+                <option value="newest" selected="@(f.SortBy == "newest")">Newest First</option>
+                <option value="oldest" selected="@(f.SortBy == "oldest")">Oldest First</option>
+                <option value="name" selected="@(f.SortBy == "name")">Name A–Z</option>
+            </select>
+            <select name="pageSize" data-filter-select aria-label="Page size">
+                @foreach (var size in new[] { 10, 25, 50 })
+                {
+                    <option value="@size" selected="@(Model.PageSize == size)">@size / page</option>
+                }
+            </select>
+            <button type="submit" class="admin-action-button" data-hr-reports-apply><i class="bi bi-funnel"></i> Apply</button>
+            <a class="admin-secondary-button" asp-action="@Model.ActionName"><i class="bi bi-x-circle"></i> Clear</a>
+        </form>
+        <p class="hr-reports-summary"><i class="bi bi-info-circle"></i> Showing @Model.FilterSummary</p>
+    </section>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        @foreach (var kpi in Model.Kpis)
+        {
+            <article class="hr-kpi @kpi.Tone">
+                <i class="bi @kpi.Icon"></i>
+                <span>@kpi.Label</span>
+                <strong>@kpi.Value</strong>
+                <small class="hr-kpi-helper">@kpi.Helper</small>
+            </article>
+        }
+    </div>
+
+    @if (Model.Charts.Any())
+    {
+        <section class="hr-report-charts" aria-label="Report charts">
+            @foreach (var chart in Model.Charts)
+            {
+                <article class="arena-card hr-report-chart">
+                    <div class="hr-report-chart__head">
+                        <h2>@chart.Title</h2>
+                        <p>@chart.Subtitle</p>
+                    </div>
+                    <div class="hr-report-chart__canvas">
+                        <canvas id="@chart.Id" role="img" aria-label="@chart.Title"></canvas>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+
+    @if (Model.Insights.Any())
+    {
+        <section class="hr-report-insights" aria-label="Report insights">
+            @foreach (var insight in Model.Insights)
+            {
+                <article class="arena-card hr-report-insight @insight.Tone">
+                    <i class="bi @insight.Icon"></i>
+                    <div>
+                        <span>@insight.Label</span>
+                        <strong>@insight.Value</strong>
+                        <small>@insight.Detail</small>
+                    </div>
+                </article>
+            }
+        </section>
+    }
+
+    <section class="arena-card" aria-label="@Model.Title table">
+        @if (!Model.Rows.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi @Model.Icon"></i>
+                <h2>@(Model.HasFilters ? "No Matching Records" : "No Records Yet")</h2>
+                <p>@(Model.HasFilters ? "Try changing or clearing your filters." : "Records will appear here once the related HR data exists.")</p>
+                @if (Model.HasFilters)
+                {
+                    <a class="admin-secondary-button" asp-action="@Model.ActionName"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="hr-table-wrap">
+                <table class="arena-table hr-table hr-report-table">
+                    <thead>
+                        <tr>
+                            @foreach (var column in Model.Columns)
+                            {
+                                <th scope="col">@column</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr>
+                                @for (var i = 0; i < row.Cells.Count; i++)
+                                {
+                                    var label = i < Model.Columns.Count ? Model.Columns[i] : string.Empty;
+                                    var cell = row.Cells[i];
+                                    var isStatus = row.Status != null && cell == row.Status;
+                                    <td data-label="@label">
+                                        @if (i == 0 && !string.IsNullOrEmpty(row.DetailUrl))
+                                        {
+                                            <a class="hr-report-link" href="@row.DetailUrl">@cell</a>
+                                        }
+                                        else if (isStatus)
+                                        {
+                                            <span class="membership-status-badge hr-tone @row.Tone"><i></i>@cell</span>
+                                        }
+                                        else
+                                        {
+                                            @cell
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="arena-pagination">
+                <span>Showing @start-@end of @Model.TotalRecords records</span>
+                <nav>
+                    <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : ListUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                    @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                    {
+                        <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@ListUrl(pageNumber)">@pageNumber</a>
+                    }
+                    <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : ListUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                </nav>
+            </div>
+        }
+    </section>
+</section>
+
+<script type="application/json" id="hrReportChartData">@Html.Raw(chartJson)</script>

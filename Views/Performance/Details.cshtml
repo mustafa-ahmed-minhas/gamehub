@@ -1,0 +1,376 @@
+@model GameHub.Models.ViewModels.PerformanceCaseDetailsViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var detail = Model.Case;
+    var employee = Model.Employee;
+    var today = Model.Today;
+
+    var isOpen = detail.Status == PerformanceCaseStatus.Open;
+    var isReview = detail.Status == PerformanceCaseStatus.UnderReview;
+    var isPlan = detail.Status == PerformanceCaseStatus.ImprovementPlan;
+    var isWarning = detail.Status == PerformanceCaseStatus.Warning;
+    var isResolved = detail.Status == PerformanceCaseStatus.Resolved;
+    var isClosed = detail.Status == PerformanceCaseStatus.Closed;
+
+    var meetings = detail.Meetings.OrderByDescending(m => m.MeetingDate).ThenByDescending(m => m.MeetingTime).ToList();
+    var warnings = detail.Warnings.OrderByDescending(w => w.IssueDate).ToList();
+    var plans = detail.ImprovementPlans.OrderByDescending(p => p.CreatedAt).ToList();
+
+    ViewData["Title"] = $"Case {detail.CaseNumber}";
+    Layout = "_AdminLayout";
+
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+
+    string TextOrFallback(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    string DateTimeOrFallback(DateTime? value) => value.HasValue ? value.Value.ToString("dd MMM yyyy hh:mm tt") : "Not available";
+
+    string TransitionClass(PerformanceCaseStatus status) => status switch
+    {
+        PerformanceCaseStatus.Resolved => "admin-action-button",
+        PerformanceCaseStatus.ImprovementPlan => "admin-action-button",
+        PerformanceCaseStatus.UnderReview => "admin-action-button",
+        _ => "admin-secondary-button"
+    };
+
+    string TransitionIcon(PerformanceCaseStatus status) => status switch
+    {
+        PerformanceCaseStatus.Open => "bi-arrow-counterclockwise",
+        PerformanceCaseStatus.UnderReview => "bi-search",
+        PerformanceCaseStatus.ImprovementPlan => "bi-graph-up-arrow",
+        PerformanceCaseStatus.Warning => "bi-exclamation-triangle",
+        PerformanceCaseStatus.Resolved => "bi-check2-circle",
+        PerformanceCaseStatus.Closed => "bi-lock",
+        _ => "bi-arrow-right"
+    };
+
+    bool NeedsNote(PerformanceCaseStatus status) =>
+        status == PerformanceCaseStatus.Resolved || status == PerformanceCaseStatus.Closed;
+}
+
+<section class="arena-page hr-page performance-page performance-details-page">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Performance Case</span>
+            <h1>@detail.Title</h1>
+            <p>@detail.CaseNumber &middot; @employee.FirstName @employee.LastName &middot; @detail.IssueType.GetDisplayName()</p>
+        </div>
+        <div class="arena-actions">
+            <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Performance</a>
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="EditCase" asp-route-id="@detail.Id"><i class="bi bi-pencil"></i> Edit Case</a>
+            }
+        </div>
+    </header>
+
+    <article class="performance-hero">
+        <div class="user-cell hr-identity">
+            <span class="user-avatar membership-table-avatar performance-hero-avatar">@Model.Initials</span>
+            <div>
+                <strong>@employee.FirstName @employee.LastName</strong>
+                <small>@employee.EmployeeNumber &middot; @employee.Designation</small>
+                <small>@employee.Department</small>
+            </div>
+        </div>
+
+        <div class="performance-hero-meta">
+            <div><span>Severity</span><strong><span class="membership-status-badge hr-tone @detail.Severity.GetBadgeClass()"><i></i>@detail.Severity.GetDisplayName()</span></strong></div>
+            <div><span>Status</span><strong><span class="membership-status-badge hr-tone @detail.Status.GetBadgeClass()"><i></i>@detail.Status.GetDisplayName()</span></strong></div>
+            <div><span>Reported</span><strong>@detail.ReportedDate.ToString("dd MMM yyyy")</strong></div>
+            <div><span>Assigned HR</span><strong>@(Model.AssignedHrName ?? "Not assigned")</strong></div>
+        </div>
+    </article>
+
+    <div class="performance-status-banner @detail.Status.GetBadgeClass()">
+        <i class="bi bi-info-circle"></i>
+        <div>
+            <strong>@detail.Status.GetDisplayName()</strong>
+            <span>
+                @(isOpen ? "Raised and awaiting an initial review."
+                    : isReview ? "Under review. Record a meeting or decide on an improvement plan / warning."
+                    : isPlan ? "An improvement plan is in progress. Track progress and review notes."
+                    : isWarning ? "A formal warning has been issued on this case."
+                    : isResolved ? "Resolved. Close the case once any follow-ups are complete."
+                    : "Closed. This case can be reopened if new information surfaces.")
+            </span>
+        </div>
+    </div>
+
+    <div class="performance-details-grid">
+        <main class="performance-details-main">
+            <article class="customer-info-card admin-reveal">
+                <header><i class="bi bi-card-text"></i><div><h2>Case Overview</h2><p>The concern as raised.</p></div></header>
+                <dl class="customer-meta-grid">
+                    <div><dt>Case Reference</dt><dd>@detail.CaseNumber</dd></div>
+                    <div><dt>Issue Type</dt><dd>@detail.IssueType.GetDisplayName()</dd></div>
+                    <div><dt>Severity</dt><dd>@detail.Severity.GetDisplayName()</dd></div>
+                    <div><dt>Reported Date</dt><dd>@detail.ReportedDate.ToString("dd MMM yyyy")</dd></div>
+                    <div><dt>Assigned HR</dt><dd>@(Model.AssignedHrName ?? "Not assigned")</dd></div>
+                    <div><dt>Current Status</dt><dd>@detail.Status.GetDisplayName()</dd></div>
+                </dl>
+                <h3 class="admin-label">Description</h3>
+                <p class="job-posting-copy">@TextOrFallback(detail.Description)</p>
+                @if (!string.IsNullOrWhiteSpace(detail.ResolutionNotes))
+                {
+                    <h3 class="admin-label">Resolution Notes</h3>
+                    <p class="job-posting-copy">@detail.ResolutionNotes</p>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="performance-section-head">
+                    <div class="performance-section-title"><i class="bi bi-calendar-event"></i><div><h2>Meetings</h2><p>Discussion history, outcomes, and follow-ups.</p></div></div>
+                    @if (Model.CanManage && !isClosed)
+                    {
+                        <a class="admin-secondary-button" asp-action="CreateMeeting" asp-route-caseId="@detail.Id"><i class="bi bi-plus-lg"></i> Record Meeting</a>
+                    }
+                </header>
+
+                @if (meetings.Count == 0)
+                {
+                    <p class="customer-empty-copy">No meetings recorded yet.</p>
+                }
+                else
+                {
+                    <div class="performance-record-list">
+                        @foreach (var meeting in meetings)
+                        {
+                            <details class="performance-record-item">
+                                <summary>
+                                    <span class="performance-record-when">
+                                        <strong>@meeting.MeetingDate.ToString("dd MMM yyyy") @meeting.MeetingTime.ToString("HH:mm")</strong>
+                                        <small>@meeting.DiscussionNotes.Length-character note</small>
+                                    </span>
+                                    <span class="membership-status-badge hr-tone @meeting.Status.GetBadgeClass()"><i></i>@meeting.Status.GetDisplayName()</span>
+                                </summary>
+                                <div class="performance-record-body">
+                                    <dl class="job-interview-meta">
+                                        <div><dt>Discussion Notes</dt><dd>@TextOrFallback(meeting.DiscussionNotes)</dd></div>
+                                        <div><dt>Outcome</dt><dd>@TextOrFallback(meeting.Outcome)</dd></div>
+                                        <div><dt>Follow-up Date</dt><dd>@(meeting.FollowUpDate.HasValue ? meeting.FollowUpDate.Value.ToString("dd MMM yyyy") : "None")</dd></div>
+                                    </dl>
+                                    @if (Model.CanManage && !isClosed)
+                                    {
+                                        <div class="performance-record-actions">
+                                            <a class="admin-secondary-button" asp-action="EditMeeting" asp-route-id="@meeting.Id"><i class="bi bi-pencil"></i> Edit</a>
+                                            <form method="post" asp-action="DeleteMeeting" asp-route-id="@meeting.Id" class="membership-inline-form"
+                                                  data-hr-confirm-form data-confirm-title="Remove Meeting" data-confirm-danger="true"
+                                                  data-confirm-message="Remove this meeting record from the case?">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button class="admin-secondary-button" type="submit"><i class="bi bi-trash"></i> Remove</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </details>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="performance-section-head">
+                    <div class="performance-section-title"><i class="bi bi-exclamation-triangle"></i><div><h2>Formal Warnings</h2><p>Warnings issued within this case.</p></div></div>
+                    @if (Model.CanManage && !isClosed)
+                    {
+                        <a class="admin-secondary-button" asp-action="CreateWarning" asp-route-caseId="@detail.Id"><i class="bi bi-plus-lg"></i> Issue Warning</a>
+                    }
+                </header>
+
+                @if (warnings.Count == 0)
+                {
+                    <p class="customer-empty-copy">No formal warnings recorded.</p>
+                }
+                else
+                {
+                    <div class="performance-record-list">
+                        @foreach (var warning in warnings)
+                        {
+                            <div class="performance-record-item is-static">
+                                <div class="performance-record-head">
+                                    <span class="performance-record-when">
+                                        <strong>Issued @warning.IssueDate.ToString("dd MMM yyyy")</strong>
+                                        <small>Warning #@warning.Id</small>
+                                    </span>
+                                    <span class="membership-status-badge hr-tone @warning.Status.GetBadgeClass()"><i></i>@warning.Status.GetDisplayName()</span>
+                                </div>
+                                <div class="performance-record-body">
+                                    <dl class="job-interview-meta">
+                                        <div><dt>Reason</dt><dd>@TextOrFallback(warning.Reason)</dd></div>
+                                        <div><dt>Response / Remarks</dt><dd>@TextOrFallback(warning.ResponseRemarks)</dd></div>
+                                    </dl>
+                                    @if (Model.CanManage && !isClosed)
+                                    {
+                                        <div class="performance-record-actions">
+                                            <a class="admin-secondary-button" asp-action="EditWarning" asp-route-id="@warning.Id"><i class="bi bi-pencil"></i> Edit</a>
+                                            <form method="post" asp-action="DeleteWarning" asp-route-id="@warning.Id" class="membership-inline-form"
+                                                  data-hr-confirm-form data-confirm-title="Remove Warning" data-confirm-danger="true"
+                                                  data-confirm-message="Remove this formal warning from the case?">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button class="admin-secondary-button" type="submit"><i class="bi bi-trash"></i> Remove</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-info-card admin-reveal">
+                <header class="performance-section-head">
+                    <div class="performance-section-title"><i class="bi bi-graph-up-arrow"></i><div><h2>Improvement Plans</h2><p>Objectives, progress, and closure.</p></div></div>
+                    @if (Model.CanManage && !isClosed)
+                    {
+                        <a class="admin-secondary-button" asp-action="CreatePlan" asp-route-caseId="@detail.Id"><i class="bi bi-plus-lg"></i> New Plan</a>
+                    }
+                </header>
+
+                @if (plans.Count == 0)
+                {
+                    <p class="customer-empty-copy">No improvement plans recorded.</p>
+                }
+                else
+                {
+                    <div class="performance-record-list">
+                        @foreach (var plan in plans)
+                        {
+                            var overdue = plan.Status != ImprovementPlanStatus.Completed
+                                && plan.Status != ImprovementPlanStatus.Cancelled
+                                && plan.EndDate < today;
+                            <div class="performance-record-item is-static">
+                                <div class="performance-record-head">
+                                    <span class="performance-record-when">
+                                        <strong>@plan.StartDate.ToString("dd MMM yyyy") &ndash; @plan.EndDate.ToString("dd MMM yyyy")</strong>
+                                        <small>Review @plan.ReviewDate.ToString("dd MMM yyyy")</small>
+                                    </span>
+                                    <span class="membership-status-badge hr-tone @plan.Status.GetBadgeClass()"><i></i>@plan.Status.GetDisplayName()</span>
+                                </div>
+                                <div class="performance-record-body">
+                                    <div class="performance-progress">
+                                        <div class="hr-progress"><span style="width:@(plan.ProgressPercent)%"></span></div>
+                                        <small>@plan.ProgressPercent% complete</small>
+                                    </div>
+                                    <dl class="job-interview-meta">
+                                        <div><dt>Objectives</dt><dd>@TextOrFallback(plan.Objectives)</dd></div>
+                                        <div><dt>Measurable Expectations</dt><dd>@TextOrFallback(plan.MeasurableExpectations)</dd></div>
+                                        <div><dt>Review Notes</dt><dd>@TextOrFallback(plan.ReviewNotes)</dd></div>
+                                        <div><dt>Outcome</dt><dd>@TextOrFallback(plan.Outcome)</dd></div>
+                                    </dl>
+                                    @if (overdue)
+                                    {
+                                        <p class="performance-overdue"><i class="bi bi-clock-history"></i> Past its end date and not yet completed.</p>
+                                    }
+                                    @if (Model.CanManage && !isClosed)
+                                    {
+                                        <div class="performance-record-actions">
+                                            <a class="admin-secondary-button" asp-action="EditPlan" asp-route-id="@plan.Id"><i class="bi bi-pencil"></i> Edit</a>
+                                            <form method="post" asp-action="DeletePlan" asp-route-id="@plan.Id" class="membership-inline-form"
+                                                  data-hr-confirm-form data-confirm-title="Remove Improvement Plan" data-confirm-danger="true"
+                                                  data-confirm-message="Remove this improvement plan from the case?">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <button class="admin-secondary-button" type="submit"><i class="bi bi-trash"></i> Remove</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+        </main>
+
+        <aside class="performance-details-side">
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-diagram-2"></i><h2>Workflow</h2></header>
+                @if (!Model.CanManage)
+                {
+                    <p class="customer-empty-copy">Workflow actions are restricted to HR management roles.</p>
+                }
+                else if (Model.AllowedTransitions.Count == 0)
+                {
+                    <p class="customer-empty-copy">No further action is available for this case.</p>
+                }
+                else
+                {
+                    <div class="job-pipeline-actions">
+                        @foreach (var target in Model.AllowedTransitions)
+                        {
+                            <form method="post" asp-action="Transition" asp-route-id="@detail.Id"
+                                  data-hr-confirm-form
+                                  data-confirm-title="@($"Move to {target.GetDisplayName()}")"
+                                  data-confirm-danger="@(target == PerformanceCaseStatus.Closed || target == PerformanceCaseStatus.Warning ? "true" : "false")"
+                                  data-confirm-message="@($"Move case {detail.CaseNumber} to {target.GetDisplayName()}?")">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="status" value="@target" />
+                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                @if (NeedsNote(target))
+                                {
+                                    <textarea name="note" rows="2" maxlength="2000" placeholder="Optional resolution note"></textarea>
+                                }
+                                <button class="@TransitionClass(target)" type="submit"><i class="bi @TransitionIcon(target)"></i> Mark @target.GetDisplayName()</button>
+                            </form>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-person-lines-fill"></i><h2>Employee</h2></header>
+                <div class="customer-summary-list">
+                    <div><span>Name</span><strong>@employee.FirstName @employee.LastName</strong></div>
+                    <div><span>Employee Number</span><strong>@employee.EmployeeNumber</strong></div>
+                    <div><span>Designation</span><strong>@employee.Designation</strong></div>
+                    <div><span>Department</span><strong>@employee.Department</strong></div>
+                    <div><span>Status</span><strong>@employee.EmploymentStatus.GetDisplayName()</strong></div>
+                </div>
+                <div class="job-pipeline-actions">
+                    <a class="admin-secondary-button" asp-controller="Employees" asp-action="Details" asp-route-id="@employee.Id"><i class="bi bi-person-badge"></i> View Employee</a>
+                </div>
+            </article>
+
+            <article class="customer-side-card admin-reveal">
+                <header><i class="bi bi-clock-history"></i><h2>Record Information</h2></header>
+                <div class="customer-summary-list">
+                    <div><span>Case ID</span><strong>@detail.Id</strong></div>
+                    <div><span>Created At</span><strong>@detail.CreatedAt.ToString("dd MMM yyyy hh:mm tt")</strong></div>
+                    <div><span>Updated At</span><strong>@DateTimeOrFallback(detail.UpdatedAt)</strong></div>
+                    <div><span>Resolved At</span><strong>@DateTimeOrFallback(detail.ResolvedAt)</strong></div>
+                    <div><span>Closed At</span><strong>@DateTimeOrFallback(detail.ClosedAt)</strong></div>
+                    <div><span>Created By</span><strong>@(detail.CreatedByUser == null ? "Not available" : $"{detail.CreatedByUser.FirstName} {detail.CreatedByUser.LastName}".Trim())</strong></div>
+                    <div><span>Meetings</span><strong>@meetings.Count</strong></div>
+                    <div><span>Warnings</span><strong>@warnings.Count</strong></div>
+                    <div><span>Improvement Plans</span><strong>@plans.Count</strong></div>
+                </div>
+            </article>
+        </aside>
+    </div>
+</section>
+
+<div class="modal fade customer-modal" id="hrConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" data-hr-confirm-title>Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p data-hr-confirm-message>Are you sure?</p></div>
+            <div class="modal-footer">
+                <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="admin-action-button" data-hr-confirm-submit>Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

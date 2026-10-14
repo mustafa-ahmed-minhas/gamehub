@@ -533,3 +533,13 @@ wwwroot/uploads/*
 !wwwroot/uploads/customers/
 wwwroot/uploads/customers/*
 !wwwroot/uploads/customers/.gitkeep
+!wwwroot/uploads/employees/
+wwwroot/uploads/employees/*
+!wwwroot/uploads/employees/.gitkeep
+
+# HR applicant content (CVs, supporting documents): NEVER commit user data.
+# Files are stored outside wwwroot under Storage/hr and served only through
+# authorized controller actions. Only the .gitkeep placeholders are tracked.
+Storage/hr/**
+!Storage/hr/**/
+!Storage/hr/**/.gitkeep

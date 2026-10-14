@@ -1,0 +1,447 @@
+@model GameHub.Models.ViewModels.PerformanceIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Performance & Warnings";
+    Layout = "_AdminLayout";
+
+    var casesTab = Model.ActiveTab == "cases";
+    var warningsTab = Model.ActiveTab == "warnings";
+    var plansTab = Model.ActiveTab == "plans";
+
+    var casesHasFilters = !string.IsNullOrWhiteSpace(Model.CaseSearch)
+        || Model.CaseEmployeeId.HasValue
+        || Model.CaseStatus.HasValue
+        || Model.CaseSeverity.HasValue;
+
+    var warningsHasFilters = !string.IsNullOrWhiteSpace(Model.WarningSearch)
+        || Model.WarningStatus.HasValue;
+
+    var plansHasFilters = !string.IsNullOrWhiteSpace(Model.PlanSearch)
+        || Model.PlanStatus.HasValue;
+
+    var start = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 3);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 6);
+    pageStart = Math.Max(1, pageEnd - 6);
+}
+
+@functions {
+    private string TabUrl(string targetTab)
+        => Url.Action("Index", new { tab = targetTab, pageSize = Model.PageSize }) ?? "#";
+
+    private string CasesUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            tab = "cases",
+            search = Model.CaseSearch,
+            employeeId = Model.CaseEmployeeId,
+            caseStatus = Model.CaseStatus,
+            caseSeverity = Model.CaseSeverity,
+            caseSort = Model.CaseSortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+
+    private string WarningsUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            tab = "warnings",
+            search = Model.WarningSearch,
+            warningStatus = Model.WarningStatus,
+            warningSort = Model.WarningSortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+
+    private string PlansUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            tab = "plans",
+            search = Model.PlanSearch,
+            planStatus = Model.PlanStatus,
+            planSort = Model.PlanSortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+
+    private string Truncate(string? value, int length)
+    {
+        var copy = (value ?? string.Empty).Trim();
+        return copy.Length <= length ? copy : copy[..length].TrimEnd() + "...";
+    }
+}
+
+<section class="arena-page hr-page performance-page" data-performance-index data-active-tab="@Model.ActiveTab">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>Performance &amp; Warnings</h1>
+            <p>Track performance cases, meetings, formal warnings, and improvement plans.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="CreateCase"><i class="bi bi-clipboard-plus"></i> New Case</a>
+            }
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article><i class="bi bi-clipboard-data"></i><span>Total Cases</span><strong>@Model.TotalCases</strong></article>
+        <article><i class="bi bi-folder2-open"></i><span>Open Cases</span><strong>@Model.OpenCases</strong></article>
+        <article><i class="bi bi-calendar-event"></i><span>Meetings Scheduled</span><strong>@Model.MeetingsScheduled</strong></article>
+        <article><i class="bi bi-exclamation-triangle"></i><span>Active Warnings</span><strong>@Model.ActiveWarnings</strong></article>
+        <article><i class="bi bi-graph-up-arrow"></i><span>Improvement Plans</span><strong>@Model.ImprovementPlans</strong></article>
+        <article><i class="bi bi-check2-circle"></i><span>Resolved Cases</span><strong>@Model.ResolvedCases</strong></article>
+    </div>
+
+    <nav class="arena-tabs" aria-label="Performance & Warnings views">
+        <a class="@(casesTab ? "active" : "")" href="@TabUrl("cases")" aria-current="@(casesTab ? "page" : null)"><i class="bi bi-clipboard-data"></i> Cases</a>
+        <a class="@(warningsTab ? "active" : "")" href="@TabUrl("warnings")" aria-current="@(warningsTab ? "page" : null)"><i class="bi bi-exclamation-triangle"></i> Warnings</a>
+        <a class="@(plansTab ? "active" : "")" href="@TabUrl("plans")" aria-current="@(plansTab ? "page" : null)"><i class="bi bi-graph-up-arrow"></i> Improvement Plans</a>
+    </nav>
+
+    @if (casesTab)
+    {
+        <section class="arena-card">
+            <form class="arena-toolbar" method="get" data-performance-filters>
+                <input type="hidden" name="tab" value="cases" />
+                <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.CaseSearch" placeholder="Search cases..." aria-label="Search cases" autocomplete="off" data-live-search /></div>
+                <select name="employeeId" data-filter-select>
+                    <option value="">All Employees</option>
+                    @foreach (var employee in Model.EmployeeOptions)
+                    {
+                        <option value="@employee.Value" selected="@(Model.CaseEmployeeId.HasValue && Model.CaseEmployeeId.Value.ToString() == employee.Value)">@employee.Text</option>
+                    }
+                </select>
+                <select name="caseStatus" data-filter-select>
+                    <option value="">All Status</option>
+                    @foreach (PerformanceCaseStatus value in Enum.GetValues<PerformanceCaseStatus>())
+                    {
+                        <option value="@value" selected="@(Model.CaseStatus == value)">@value.GetDisplayName()</option>
+                    }
+                </select>
+                <select name="caseSeverity" data-filter-select>
+                    <option value="">All Severities</option>
+                    @foreach (PerformanceSeverity value in Enum.GetValues<PerformanceSeverity>())
+                    {
+                        <option value="@value" selected="@(Model.CaseSeverity == value)">@value.GetDisplayName()</option>
+                    }
+                </select>
+                <select name="caseSort" data-filter-select>
+                    <option value="newest" selected="@(Model.CaseSortBy == "newest")">Newest First</option>
+                    <option value="oldest" selected="@(Model.CaseSortBy == "oldest")">Oldest First</option>
+                    <option value="employee" selected="@(Model.CaseSortBy == "employee")">Employee A-Z</option>
+                    <option value="reported" selected="@(Model.CaseSortBy == "reported")">Recently Reported</option>
+                    <option value="severity" selected="@(Model.CaseSortBy == "severity")">Highest Severity</option>
+                </select>
+                <select name="pageSize" data-filter-select>
+                    @foreach (var size in new[] { 10, 25, 50 })
+                    {
+                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                    }
+                </select>
+                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="cases"><i class="bi bi-x-circle"></i> Clear</a>
+            </form>
+
+            @if (!Model.Cases.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-clipboard-data"></i>
+                    <h2>@(casesHasFilters ? "No Matching Cases" : "No Performance Cases Yet")</h2>
+                    <p>@(casesHasFilters ? "Try changing or clearing your filters." : "Raise your first case to start tracking performance, conduct, or attendance concerns.")</p>
+                    @if (casesHasFilters)
+                    {
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="cases"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                    }
+                    else if (Model.CanManage)
+                    {
+                        <a class="admin-action-button" asp-action="CreateCase"><i class="bi bi-clipboard-plus"></i> New Case</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="hr-table-wrap">
+                    <table class="arena-table hr-table performance-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Case</th>
+                                <th scope="col">Employee</th>
+                                <th scope="col">Issue Type</th>
+                                <th scope="col">Severity</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Reported</th>
+                                <th scope="col">Assigned HR</th>
+                                <th scope="col">Records</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Cases)
+                            {
+                                <tr data-performance-case-row="@item.Id">
+                                    <td data-label="Case"><span class="membership-code">@item.CaseNumber</span><small>@Truncate(item.Title, 48)</small></td>
+                                    <td data-label="Employee">
+                                        <div class="user-cell hr-identity">
+                                            <span class="user-avatar membership-table-avatar">@item.Initials</span>
+                                            <div>
+                                                <strong>@item.EmployeeName</strong>
+                                                <small>@item.EmployeeNumber &middot; @item.Designation</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Issue Type"><span class="role-badge membership-role-badge">@item.IssueType.GetDisplayName()</span></td>
+                                    <td data-label="Severity"><span class="membership-status-badge hr-tone @item.Severity.GetBadgeClass()"><i></i>@item.Severity.GetDisplayName()</span></td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge hr-tone @item.Status.GetBadgeClass()"><i></i>@item.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Reported">@item.ReportedDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Assigned HR">@(string.IsNullOrWhiteSpace(item.AssignedHrName) ? "Unassigned" : item.AssignedHrName)</td>
+                                    <td data-label="Records">
+                                        <small class="hr-record-counts">@item.MeetingCount mtg &middot; @item.WarningCount warn &middot; @item.PlanCount plan</small>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.Id" data-tooltip="View case" aria-label="View case"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage)
+                                            {
+                                                <a class="membership-icon-button" asp-action="EditCase" asp-route-id="@item.Id" data-tooltip="Edit case" aria-label="Edit case"><i class="bi bi-pencil"></i></a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arena-pagination">
+                    <span>Showing @start-@end of @Model.TotalRecords cases</span>
+                    <nav>
+                        <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : CasesUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                        @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                        {
+                            <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@CasesUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                        }
+                        <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : CasesUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                    </nav>
+                </div>
+            }
+        </section>
+    }
+    else if (warningsTab)
+    {
+        <section class="arena-card">
+            <form class="arena-toolbar" method="get" data-performance-filters>
+                <input type="hidden" name="tab" value="warnings" />
+                <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.WarningSearch" placeholder="Search warnings..." aria-label="Search warnings" autocomplete="off" data-live-search /></div>
+                <select name="warningStatus" data-filter-select>
+                    <option value="">All Status</option>
+                    @foreach (WarningStatus value in Enum.GetValues<WarningStatus>())
+                    {
+                        <option value="@value" selected="@(Model.WarningStatus == value)">@value.GetDisplayName()</option>
+                    }
+                </select>
+                <select name="warningSort" data-filter-select>
+                    <option value="newest" selected="@(Model.WarningSortBy == "newest")">Newest First</option>
+                    <option value="oldest" selected="@(Model.WarningSortBy == "oldest")">Oldest First</option>
+                    <option value="issue" selected="@(Model.WarningSortBy == "issue")">Latest Issue Date</option>
+                </select>
+                <select name="pageSize" data-filter-select>
+                    @foreach (var size in new[] { 10, 25, 50 })
+                    {
+                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                    }
+                </select>
+                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="warnings"><i class="bi bi-x-circle"></i> Clear</a>
+            </form>
+
+            @if (!Model.Warnings.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <h2>@(warningsHasFilters ? "No Matching Warnings" : "No Warnings Yet")</h2>
+                    <p>@(warningsHasFilters ? "Try changing or clearing your filters." : "Formal warnings issued within a case will be listed here.")</p>
+                    @if (warningsHasFilters)
+                    {
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="warnings"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="hr-table-wrap">
+                    <table class="arena-table hr-table performance-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Case</th>
+                                <th scope="col">Employee</th>
+                                <th scope="col">Reason</th>
+                                <th scope="col">Issue Date</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Warnings)
+                            {
+                                <tr data-performance-warning-row="@item.Id">
+                                    <td data-label="Case"><a class="hr-doc-link" asp-action="Details" asp-route-id="@item.PerformanceCaseId"><i class="bi bi-clipboard-data"></i> @item.CaseNumber</a><small>@Truncate(item.CaseTitle, 40)</small></td>
+                                    <td data-label="Employee">
+                                        <div class="user-cell hr-identity">
+                                            <span class="user-avatar membership-table-avatar">@item.Initials</span>
+                                            <div><strong>@item.EmployeeName</strong></div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Reason">@Truncate(item.Reason, 80)</td>
+                                    <td data-label="Issue Date">@item.IssueDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge hr-tone @item.Status.GetBadgeClass()"><i></i>@item.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.PerformanceCaseId" data-tooltip="View case" aria-label="View case"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage)
+                                            {
+                                                <a class="membership-icon-button" asp-action="EditWarning" asp-route-id="@item.Id" data-tooltip="Edit warning" aria-label="Edit warning"><i class="bi bi-pencil"></i></a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arena-pagination">
+                    <span>Showing @start-@end of @Model.TotalRecords warnings</span>
+                    <nav>
+                        <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : WarningsUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                        @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                        {
+                            <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@WarningsUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                        }
+                        <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : WarningsUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                    </nav>
+                </div>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="arena-card">
+            <form class="arena-toolbar" method="get" data-performance-filters>
+                <input type="hidden" name="tab" value="plans" />
+                <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.PlanSearch" placeholder="Search improvement plans..." aria-label="Search improvement plans" autocomplete="off" data-live-search /></div>
+                <select name="planStatus" data-filter-select>
+                    <option value="">All Status</option>
+                    @foreach (ImprovementPlanStatus value in Enum.GetValues<ImprovementPlanStatus>())
+                    {
+                        <option value="@value" selected="@(Model.PlanStatus == value)">@value.GetDisplayName()</option>
+                    }
+                </select>
+                <select name="planSort" data-filter-select>
+                    <option value="newest" selected="@(Model.PlanSortBy == "newest")">Newest First</option>
+                    <option value="oldest" selected="@(Model.PlanSortBy == "oldest")">Oldest First</option>
+                    <option value="review" selected="@(Model.PlanSortBy == "review")">Review Soonest</option>
+                    <option value="end" selected="@(Model.PlanSortBy == "end")">Ending Soonest</option>
+                </select>
+                <select name="pageSize" data-filter-select>
+                    @foreach (var size in new[] { 10, 25, 50 })
+                    {
+                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                    }
+                </select>
+                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="plans"><i class="bi bi-x-circle"></i> Clear</a>
+            </form>
+
+            @if (!Model.Plans.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <h2>@(plansHasFilters ? "No Matching Plans" : "No Improvement Plans Yet")</h2>
+                    <p>@(plansHasFilters ? "Try changing or clearing your filters." : "Improvement plans created within a case will be listed here.")</p>
+                    @if (plansHasFilters)
+                    {
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="plans"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="hr-table-wrap">
+                    <table class="arena-table hr-table performance-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Case</th>
+                                <th scope="col">Employee</th>
+                                <th scope="col">Objectives</th>
+                                <th scope="col">Start</th>
+                                <th scope="col">Review</th>
+                                <th scope="col">End</th>
+                                <th scope="col">Progress</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Plans)
+                            {
+                                <tr data-performance-plan-row="@item.Id">
+                                    <td data-label="Case"><a class="hr-doc-link" asp-action="Details" asp-route-id="@item.PerformanceCaseId"><i class="bi bi-clipboard-data"></i> @item.CaseNumber</a></td>
+                                    <td data-label="Employee">
+                                        <div class="user-cell hr-identity">
+                                            <span class="user-avatar membership-table-avatar">@item.Initials</span>
+                                            <div><strong>@item.EmployeeName</strong></div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Objectives">@Truncate(item.Objectives, 70)</td>
+                                    <td data-label="Start">@item.StartDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Review">@item.ReviewDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="End">@item.EndDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Progress"><span class="hr-progress-inline"><span style="width:@(item.ProgressPercent)%"></span></span><small>@item.ProgressPercent%</small></td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge hr-tone @item.Status.GetBadgeClass()"><i></i>@item.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.PerformanceCaseId" data-tooltip="View case" aria-label="View case"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage)
+                                            {
+                                                <a class="membership-icon-button" asp-action="EditPlan" asp-route-id="@item.Id" data-tooltip="Edit plan" aria-label="Edit plan"><i class="bi bi-pencil"></i></a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arena-pagination">
+                    <span>Showing @start-@end of @Model.TotalRecords plans</span>
+                    <nav>
+                        <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : PlansUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                        @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                        {
+                            <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@PlansUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                        }
+                        <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : PlansUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                    </nav>
+                </div>
+            }
+        </section>
+    }
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

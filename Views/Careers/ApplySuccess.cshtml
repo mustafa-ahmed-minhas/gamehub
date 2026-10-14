@@ -1,0 +1,37 @@
+@model PublicJobApplicationSuccessViewModel
+@{
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "Application Received";
+}
+
+<section class="job-success-hero">
+    <div class="container">
+        <span class="job-success-icon"><i class="bi bi-check2-circle"></i></span>
+        <span class="eyebrow-pill"><i class="bi bi-envelope-check"></i> Application Received</span>
+        <h1>Thank you for applying</h1>
+        <p class="careers-hero-lead">
+            We received your application for <strong>@Model.JobTitle</strong>@(string.IsNullOrWhiteSpace(Model.ReferenceNumber) ? string.Empty : $" ({Model.ReferenceNumber})").
+            Keep the reference number below for your records.
+        </p>
+    </div>
+</section>
+
+<section class="job-success-body">
+    <div class="container">
+        <div class="job-success-card">
+            <span class="job-success-subicon"><i class="bi bi-envelope-check"></i></span>
+            <h2>Your application is in review</h2>
+            <p>Our recruitment team reviews every application and will contact shortlisted candidates by email or phone.</p>
+            <div class="job-success-ref">
+                <span>Your application reference</span>
+                <strong>@Model.ApplicationNumber</strong>
+            </div>
+            <div class="job-success-actions">
+                <a class="btn-premium" asp-action="Index"><i class="bi bi-grid"></i> Browse other roles</a>
+                <a class="job-btn-outline" asp-controller="Home" asp-action="Index"><i class="bi bi-house"></i> Return Home</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/public-careers.css" asp-append-version="true" /> }

@@ -1,0 +1,333 @@
+@model GameHub.Models.ViewModels.OfferIndexViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Offer & Hiring";
+    Layout = "_AdminLayout";
+
+    var offersTab = Model.ActiveTab != "hiring";
+    var hiringTab = !offersTab;
+
+    var offersHasFilters = !string.IsNullOrWhiteSpace(Model.OfferSearch)
+        || !string.IsNullOrWhiteSpace(Model.OfferDepartment)
+        || Model.OfferStatus.HasValue;
+
+    var hiringHasFilters = !string.IsNullOrWhiteSpace(Model.HiringSearch);
+
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+    var start = Model.TotalRecords == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
+    var pageStart = Math.Max(1, Model.CurrentPage - 3);
+    var pageEnd = Math.Min(Model.TotalPages, pageStart + 6);
+    pageStart = Math.Max(1, pageEnd - 6);
+}
+
+@functions {
+    private string TabUrl(string targetTab)
+        => Url.Action("Index", new { tab = targetTab, pageSize = Model.PageSize }) ?? "#";
+
+    private string OffersUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            tab = "offers",
+            search = Model.OfferSearch,
+            department = Model.OfferDepartment,
+            offerStatus = Model.OfferStatus,
+            offerSort = Model.OfferSortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+
+    private string HiringUrl(int? page = null)
+        => Url.Action("Index", new
+        {
+            tab = "hiring",
+            search = Model.HiringSearch,
+            hiringSort = Model.HiringSortBy,
+            pageSize = Model.PageSize,
+            page = page ?? Model.CurrentPage
+        }) ?? "#";
+}
+
+<section class="arena-page hr-page offers-page" data-offers-index data-active-tab="@Model.ActiveTab">
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Human Resources</span>
+            <h1>Offer &amp; Hiring</h1>
+            <p>Issue offers to shortlisted candidates and turn acceptance into a workforce.</p>
+        </div>
+        <div class="arena-actions">
+            @if (Model.CanManage)
+            {
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-file-earmark-plus"></i> Create Job Offer</a>
+            }
+        </div>
+    </header>
+
+    <div class="arena-summary-grid hr-summary-grid">
+        <article><i class="bi bi-file-earmark-text"></i><span>Total Offers</span><strong>@Model.TotalOffers</strong></article>
+        <article><i class="bi bi-pencil-square"></i><span>Draft Offers</span><strong>@Model.DraftOffers</strong></article>
+        <article><i class="bi bi-hourglass-split"></i><span>Pending Acceptance</span><strong>@Model.PendingAcceptance</strong></article>
+        <article><i class="bi bi-patch-check"></i><span>Accepted Offers</span><strong>@Model.AcceptedOffers</strong></article>
+        <article><i class="bi bi-x-octagon"></i><span>Rejected / Withdrawn</span><strong>@Model.RejectedOrWithdrawn</strong></article>
+        <article><i class="bi bi-person-check"></i><span>Pending Joining</span><strong>@Model.PendingJoining</strong></article>
+    </div>
+
+    <nav class="arena-tabs" aria-label="Offer views">
+        <a class="@(offersTab ? "active" : "")" href="@TabUrl("offers")" aria-current="@(offersTab ? "page" : null)"><i class="bi bi-file-earmark-text"></i> Offers</a>
+        <a class="@(hiringTab ? "active" : "")" href="@TabUrl("hiring")" aria-current="@(hiringTab ? "page" : null)"><i class="bi bi-people"></i> Hiring</a>
+    </nav>
+
+    @if (offersTab)
+    {
+        <section class="arena-card">
+            <form class="arena-toolbar" method="get" data-offer-filters>
+                <input type="hidden" name="tab" value="offers" />
+                <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.OfferSearch" placeholder="Search by reference, candidate, or email..." aria-label="Search offers" autocomplete="off" data-live-search /></div>
+                <select name="department" data-filter-select>
+                    <option value="">All Departments</option>
+                    @foreach (var department in Model.Departments)
+                    {
+                        <option value="@department" selected="@(Model.OfferDepartment == department)">@department</option>
+                    }
+                </select>
+                <select name="offerStatus" data-filter-select>
+                    <option value="">All Status</option>
+                    @foreach (JobOfferStatus value in Enum.GetValues<JobOfferStatus>())
+                    {
+                        <option value="@value" selected="@(Model.OfferStatus == value)">@value.GetDisplayName()</option>
+                    }
+                </select>
+                <select name="offerSort" data-filter-select>
+                    <option value="newest" selected="@(Model.OfferSortBy == "newest")">Newest First</option>
+                    <option value="oldest" selected="@(Model.OfferSortBy == "oldest")">Oldest First</option>
+                    <option value="candidate" selected="@(Model.OfferSortBy == "candidate")">Candidate A-Z</option>
+                    <option value="joining" selected="@(Model.OfferSortBy == "joining")">Joining Soonest</option>
+                    <option value="expiry" selected="@(Model.OfferSortBy == "expiry")">Expiring Soonest</option>
+                    <option value="salary" selected="@(Model.OfferSortBy == "salary")">Highest Salary</option>
+                </select>
+                <select name="pageSize" data-filter-select>
+                    @foreach (var size in new[] { 10, 25, 50 })
+                    {
+                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                    }
+                </select>
+                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="offers"><i class="bi bi-x-circle"></i> Clear</a>
+            </form>
+
+            @if (!Model.Offers.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <h2>@(offersHasFilters ? "No Matching Offers" : "No Offers Yet")</h2>
+                    <p>@(offersHasFilters ? "Try changing or clearing your filters." : "Create your first offer from a shortlisted candidate to begin the hiring stage.")</p>
+                    @if (offersHasFilters)
+                    {
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="offers"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                    }
+                    else if (Model.CanManage)
+                    {
+                        <a class="admin-action-button" asp-action="Create"><i class="bi bi-file-earmark-plus"></i> Create Offer</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="hr-table-wrap">
+                    <table class="arena-table offers-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Offer Reference</th>
+                                <th scope="col">Candidate</th>
+                                <th scope="col">Position</th>
+                                <th scope="col">Compensation</th>
+                                <th scope="col">Issued</th>
+                                <th scope="col">Expires</th>
+                                <th scope="col">Joining</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in Model.Offers)
+                            {
+                                var expired = offer.Status != JobOfferStatus.Draft && offer.ExpiryDate < today;
+                                <tr data-offer-row="@offer.Id">
+                                    <td data-label="Offer Reference"><span class="membership-code">@offer.ReferenceNumber</span><small>@offer.ApplicationNumber</small></td>
+                                    <td data-label="Candidate">
+                                        <div class="user-cell customer-identity">
+                                            <span class="user-avatar membership-table-avatar">@offer.Initials</span>
+                                            <div>
+                                                <strong>@offer.CandidateName</strong>
+                                                <small>@offer.CandidateEmail</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Position"><strong>@offer.Designation</strong><small>@offer.Department &middot; @offer.EmploymentType.GetDisplayName()</small></td>
+                                    <td data-label="Compensation"><strong>@offer.Currency @offer.OfferedSalary.ToString("N0")</strong><small>@offer.SalaryFrequency.GetDisplayName()</small></td>
+                                    <td data-label="Issued">@offer.OfferDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Expires">
+                                        <strong class="@(expired ? "customer-danger-text" : "")">@offer.ExpiryDate.ToString("dd MMM yyyy")</strong>
+                                        @if (expired) { <small>Expired</small> }
+                                    </td>
+                                    <td data-label="Joining">@offer.JoiningDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge hr-tone @offer.Status.GetBadgeClass()"><i></i>@offer.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@offer.Id" data-tooltip="View details" aria-label="View offer details"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage && offer.Status is JobOfferStatus.Draft or JobOfferStatus.PendingAcceptance)
+                                            {
+                                                <a class="membership-icon-button" asp-action="Edit" asp-route-id="@offer.Id" data-tooltip="Edit" aria-label="Edit offer"><i class="bi bi-pencil"></i></a>
+                                            }
+                                            @if (Model.CanManage && offer.HasLetter)
+                                            {
+                                                <a class="membership-icon-button" asp-action="DownloadLetter" asp-route-id="@offer.Id" data-tooltip="Download letter" aria-label="Download offer letter"><i class="bi bi-file-earmark-arrow-down"></i></a>
+                                            }
+                                            @if (Model.CanManage && offer.Status == JobOfferStatus.Accepted && offer.EmployeeId == null)
+                                            {
+                                                <a class="membership-icon-button" asp-action="RecordJoining" asp-route-id="@offer.Id" data-tooltip="Record joining" aria-label="Record joining"><i class="bi bi-person-plus"></i></a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arena-pagination">
+                    <span>Showing @start-@end of @Model.TotalRecords offers</span>
+                    <nav>
+                        <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : OffersUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                        @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                        {
+                            <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@OffersUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                        }
+                        <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : OffersUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                    </nav>
+                </div>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="arena-card">
+            <form class="arena-toolbar" method="get" data-offer-filters>
+                <input type="hidden" name="tab" value="hiring" />
+                <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.HiringSearch" placeholder="Search accepted offers..." aria-label="Search hiring" autocomplete="off" data-live-search /></div>
+                <select name="hiringSort" data-filter-select>
+                    <option value="newest" selected="@(Model.HiringSortBy == "newest")">Newest First</option>
+                    <option value="oldest" selected="@(Model.HiringSortBy == "oldest")">Oldest First</option>
+                    <option value="candidate" selected="@(Model.HiringSortBy == "candidate")">Candidate A-Z</option>
+                    <option value="joining" selected="@(Model.HiringSortBy == "joining")">Joining Soonest</option>
+                </select>
+                <select name="pageSize" data-filter-select>
+                    @foreach (var size in new[] { 10, 25, 50 })
+                    {
+                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                    }
+                </select>
+                <a class="admin-secondary-button" asp-action="Index" asp-route-tab="hiring"><i class="bi bi-x-circle"></i> Clear</a>
+            </form>
+
+            @if (!Model.Hiring.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-people"></i>
+                    <h2>@(hiringHasFilters ? "No Matching Records" : "No Hiring Records Yet")</h2>
+                    <p>@(hiringHasFilters ? "Try changing or clearing your filters." : "Offers that are accepted will appear here so you can create the employee record.")</p>
+                    @if (hiringHasFilters)
+                    {
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="hiring"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="hr-table-wrap">
+                    <table class="arena-table offers-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Offer Reference</th>
+                                <th scope="col">Candidate</th>
+                                <th scope="col">Position</th>
+                                <th scope="col">Joining Date</th>
+                                <th scope="col">Employee</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in Model.Hiring)
+                            {
+                                <tr data-offer-row="@offer.Id">
+                                    <td data-label="Offer Reference"><span class="membership-code">@offer.ReferenceNumber</span><small>@offer.ApplicationNumber</small></td>
+                                    <td data-label="Candidate">
+                                        <div class="user-cell customer-identity">
+                                            <span class="user-avatar membership-table-avatar">@offer.Initials</span>
+                                            <div>
+                                                <strong>@offer.CandidateName</strong>
+                                                <small>@offer.CandidateEmail</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Position"><strong>@offer.Designation</strong><small>@offer.Department</small></td>
+                                    <td data-label="Joining Date">@offer.JoiningDate.ToString("dd MMM yyyy")</td>
+                                    <td data-label="Employee">
+                                        @if (offer.EmployeeId.HasValue)
+                                        {
+                                            <a class="hr-doc-link" asp-controller="Employees" asp-action="Details" asp-route-id="@offer.EmployeeId"><i class="bi bi-person-badge"></i> @(offer.EmployeeNumber ?? "View employee")</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="customer-empty-copy">Not created</span>
+                                        }
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge hr-tone @offer.Status.GetBadgeClass()"><i></i>@offer.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@offer.Id" data-tooltip="View offer" aria-label="View offer"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage && offer.EmployeeId == null && offer.Status == JobOfferStatus.Accepted)
+                                            {
+                                                <a class="membership-icon-button" asp-action="RecordJoining" asp-route-id="@offer.Id" data-tooltip="Create employee" aria-label="Create employee"><i class="bi bi-person-plus"></i></a>
+                                            }
+                                            @if (Model.CanManage && offer.HasLetter)
+                                            {
+                                                <a class="membership-icon-button" asp-action="DownloadLetter" asp-route-id="@offer.Id" data-tooltip="Download letter" aria-label="Download offer letter"><i class="bi bi-file-earmark-arrow-down"></i></a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arena-pagination">
+                    <span>Showing @start-@end of @Model.TotalRecords offers</span>
+                    <nav>
+                        <a class="page-link @(Model.CurrentPage <= 1 ? "disabled" : "")" href="@(Model.CurrentPage <= 1 ? "#" : OffersUrl(Model.CurrentPage - 1))"><i class="bi bi-chevron-left"></i> Previous</a>
+                        @for (var pageNumber = pageStart; pageNumber <= pageEnd; pageNumber++)
+                        {
+                            <a class="page-link @(pageNumber == Model.CurrentPage ? "active" : "")" href="@OffersUrl(pageNumber)" aria-current="@(pageNumber == Model.CurrentPage ? "page" : null)">@pageNumber</a>
+                        }
+                        <a class="page-link @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" href="@(Model.CurrentPage >= Model.TotalPages ? "#" : OffersUrl(Model.CurrentPage + 1))">Next <i class="bi bi-chevron-right"></i></a>
+                    </nav>
+                </div>
+            }
+        </section>
+    }
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,207 @@
+@model GameHub.Models.ViewModels.JobPostingFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.IsEditMode;
+    ViewData["Title"] = isEdit ? "Edit Job Posting" : "Add Job Posting";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-form-page job-posting-form-page" data-job-posting-form-page>
+    <header class="arena-header">
+        <div>
+            <span class="admin-label">Job Posting</span>
+            <h1>@(isEdit ? "Edit Job Posting" : "Add Job Posting")</h1>
+            <p>@(isEdit ? "Update the posting details, hiring criteria, and availability." : "Create a detailed posting to advertise the opening and start collecting applications.")</p>
+        </div>
+        @if (isEdit)
+        {
+            <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id"><i class="bi bi-arrow-left"></i> Back to Job Posting</a>
+        }
+        else
+        {
+            <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Recruitment</a>
+        }
+    </header>
+
+    <form asp-action="@(isEdit ? "Edit" : "Create")" method="post" class="arena-form-main" data-job-posting-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-briefcase"></i> Job Overview</h2>
+            <label>
+                <span>Job Reference Number</span>
+                <input asp-for="ReferenceNumber" readonly placeholder="Auto generated" />
+                <small class="hr-hint">System generated and guaranteed unique.</small>
+            </label>
+            <label>
+                <span>Job Title *</span>
+                <input asp-for="JobTitle" placeholder="e.g. Senior Table Tennis Coach" maxlength="100" />
+                <span asp-validation-for="JobTitle"></span>
+            </label>
+            <label>
+                <span>Department *</span>
+                <select asp-for="Department" asp-items="Model.Departments"><option value="">Select department</option></select>
+                <span asp-validation-for="Department"></span>
+            </label>
+            <label>
+                <span>Employment Type *</span>
+                <select asp-for="EmploymentType" asp-items="Html.GetEnumSelectList<EmploymentType>()"></select>
+                <span asp-validation-for="EmploymentType"></span>
+            </label>
+            <label>
+                <span>Workplace Type *</span>
+                <select asp-for="WorkplaceType" asp-items="Html.GetEnumSelectList<WorkplaceType>()"></select>
+                <span asp-validation-for="WorkplaceType"></span>
+            </label>
+            <label>
+                <span>Job Location *</span>
+                <input asp-for="JobLocation" placeholder="e.g. Lahore, Pakistan" maxlength="150" />
+                <span asp-validation-for="JobLocation"></span>
+            </label>
+            <label>
+                <span>Number of Vacancies *</span>
+                <input asp-for="Vacancies" type="number" min="1" max="100" />
+                <span asp-validation-for="Vacancies"></span>
+            </label>
+            <label>
+                <span>Job Status *</span>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<JobPostingStatus>()"></select>
+                <span asp-validation-for="Status"></span>
+            </label>
+            <label>
+                <span>Hiring Manager</span>
+                <select asp-for="HiringManagerUserId" asp-items="Model.HiringManagers"><option value="">Not assigned</option></select>
+                <span asp-validation-for="HiringManagerUserId"></span>
+            </label>
+            <label>
+                <span>Application Deadline *</span>
+                <input asp-for="ApplicationDeadline" type="date" min="@DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1).ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="ApplicationDeadline"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-cash-stack"></i> Compensation</h2>
+            <label>
+                <span>Minimum Salary</span>
+                <input asp-for="MinimumSalary" type="number" min="0" step="0.01" placeholder="0.00" />
+                <span asp-validation-for="MinimumSalary"></span>
+            </label>
+            <label>
+                <span>Maximum Salary</span>
+                <input asp-for="MaximumSalary" type="number" min="0" step="0.01" placeholder="0.00" />
+                <span asp-validation-for="MaximumSalary"></span>
+            </label>
+            <label>
+                <span>Currency *</span>
+                <select asp-for="Currency" asp-items="Model.Currencies"></select>
+                <span asp-validation-for="Currency"></span>
+            </label>
+            <label>
+                <span>Experience Required *</span>
+                <select asp-for="ExperienceRequired" asp-items="Model.ExperienceLevels"><option value="">Select experience level</option></select>
+                <span asp-validation-for="ExperienceRequired"></span>
+            </label>
+            <label>
+                <span>Minimum Education *</span>
+                <select asp-for="MinimumEducation" asp-items="Model.EducationLevels"><option value="">Select education level</option></select>
+                <span asp-validation-for="MinimumEducation"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-ui-checks-grid"></i> Hiring Criteria</h2>
+            <label class="hr-form-wide">
+                <span>Job Description *</span>
+                <textarea asp-for="JobDescription" rows="6" maxlength="5000" placeholder="Describe the role, responsibilities, and the team."></textarea>
+                <small class="hr-counter" data-counter-target="JobDescription"></small>
+                <span asp-validation-for="JobDescription"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Key Responsibilities *</span>
+                <textarea asp-for="KeyResponsibilities" rows="5" maxlength="3000" placeholder="List the main day-to-day responsibilities."></textarea>
+                <small class="hr-counter" data-counter-target="KeyResponsibilities"></small>
+                <span asp-validation-for="KeyResponsibilities"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Qualifications / Requirements *</span>
+                <textarea asp-for="Qualifications" rows="5" maxlength="3000" placeholder="List the qualifications and requirements candidates must meet."></textarea>
+                <small class="hr-counter" data-counter-target="Qualifications"></small>
+                <span asp-validation-for="Qualifications"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-tags"></i> Skills &amp; Screening</h2>
+            <label class="hr-form-wide">
+                <span>Required Skills *</span>
+                <div class="hr-chip-field" data-skills-field>
+                    <input type="text" data-skills-entry placeholder="Type a skill and press Enter (e.g. C#, SQL)" maxlength="80" />
+                    <button type="button" class="admin-secondary-button" data-skills-add><i class="bi bi-plus-lg"></i> Add</button>
+                </div>
+                <ul class="hr-chip-list" data-skills-list>
+                    @foreach (var skill in Model.RequiredSkills.Where(s => !string.IsNullOrWhiteSpace(s)))
+                    {
+                        <li data-chip>
+                            <span>@skill</span>
+                            <button type="button" data-chip-remove aria-label="Remove skill">&times;</button>
+                            <input type="hidden" name="RequiredSkills" value="@skill" />
+                        </li>
+                    }
+                </ul>
+                <small class="text-danger" data-skills-message></small>
+                <span asp-validation-for="RequiredSkills"></span>
+            </label>
+            <label class="hr-form-wide">
+                <span>Screening Questions</span>
+                <div class="hr-repeater" data-questions-repeater>
+                    @foreach (var question in Model.ScreeningQuestions.Where(q => !string.IsNullOrWhiteSpace(q)))
+                    {
+                        <div class="hr-repeater-row" data-question-row>
+                            <textarea name="ScreeningQuestions" rows="2" maxlength="500" placeholder="e.g. Do you have prior experience with customer-facing roles?">@question</textarea>
+                            <button type="button" class="membership-icon-button is-danger" data-question-remove aria-label="Remove question"><i class="bi bi-trash"></i></button>
+                        </div>
+                    }
+                </div>
+                <button type="button" class="admin-secondary-button" data-question-add><i class="bi bi-plus-lg"></i> Add Question</button>
+                <small class="hr-hint">Optional. Questions are asked when the application is reviewed.</small>
+                <span asp-validation-for="ScreeningQuestions"></span>
+            </label>
+        </section>
+
+        <section class="arena-form-card">
+            <h2><i class="bi bi-gift"></i> Benefits</h2>
+            <label class="hr-form-wide">
+                <span>Benefits</span>
+                <textarea asp-for="Benefits" rows="3" maxlength="2000" placeholder="Optional. e.g. Health insurance, gym membership, performance bonus."></textarea>
+                <small class="hr-counter" data-counter-target="Benefits"></small>
+                <span asp-validation-for="Benefits"></span>
+            </label>
+        </section>
+
+        <div class="arena-save-bar" data-save-bar>
+            @if (isEdit)
+            {
+                <a class="admin-secondary-button" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+            }
+            else
+            {
+                <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index">Cancel</a>
+            }
+            <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> @(isEdit ? "Update Job Posting" : "Save Job Posting")</button>
+        </div>
+    </form>
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/hr-forms.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/hr-forms.js" asp-append-version="true"></script>
+}

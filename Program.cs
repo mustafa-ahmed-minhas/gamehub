@@ -50,7 +50,14 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.IdleTimeout = TimeSpan.FromMinutes(15);
 });
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Run root-model validation (IValidatableObject cross-field rules) even when a
+    // child property already failed. With the MVC default (false), cross-field errors
+    // such as "Maximum salary must be >= minimum" or "Deadline must be in the future"
+    // are silently skipped whenever the form contains any other validation error.
+    options.ValidateComplexTypesIfChildValidationFails = true;
+});
 builder.Services.AddScoped<ICustomerCodeService, CustomerCodeService>();
 builder.Services.AddScoped<IMembershipNumberService, MembershipNumberService>();
 builder.Services.AddScoped<IBookingNumberService, BookingNumberService>();
@@ -60,6 +67,15 @@ builder.Services.AddScoped<ICustomerMembershipService, CustomerMembershipService
 builder.Services.AddScoped<IMembershipOperationService, MembershipOperationService>();
 builder.Services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IJobPostingNumberService, JobPostingNumberService>();
+builder.Services.AddScoped<IJobApplicationNumberService, JobApplicationNumberService>();
+builder.Services.AddScoped<IJobApplicationFileService, JobApplicationFileService>();
+builder.Services.AddScoped<IJobApplicationDuplicateService, JobApplicationDuplicateService>();
+builder.Services.AddScoped<IEmployeeNumberService, EmployeeNumberService>();
+builder.Services.AddScoped<IOfferNumberService, OfferNumberService>();
+builder.Services.AddScoped<ISimplePdfGenerator, SimplePdfGenerator>();
+builder.Services.AddScoped<IPerformanceNumberService, PerformanceNumberService>();
+builder.Services.AddScoped<ITerminationNumberService, TerminationNumberService>();
 
 var app = builder.Build();
 

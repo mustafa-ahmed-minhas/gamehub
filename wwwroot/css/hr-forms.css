@@ -1,0 +1,380 @@
+/* ==========================================================================
+   HR Module — Job Posting & Application forms
+   DESIGN OWNER: the Customer module is the master design. These forms are
+   composed from the shared arena form primitives (arena-setup.css) and only
+   add the genuinely HR-specific widgets (skill chips, screening-question
+   repeater, secure PDF upload lists) plus a few tone aliases.
+   ========================================================================== */
+
+.job-posting-form-page,
+.job-application-form-page {
+    min-width: 0;
+}
+
+/* Full-width form stack (the arena form grid normally carries a side preview;
+   these forms intentionally skip the side card to stay medium-sized). */
+.arena-form-main {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+/* Hire-from-offer acknowledgement banner (Employee form). */
+.hr-offer-hire-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    color: #16643f;
+    background: #eaf8f0;
+    border: 1px solid rgba(35, 146, 91, 0.16);
+    border-radius: 0.9rem;
+}
+
+.hr-offer-hire-banner i {
+    font-size: 1.4rem;
+}
+
+.hr-offer-hire-banner strong {
+    display: block;
+    font-weight: 950;
+}
+
+.hr-offer-hire-banner span {
+    color: var(--admin-muted, #6b6459);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+/* Make a field span both columns of an arena-form-card. */
+.arena-form-card .hr-form-wide {
+    grid-column: 1 / -1;
+}
+
+/* Muted helper text (the arena card styles small as red error text). */
+.arena-form-card small.hr-hint,
+.arena-form-card small.hr-counter {
+    color: var(--admin-muted);
+    font-weight: 800;
+}
+
+.arena-form-card small.hr-counter {
+    text-align: right;
+}
+
+.arena-form-card em.hr-optional {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-style: normal;
+    font-weight: 850;
+}
+
+/* --------------------------------------------------------------------------
+   File inputs — tuned to the master arena input look.
+   -------------------------------------------------------------------------- */
+.arena-form-card input[type="file"] {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.arena-form-card input[type="file"]::file-selector-button {
+    min-height: 2rem;
+    margin-right: 0.75rem;
+    padding: 0 0.75rem;
+    color: #17120a;
+    background: #f3d78f;
+    border: 0;
+    border-radius: 0.65rem;
+    font-weight: 950;
+    cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Skills chip input (Job Posting form).
+   -------------------------------------------------------------------------- */
+.hr-chip-field {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.hr-chip-field input {
+    flex: 1;
+}
+
+.hr-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hr-chip-list [data-chip] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 2rem;
+    padding: 0 0.45rem 0 0.75rem;
+    color: #5d4320;
+    background: #f6e7c8;
+    border: 1px solid rgba(173, 125, 41, 0.18);
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 950;
+}
+
+.hr-chip-list [data-chip] button {
+    display: grid;
+    width: 1.15rem;
+    height: 1.15rem;
+    place-items: center;
+    color: #8a6322;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.hr-chip-list [data-chip] button:hover {
+    color: #fff;
+    background: #b64336;
+}
+
+/* --------------------------------------------------------------------------
+   Screening questions repeater.
+   -------------------------------------------------------------------------- */
+.hr-repeater {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.hr-repeater-row {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+}
+
+.hr-repeater-row textarea {
+    flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Uploaded file list (CV + supporting documents).
+   -------------------------------------------------------------------------- */
+.hr-file-list {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.hr-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    background: #fbf7ef;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.85rem;
+}
+
+.hr-file-item.is-invalid {
+    background: #fff0ef;
+    border-color: rgba(210, 68, 76, 0.25);
+}
+
+.hr-file-item.is-invalid .hr-file-meta strong {
+    color: #9c2629;
+}
+
+.hr-file-item > i {
+    color: #9c2629;
+    font-size: 1.25rem;
+}
+
+/* A previously stored CV shown while editing; uses the neutral warehouse tone. */
+.hr-file-item.is-current > i {
+    color: #b5850c;
+}
+
+.hr-file-item.is-current .hr-file-meta strong {
+    color: #4e4a42;
+}
+
+.hr-file-meta {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+}
+
+.hr-file-meta strong {
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hr-file-meta span {
+    color: var(--admin-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Warning banner (no eligible postings).
+   -------------------------------------------------------------------------- */
+.hr-warning-banner {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    color: #8c671f;
+    background: rgba(214, 169, 80, 0.14);
+    border: 1px solid rgba(214, 169, 80, 0.35);
+    border-radius: var(--admin-radius);
+}
+
+.hr-warning-banner > i {
+    display: grid;
+    width: 2.4rem;
+    height: 2.4rem;
+    flex: 0 0 auto;
+    place-items: center;
+    color: #17120a;
+    background: var(--admin-gold);
+    border-radius: 0.8rem;
+    font-size: 1.1rem;
+}
+
+.hr-warning-banner div {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.hr-warning-banner span {
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   Posting status tones (aliases over the hr-tone palette in hr.css).
+   -------------------------------------------------------------------------- */
+.hr-tone.open {
+    color: #0f5132;
+    background: #e0f3e6;
+    border-color: rgba(15, 81, 50, 0.16);
+}
+
+.hr-tone.draft {
+    color: #986710;
+    background: #fff6e7;
+    border-color: rgba(232, 157, 51, 0.18);
+}
+
+.hr-tone.closed {
+    color: #9c2629;
+    background: #fff0ef;
+    border-color: rgba(210, 68, 76, 0.16);
+}
+
+/* --------------------------------------------------------------------------
+   Supporting-document links on the Applications index.
+   -------------------------------------------------------------------------- */
+.hr-doc-list {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.hr-doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--admin-accent, #b5850c);
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.hr-doc-link:hover {
+    text-decoration: underline;
+}
+
+.hr-doc-link i {
+    font-size: 0.8rem;
+}
+
+/* --------------------------------------------------------------------------
+   Employee profile-photo upload (Employee Management form).
+   -------------------------------------------------------------------------- */
+.employee-photo-field .employee-photo-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.employee-photo-preview {
+    display: grid;
+    width: 4rem;
+    height: 4rem;
+    flex: 0 0 auto;
+    place-items: center;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(135deg, #b5850c, #7a5a08);
+    border-radius: 50%;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 950;
+}
+
+.employee-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.employee-photo-field input[type="file"] {
+    flex: 1;
+}
+
+@media (max-width: 767px) {
+    .employee-photo-field .employee-photo-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .employee-photo-field input[type="file"] {
+        width: 100%;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive tuning (matches the master arena breakpoints).
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+    .hr-chip-field {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hr-chip-field .admin-secondary-button {
+        width: 100%;
+    }
+
+    .hr-repeater-row {
+        flex-direction: column;
+    }
+
+    .hr-repeater-row .membership-icon-button {
+        align-self: flex-end;
+    }
+
+    .hr-warning-banner {
+        align-items: flex-start;
+    }
+}
