@@ -27,7 +27,14 @@
         const fromTop = window.scrollY + 130;
 
         navLinks.forEach((link) => {
-            const section = document.querySelector(link.getAttribute("href"));
+            const href = link.getAttribute("href") || "";
+            const hashIndex = href.indexOf("#");
+            if (hashIndex === -1) {
+                link.classList.remove("active");
+                return;
+            }
+
+            const section = document.getElementById(href.slice(hashIndex + 1));
             if (!section) return;
             const isActive = section.offsetTop <= fromTop &&
                 section.offsetTop + section.offsetHeight > fromTop;

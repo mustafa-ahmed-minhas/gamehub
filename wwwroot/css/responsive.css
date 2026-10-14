@@ -23,11 +23,18 @@
     }
 }
 
-@media (max-width: 991px) {
+@media (max-width: 1099px) {
     .public-navbar {
-        padding: 0.8rem 0;
-        background: rgba(8, 8, 8, 0.68);
-        backdrop-filter: blur(16px);
+        padding-top: 0.85rem;
+    }
+
+    .public-navbar.is-scrolled,
+    .public-navbar.menu-open {
+        padding-top: 0.7rem;
+    }
+
+    .nav-shell {
+        grid-template-columns: auto 1fr;
     }
 
     .nav-toggle {
@@ -36,48 +43,40 @@
     }
 
     .nav-links {
-        position: fixed;
-        top: 4.8rem;
-        left: var(--container-pad);
-        right: var(--container-pad);
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        left: 0;
+        right: 0;
         display: grid;
-        gap: 0;
-        padding: 0.75rem;
-        background: rgba(8, 8, 8, 0.92);
-        border: 1px solid rgba(214, 169, 80, 0.2);
-        border-radius: 1.1rem;
-        box-shadow: var(--shadow-deep);
+        gap: 0.15rem;
+        padding: 0.55rem;
+        background: rgba(12, 12, 14, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 1.5rem;
+        box-shadow: 0 26px 60px rgba(0, 0, 0, 0.55);
+        -webkit-backdrop-filter: blur(18px);
         backdrop-filter: blur(18px);
         opacity: 0;
+        visibility: hidden;
         pointer-events: none;
         transform: translateY(-10px);
-        transition: opacity 180ms ease, transform 180ms ease;
+        transition: opacity 200ms ease, transform 200ms ease, visibility 200ms ease;
     }
 
     .public-navbar.menu-open .nav-links {
         opacity: 1;
+        visibility: visible;
         pointer-events: auto;
         transform: translateY(0);
     }
 
-    .nav-links a {
-        padding: 0.9rem 0.95rem;
-        border-radius: 0.8rem;
+    .public-navbar .nav-links a {
+        padding: 0.85rem 0.95rem;
+        border-radius: 0.95rem;
     }
+}
 
-    .nav-links a::after {
-        display: none;
-    }
-
-    .nav-links a:hover,
-    .nav-links a.active {
-        background: rgba(255, 255, 255, 0.08);
-    }
-
-    .nav-inner > .btn-premium {
-        display: none;
-    }
-
+@media (max-width: 991px) {
     .hero-content {
         align-items: end;
         padding-top: 8rem;
@@ -184,6 +183,10 @@
         width: 100%;
     }
 
+    .nav-actions .btn-premium {
+        width: auto;
+    }
+
     .feature-grid,
     .sports-grid,
     .why-grid,
@@ -239,6 +242,14 @@
     }
 }
 
+@media (max-width: 360px) {
+    /* On the smallest phones, drop the Admin Login label so the gold button
+       still fits next to the hamburger. */
+    .nav-actions .nav-admin-btn .btn-text {
+        display: none;
+    }
+}
+
 @media (max-width: 575px) {
     :root {
         --container-pad: 0.9rem;
@@ -252,6 +263,25 @@
 
     .brand-mark strong {
         font-size: 0.92rem;
+    }
+
+    .nav-actions {
+        gap: 0.35rem;
+    }
+
+    .nav-actions .btn-premium {
+        gap: 0.4rem;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.8rem;
+    }
+
+    .nav-actions .btn-premium i {
+        font-size: 0.95rem;
+    }
+
+    .nav-toggle {
+        width: 2.35rem;
+        height: 2.35rem;
     }
 
     .hero-content {

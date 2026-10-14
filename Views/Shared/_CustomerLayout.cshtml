@@ -4,9 +4,9 @@
     var isCustomerSignedIn = auth.Succeeded && auth.Principal?.Identity?.IsAuthenticated == true;
     var customerName = auth.Principal?.Identity?.Name ?? "Player";
     var currentController = ViewContext.RouteData.Values["controller"] as string ?? string.Empty;
-    string NavItemClass(string controller) => string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
-        ? "btn-ghost-light btn-compact active"
-        : "btn-ghost-light btn-compact";
+    string TabClass(string controller) => string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase)
+        ? "active"
+        : string.Empty;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -29,55 +29,43 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="customer-site">
-    <nav class="customer-nav" data-customer-nav>
-        <div class="container customer-nav-inner">
-            <a class="brand-mark" asp-controller="Home" asp-action="Index">
-                <span class="brand-icon">G</span>
-                <span><strong>GameHub</strong><small>Arena</small></span>
-            </a>
-            <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="false">
-                <i class="bi bi-list"></i>
-            </button>
-            <div class="customer-nav-links" data-nav-links>
-                <a asp-controller="Home" asp-action="Index">Home</a>
-                <a asp-controller="Courts" asp-action="Index">Courts</a>
-                <a asp-controller="MyMemberships" asp-action="Plans">Membership</a>
-                <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
-                <a asp-controller="Careers" asp-action="Index">Careers</a>
-                <a asp-controller="Home" asp-action="Index" asp-fragment="facilities">Facilities</a>
-                <a asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact</a>
-            </div>
-            <div class="customer-nav-actions">
-                @if (isCustomerSignedIn)
-                {
-                    <a class="@(NavItemClass("MyAccount"))" asp-controller="MyAccount" asp-action="Index"><i class="bi bi-person-circle"></i> My Account</a>
-                    <a class="@(NavItemClass("MyBookings"))" asp-controller="MyBookings" asp-action="Index"><i class="bi bi-calendar-check"></i> My Bookings</a>
-                    <a class="@(NavItemClass("MyMemberships"))" asp-controller="MyMemberships" asp-action="Index"><i class="bi bi-stars"></i> Membership</a>
-                    <a class="@(NavItemClass("CustomerHistory"))" asp-controller="CustomerHistory" asp-action="Index"><i class="bi bi-clock-history"></i> History</a>
-                    <a class="@(NavItemClass("CustomerNotifications"))" asp-controller="CustomerNotifications" asp-action="Index"><i class="bi bi-bell"></i> Notifications</a>
+    <partial name="_Navbar" />
+
+    @if (isCustomerSignedIn)
+    {
+        @* Secondary account tab bar. The public navbar above keeps the marketing
+           links; these are the signed-in customer destinations that used to live in
+           the customer shell (same routes, icons and active state). *@
+        <nav class="customer-tabs" aria-label="Customer account navigation">
+            <div class="container">
+                <div class="customer-tabs-inner">
+                    <a class="@TabClass("MyAccount")" asp-controller="MyAccount" asp-action="Index"><i class="bi bi-person-circle"></i> My Account</a>
+                    <a class="@TabClass("MyBookings")" asp-controller="MyBookings" asp-action="Index"><i class="bi bi-calendar-check"></i> My Bookings</a>
+                    <a class="@TabClass("MyMemberships")" asp-controller="MyMemberships" asp-action="Index"><i class="bi bi-stars"></i> Membership</a>
+                    <a class="@TabClass("MyInvoices")" asp-controller="MyInvoices" asp-action="Index"><i class="bi bi-receipt"></i> Invoices</a>
+                    <a class="@TabClass("CustomerHistory")" asp-controller="CustomerHistory" asp-action="Index"><i class="bi bi-clock-history"></i> History</a>
+                    <a class="@TabClass("CustomerNotifications")" asp-controller="CustomerNotifications" asp-action="Index"><i class="bi bi-bell"></i> Notifications</a>
                     @* An antiforgery token is bound to the claim identity of HttpContext.User. This
-                       nav is also rendered on public pages that use the customer layout without
-                       CustomerAuthorize (Courts, Inquiry, online booking), where HttpContext.User is
-                       still the admin-scheme principal. Pin the customer principal for exactly this
-                       token so it always matches the customer identity that CustomerPrincipal
-                       resolves on sign out, then restore the previous user so every other form in
-                       the shell keeps the identity it already had. *@
-                    var principalBeforeSignOutToken = Context.User;
-                    Context.User = auth.Principal!;
-                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                       tab bar can also render on public pages that use the customer layout without
+                       CustomerAuthorize, where HttpContext.User is still the admin-scheme principal.
+                       Pin the customer principal for exactly this token so it always matches the
+                       customer identity that CustomerPrincipal resolves on sign out, then restore
+                       the previous user. *@
+                    @{
+                        var principalBeforeSignOutToken = Context.User;
+                        Context.User = auth.Principal!;
+                    }
+                    <form asp-controller="Account" asp-action="Logout" method="post">
                         @Html.AntiForgeryToken()
                         <button class="btn-premium btn-compact" type="submit"><i class="bi bi-box-arrow-right"></i> Sign Out</button>
                     </form>
-                    Context.User = principalBeforeSignOutToken;
-                }
-                else
-                {
-                    <a class="btn-ghost-light btn-compact" asp-controller="Account" asp-action="Login"><i class="bi bi-box-arrow-in-right"></i> Sign In</a>
-                    <a class="btn-premium btn-compact" asp-controller="Account" asp-action="Signup"><i class="bi bi-person-plus"></i> Create Account</a>
-                }
+                    @{
+                        Context.User = principalBeforeSignOutToken;
+                    }
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    }
 
     <main id="top" role="main">
         @RenderBody()
@@ -94,26 +82,34 @@
             </div>
             <div>
                 <h3>Explore</h3>
-                <a asp-controller="Courts" asp-action="Index">Courts</a>
-                <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
+                <a href="/#courts">Courts</a>
+                <a href="/#how-booking-works">How Booking Works</a>
                 <a asp-controller="Account" asp-action="Signup">Create Account</a>
             </div>
             <div>
                 <h3>Account</h3>
-                <a asp-controller="MyAccount" asp-action="Index">My Account</a>
-                <a asp-controller="MyAccount" asp-action="Profile">Profile</a>
-                <a asp-controller="MyMemberships" asp-action="Index">My Membership</a>
-                <a asp-controller="MyMemberships" asp-action="Plans">Membership Plans</a>
-                <a asp-controller="MyAccount" asp-action="Payments">Payment History</a>
-                <a asp-controller="MyInvoices" asp-action="Index">Invoices</a>
-                <a asp-controller="CustomerHistory" asp-action="Index">Activity History</a>
-                <a asp-controller="CustomerNotifications" asp-action="Index">Notifications</a>
-                <a asp-controller="MyAccount" asp-action="ChangePassword">Change Password</a>
+                @if (isCustomerSignedIn)
+                {
+                    <a asp-controller="MyAccount" asp-action="Index">My Account</a>
+                    <a asp-controller="MyAccount" asp-action="Profile">Profile</a>
+                    <a asp-controller="MyMemberships" asp-action="Index">My Membership</a>
+                    <a asp-controller="MyMemberships" asp-action="Plans">Membership Plans</a>
+                    <a asp-controller="MyAccount" asp-action="Payments">Payment History</a>
+                    <a asp-controller="MyInvoices" asp-action="Index">Invoices</a>
+                    <a asp-controller="CustomerHistory" asp-action="Index">Activity History</a>
+                    <a asp-controller="CustomerNotifications" asp-action="Index">Notifications</a>
+                    <a asp-controller="MyAccount" asp-action="ChangePassword">Change Password</a>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login">Sign In</a>
+                    <a asp-controller="Account" asp-action="Signup">Create Account</a>
+                }
             </div>
             <div>
                 <h3>Support</h3>
-                <a asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact Us</a>
-                <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
+                <a href="/#contact">Contact Us</a>
+                <a href="/#how-booking-works">How Booking Works</a>
                 <a asp-controller="Account" asp-action="Signup">Create Account</a>
             </div>
         </div>

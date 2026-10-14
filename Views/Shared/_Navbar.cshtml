@@ -4,32 +4,34 @@
     var isCareersPage = string.Equals(currentController, "Careers", StringComparison.OrdinalIgnoreCase);
 }
 <nav class="public-navbar" data-public-navbar aria-label="Primary navigation">
-    <div class="container nav-inner">
+    <div class="nav-shell">
         <a class="brand-mark" asp-controller="Home" asp-action="Index" aria-label="GameHub Arena home">
             <span class="brand-icon">G</span>
-            <span>
+            <span class="brand-copy">
                 <strong>GameHub</strong>
                 <small>Arena</small>
             </span>
         </a>
 
-        <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="false">
-            <i class="bi bi-list"></i>
-        </button>
-
         <div class="nav-links" data-nav-links>
             <a class="@(isHomePage ? "active" : null)" asp-controller="Home" asp-action="Index" asp-fragment="home">Home</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="sports">Sports</a>
-            <a asp-controller="Courts" asp-action="Index">Courts</a>
-            <a asp-controller="Courts" asp-action="HowItWorks">How Booking Works</a>
+            <a href="/#courts">Courts</a>
+            <a href="/#how-booking-works">How Booking Works</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="facilities">Facilities</a>
             <a class="@(isCareersPage ? "active" : null)" asp-controller="Careers" asp-action="Index">Careers</a>
             <a asp-controller="Home" asp-action="Index" asp-fragment="contact">Contact</a>
             <a asp-controller="Account" asp-action="Login">Sign In</a>
         </div>
 
-        <a class="btn-premium btn-compact" asp-controller="Courts" asp-action="Index" aria-label="Browse courts">
-            <i class="bi bi-calendar2-check"></i> Book a Court
-        </a>
+        <div class="nav-actions">
+            <a class="btn-premium btn-compact nav-admin-btn" asp-controller="Auth" asp-action="Login" aria-label="Admin login">
+                <i class="bi bi-shield-lock"></i>
+                <span class="btn-text">Admin Login</span>
+            </a>
+            <button class="nav-toggle" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="false">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
     </div>
 </nav>

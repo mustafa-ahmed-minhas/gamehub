@@ -45,6 +45,66 @@ body.customer-site {
     gap: 10px;
 }
 
+/* Secondary account tab bar shown beneath the fixed public navbar once a
+   customer is signed in. Only `.customer-tabs` (a new class) is styled here,
+   so no existing page is affected. */
+.customer-tabs {
+    position: relative;
+    z-index: 45;
+    padding-top: 6.4rem; /* clears the floating public navbar */
+}
+
+.customer-tabs-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .3rem;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: .4rem .55rem;
+    border: 1px solid rgba(214, 166, 82, .22);
+    border-radius: 999px;
+    background: rgba(14, 14, 16, .8);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .36);
+}
+
+.customer-tabs-inner > a {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .5rem .85rem;
+    color: rgba(255, 255, 255, .78);
+    font-size: .85rem;
+    font-weight: 800;
+    white-space: nowrap;
+    text-decoration: none;
+    border-radius: 999px;
+    transition: color 180ms ease, background 180ms ease;
+}
+
+.customer-tabs-inner > a i {
+    color: #d6a652;
+    font-size: 1rem;
+}
+
+.customer-tabs-inner > a:hover,
+.customer-tabs-inner > a.active {
+    color: #fff;
+    background: rgba(214, 166, 82, .18);
+}
+
+.customer-tabs-inner > a.active i {
+    color: var(--color-gold-soft);
+}
+
+.customer-tabs-inner .btn-premium {
+    margin-left: .35rem;
+}
+
 body.customer-site .btn-ghost-light {
     color: #171614;
     background: #fff;
