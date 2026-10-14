@@ -40,6 +40,19 @@
 
     overlay?.addEventListener("click", closeMobileSidebar);
 
+    // Collapsible sidebar sections; the active section is expanded server-side.
+    document.querySelectorAll("[data-nav-group-toggle]").forEach((toggle) => {
+        toggle.addEventListener("click", () => {
+            const group = toggle.closest("[data-nav-group]");
+            if (!group) {
+                return;
+            }
+
+            const isOpen = group.classList.toggle("is-open");
+            toggle.setAttribute("aria-expanded", String(isOpen));
+        });
+    });
+
     window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
             closeMobileSidebar();

@@ -1,6 +1,6 @@
 :root {
-    --admin-sidebar: 270px;
-    --admin-sidebar-collapsed: 84px;
+    --admin-sidebar: 248px;
+    --admin-sidebar-collapsed: 78px;
     --admin-header: 74px;
     --admin-bg: #f7f1e7;
     --admin-surface: #fffdf8;
@@ -98,7 +98,6 @@
 .admin-brand-text,
 .admin-profile-text,
 .admin-nav-link span,
-.admin-nav-section > span,
 .admin-shell.is-collapsed .admin-profile-block .icon-button {
     transition: opacity var(--admin-transition), width var(--admin-transition);
 }
@@ -127,38 +126,94 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.85rem 0.7rem;
+    padding: 0.5rem 0.55rem;
     scrollbar-width: thin;
 }
 
-.admin-nav-section {
-    margin-bottom: 1rem;
+/* Collapsible navigation groups (Dashboard, Master Data, CRM, ...). */
+.admin-nav-group {
+    margin-bottom: 0.3rem;
 }
 
-.admin-nav-section > span {
-    display: block;
-    padding: 0.7rem 0.8rem 0.4rem;
-    color: rgba(255, 255, 255, 0.34);
-    font-size: 0.66rem;
+.admin-nav-group-toggle {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 2rem;
+    padding: 0 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    background: transparent;
+    border: 0;
+    border-radius: 0.7rem;
+    cursor: pointer;
+    transition: color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-nav-group-toggle:hover {
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-nav-group-title {
+    overflow: hidden;
+    color: inherit;
+    font-size: 0.63rem;
     font-weight: 900;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: opacity var(--admin-transition), width var(--admin-transition);
+}
+
+.admin-nav-group-chevron {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 0.68rem;
+    transition: transform var(--admin-transition), opacity var(--admin-transition);
+}
+
+.admin-nav-group.is-open .admin-nav-group-chevron {
+    transform: rotate(180deg);
+}
+
+.admin-nav-group-items {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows var(--admin-transition), opacity var(--admin-transition);
+}
+
+.admin-nav-group.is-open .admin-nav-group-items {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.admin-nav-group-inner {
+    min-height: 0;
+    overflow: hidden;
 }
 
 .admin-nav-link {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    min-height: 2.7rem;
-    padding: 0 0.85rem;
+    gap: 0.7rem;
+    min-height: 2.35rem;
+    margin-bottom: 0.1rem;
+    padding: 0 0.7rem;
     color: rgba(255, 255, 255, 0.68);
-    border-radius: 0.95rem;
-    font-size: 0.88rem;
+    border-radius: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 800;
     text-decoration: none;
     transition: background var(--admin-transition), color var(--admin-transition), transform var(--admin-transition);
+}
+
+.admin-nav-link span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .admin-nav-link i {
@@ -178,9 +233,9 @@
 .admin-nav-link.active::before {
     content: "";
     position: absolute;
-    left: -0.28rem;
+    left: -0.2rem;
     width: 4px;
-    height: 1.5rem;
+    height: 1.3rem;
     background: var(--admin-gold);
     border-radius: 99px;
 }
@@ -308,11 +363,38 @@
 .admin-shell.is-collapsed .admin-brand-text,
 .admin-shell.is-collapsed .admin-profile-text,
 .admin-shell.is-collapsed .admin-nav-link span,
-.admin-shell.is-collapsed .admin-nav-section > span,
+.admin-shell.is-collapsed .admin-nav-group-title,
+.admin-shell.is-collapsed .admin-nav-group-chevron,
 .admin-shell.is-collapsed .admin-profile-block .icon-button {
     width: 0;
     opacity: 0;
     pointer-events: none;
+}
+
+/* Collapsed rail: groups stay expanded and headings become subtle dividers. */
+.admin-shell.is-collapsed .admin-sidebar-brand {
+    justify-content: center;
+    padding: 0 0.7rem;
+}
+
+.admin-shell.is-collapsed .admin-nav-group-items {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.admin-shell.is-collapsed .admin-nav-group-toggle {
+    justify-content: center;
+    min-height: 1.1rem;
+    padding: 0;
+    pointer-events: none;
+}
+
+.admin-shell.is-collapsed .admin-nav-group-toggle::after {
+    content: "";
+    width: 1.25rem;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 99px;
 }
 
 .admin-shell.is-collapsed .admin-nav-link {
