@@ -8,6 +8,8 @@ namespace GameHub.Models.ViewModels
         public string? Search { get; set; }
         public UserRole? Role { get; set; }
         public string? Status { get; set; }
+        public string? Department { get; set; }
+        public IReadOnlyList<string> Departments { get; set; } = Array.Empty<string>();
         public string SortBy { get; set; } = "newest";
         public string SortDirection { get; set; } = "desc";
         public int CurrentPage { get; set; } = 1;

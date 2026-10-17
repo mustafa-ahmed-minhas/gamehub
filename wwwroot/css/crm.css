@@ -439,29 +439,108 @@
     box-shadow: inset 3px 0 0 var(--membership-gold);
 }
 
-.crm-leads-table th:nth-child(1) { width: 18%; }
-.crm-leads-table th:nth-child(2) { width: 14%; }
-.crm-leads-table th:nth-child(3) { width: 13%; }
-.crm-leads-table th:nth-child(4) { width: 10%; }
-.crm-leads-table th:nth-child(5) { width: 13%; }
-.crm-leads-table th:nth-child(6) { width: 8%; }
-.crm-leads-table th:nth-child(7) { width: 8%; }
+.crm-leads-table th:nth-child(1) { width: 15%; }
+.crm-leads-table th:nth-child(2) { width: 11%; }
+.crm-leads-table th:nth-child(3) { width: 9%; }
+.crm-leads-table th:nth-child(4) { width: 8%; }
+.crm-leads-table th:nth-child(5) { width: 10%; }
+.crm-leads-table th:nth-child(6) { width: 7%; }
+.crm-leads-table th:nth-child(7) { width: 9%; }
 .crm-leads-table th:nth-child(8) { width: 8%; }
-.crm-leads-table th:nth-child(9) { width: 12%; }
-.crm-leads-table th:nth-child(10) { width: 10%; }
+.crm-leads-table th:nth-child(9) { width: 11%; }
+.crm-leads-table th:nth-child(10) { width: 12%; }
+
+/* Compact list sizing: all ten columns stay visible and legible. */
+.crm-leads-table {
+    min-width: 1160px;
+    border-spacing: 0 .38rem;
+}
+
+.crm-leads-table th {
+    padding: .42rem .6rem;
+    font-size: .68rem;
+}
+
+.crm-leads-table td {
+    padding: .5rem .6rem;
+    font-size: .82rem;
+}
+
+/* "anywhere" lets a squeezed cell break to one character per line. */
+.crm-page .crm-table.crm-leads-table th,
+.crm-page .crm-table.crm-leads-table td {
+    overflow-wrap: break-word;
+}
 
 .crm-leads-table td strong,
 .crm-leads-table td span,
 .crm-leads-table td small,
 .crm-leads-table td em { min-width: 0; }
 
-.crm-leads-table .crm-person-cell { min-width: 0; }
+.crm-leads-table td strong,
+.crm-leads-table td small { line-height: 1.25; }
+
+.crm-leads-table .crm-person-cell {
+    min-width: 0;
+    gap: 10px;
+}
+
+.crm-leads-table .crm-mini-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    font-size: .78rem;
+}
 
 .crm-leads-table .crm-mini-avatar,
 .crm-leads-table .membership-table-avatar {
     background: linear-gradient(135deg, #1b1711, #46351e);
     color: var(--membership-gold-2);
     box-shadow: 0 10px 24px rgba(24, 18, 10, .16);
+}
+
+.crm-leads-table .crm-owner-cell .user-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: .66rem;
+}
+
+.crm-leads-table .membership-status-badge {
+    gap: .35rem;
+    padding: .3rem .55rem;
+    font-size: .72rem;
+}
+
+.crm-leads-table .membership-status-badge i {
+    width: 6px;
+    height: 6px;
+}
+
+.crm-leads-table .membership-code {
+    min-height: 0;
+    padding: .24rem .5rem;
+    font-size: .72rem;
+}
+
+.crm-leads-table .crm-inline-indicator {
+    margin-top: 2px;
+    font-size: .72rem;
+}
+
+.crm-leads-table .crm-overdue-text { font-size: .72rem; }
+
+/* Next follow-up keeps its label on one line instead of breaking mid-word. */
+.crm-leads-table .crm-followup { white-space: nowrap; }
+
+.crm-leads-table .crm-followup.is-empty {
+    display: inline-flex;
+    align-items: center;
+    padding: .22rem .5rem;
+    border-radius: 999px;
+    background: rgba(24, 20, 14, .05);
+    color: var(--crm-muted);
+    font-size: .72rem;
+    font-weight: 900;
 }
 
 .crm-owner-cell .user-avatar {
@@ -505,18 +584,70 @@
 
 .crm-lead-actions { flex-wrap: nowrap; }
 
+.crm-leads-table .crm-lead-actions { gap: .3rem; }
+
+.crm-leads-table .membership-icon-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    font-size: .95rem;
+}
+
+.crm-leads-table .crm-convert-pill {
+    gap: 5px;
+    padding: 4px 9px;
+    font-size: .68rem;
+}
+
+/* Compact "More" menu: uniform rows, aligned icons, opens clear of the page edge. */
 .crm-lead-more-menu {
+    min-width: 208px;
+    padding: .35rem;
     border: 1px solid rgba(201, 154, 80, .18);
     border-radius: 14px;
     box-shadow: var(--membership-soft-shadow);
 }
 
-.crm-lead-more-menu .dropdown-item {
+.crm-lead-more-menu .dropdown-item,
+.crm-lead-more-menu .dropdown-item-text {
     display: flex;
     align-items: center;
-    gap: .55rem;
-    font-weight: 850;
+    gap: .6rem;
+    width: 100%;
+    padding: .48rem .55rem;
     border-radius: 10px;
+    font-size: .82rem;
+    font-weight: 850;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.crm-lead-more-menu .dropdown-item i,
+.crm-lead-more-menu .dropdown-item-text i {
+    flex: 0 0 auto;
+    width: 1rem;
+    text-align: center;
+    font-size: .95rem;
+    color: var(--crm-muted);
+}
+
+.crm-lead-more-menu .dropdown-item:hover,
+.crm-lead-more-menu .dropdown-item:focus {
+    background: #fdf4e5;
+    color: #8a5f16;
+}
+
+.crm-lead-more-menu .dropdown-item:hover i,
+.crm-lead-more-menu .dropdown-item:focus i { color: #8a5f16; }
+
+.crm-lead-more-menu .dropdown-divider {
+    margin: .3rem .4rem;
+    border-top-color: rgba(201, 154, 80, .22);
+}
+
+/* The "More" tooltip would otherwise float over its own open menu. */
+.crm-leads-table .membership-icon-button[data-tooltip][aria-expanded="true"]::after {
+    display: none;
 }
 
 .crm-leads-pagination.membership-pagination {
@@ -1154,6 +1285,11 @@
     .crm-page .arena-table-wrap {
         overflow-x: visible;
     }
+
+    /* Phone rows are stacked cards: a desktop min-width would overflow the card. */
+    .crm-leads-table {
+        min-width: 0;
+    }
 }
 
 .crm-guide-modal .modal-body {
@@ -1183,3 +1319,146 @@
     gap: 8px;
 }
 
+
+
+/* ---- Lead to opportunity conversion ---- */
+.crm-convert-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(214, 166, 82, .45);
+    background: linear-gradient(135deg, #d6a652, #c08c2f);
+    color: #fff;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: .74rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    white-space: nowrap;
+}
+
+.crm-convert-pill:hover,
+.crm-convert-pill:focus-visible {
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(192, 140, 47, .35);
+}
+
+.crm-convert-pill-done {
+    background: rgba(24, 114, 72, .1);
+    border-color: rgba(24, 114, 72, .3);
+    color: #187248;
+    cursor: default;
+}
+
+.crm-convert-pill-done:hover,
+.crm-convert-pill-done:focus-visible {
+    color: #187248;
+    transform: none;
+    box-shadow: none;
+}
+
+.crm-convert-pill.is-disabled {
+    background: rgba(109, 100, 88, .08);
+    border-color: rgba(109, 100, 88, .2);
+    color: var(--crm-muted);
+    cursor: not-allowed;
+}
+
+.crm-convert-pill.is-disabled:hover {
+    color: var(--crm-muted);
+    transform: none;
+    box-shadow: none;
+}
+
+.crm-followup-readonly {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    color: var(--crm-muted);
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+#crmConvertModal .modal-content {
+    border: 1px solid var(--crm-line);
+    border-radius: 18px;
+    box-shadow: var(--crm-shadow-strong);
+}
+
+#crmConvertModal .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 850;
+    color: var(--crm-ink);
+}
+
+.crm-convert-lead {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px dashed var(--crm-line);
+    border-radius: 12px;
+    background: var(--crm-soft);
+}
+
+.crm-convert-lead strong {
+    color: var(--crm-ink);
+    letter-spacing: .04em;
+}
+
+.crm-convert-lead span {
+    color: var(--crm-muted);
+    font-weight: 700;
+}
+
+.crm-convert-steps {
+    margin: 0 0 14px;
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 8px;
+    color: var(--crm-muted);
+    font-weight: 700;
+}
+
+.crm-convert-note {
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: var(--crm-muted);
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.crm-conversion-banner {
+    margin: 0 0 18px;
+}
+
+.crm-conversion-banner span {
+    display: block;
+    margin-top: 4px;
+    font-weight: 650;
+}
+
+
+/* ---- Field validation message placement (server + client) ---- */
+.crm-field-grid label > span[data-valmsg-for],
+.crm-form-card label > span[data-valmsg-for] {
+    min-height: 0;
+    font-size: .74rem;
+    font-weight: 800;
+}
+
+.crm-field-grid label > span[data-valmsg-for]:empty,
+.crm-form-card label > span[data-valmsg-for]:empty {
+    display: none;
+}

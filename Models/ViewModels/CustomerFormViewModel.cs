@@ -19,14 +19,16 @@ namespace GameHub.Models.ViewModels
         [RegularExpression(@"^[A-Za-z\s'-]+$", ErrorMessage = "Use letters, spaces, hyphens, and apostrophes only.")]
         public string LastName { get; set; } = string.Empty;
 
-        [MaxLength(50)]
+        [MaxLength(50, ErrorMessage = "Preferred name cannot exceed 50 characters.")]
+        [RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
         public string? PreferredName { get; set; }
 
         public IFormFile? ProfileImage { get; set; }
         public string? ExistingProfileImageUrl { get; set; }
         public bool RemoveProfileImage { get; set; }
 
-        [MaxLength(30)]
+        [MaxLength(30, ErrorMessage = "National ID cannot exceed 30 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9\-]{5,}$", ErrorMessage = "Use letters, numbers and hyphens only.")]
         public string? NationalIdNumber { get; set; }
 
         public DateOnly? DateOfBirth { get; set; }
@@ -45,6 +47,7 @@ namespace GameHub.Models.ViewModels
         public string? WhatsAppNumber { get; set; }
 
         [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [RegularExpression(@"^[^\s@]+@[^\s@]+\.com$", ErrorMessage = "Enter a valid email address ending in .com.")]
         [MaxLength(150)]
         public string? Email { get; set; }
 
@@ -54,26 +57,32 @@ namespace GameHub.Models.ViewModels
         [MaxLength(200)]
         public string? AddressLine2 { get; set; }
 
-        [MaxLength(80)]
+        [MaxLength(80, ErrorMessage = "City cannot exceed 80 characters.")]
+        [RegularExpression(@"^[A-Za-z\s.,\-]{2,}$", ErrorMessage = "Use letters, spaces, periods, commas and hyphens only.")]
         public string? City { get; set; }
 
-        [MaxLength(80)]
+        [MaxLength(80, ErrorMessage = "State or province cannot exceed 80 characters.")]
+        [RegularExpression(@"^[A-Za-z\s.,\-]{2,}$", ErrorMessage = "Use letters, spaces, periods, commas and hyphens only.")]
         public string? StateProvince { get; set; }
 
-        [MaxLength(20)]
+        [MaxLength(20, ErrorMessage = "Postal code cannot exceed 20 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9\s\-]{3,}$", ErrorMessage = "Use letters, numbers, spaces and hyphens only.")]
         public string? PostalCode { get; set; }
 
         [Required(ErrorMessage = "Country is required.")]
-        [MaxLength(80)]
+        [MaxLength(80, ErrorMessage = "Country cannot exceed 80 characters.")]
+        [RegularExpression(@"^[A-Za-z\s.,\-]{2,}$", ErrorMessage = "Use letters, spaces, periods, commas and hyphens only.")]
         public string Country { get; set; } = "Pakistan";
 
-        [MaxLength(100)]
+        [MaxLength(100, ErrorMessage = "Emergency contact name cannot exceed 100 characters.")]
+        [RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
         public string? EmergencyContactName { get; set; }
 
         [MaxLength(20)]
         public string? EmergencyContactPhone { get; set; }
 
-        [MaxLength(50)]
+        [MaxLength(50, ErrorMessage = "Relationship cannot exceed 50 characters.")]
+        [RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
         public string? EmergencyContactRelation { get; set; }
 
         [Required]
@@ -82,10 +91,12 @@ namespace GameHub.Models.ViewModels
         [Required]
         public CustomerSource CustomerSource { get; set; } = CustomerSource.WalkIn;
 
-        [MaxLength(150)]
+        [MaxLength(150, ErrorMessage = "Organization name cannot exceed 150 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9\s&.,'()\-]{2,}$", ErrorMessage = "Use letters, numbers, spaces and basic punctuation only.")]
         public string? OrganizationName { get; set; }
 
-        [MaxLength(100)]
+        [MaxLength(100, ErrorMessage = "Occupation cannot exceed 100 characters.")]
+        [RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
         public string? Occupation { get; set; }
 
         public List<string> SelectedSportCodes { get; set; } = new();
@@ -96,7 +107,8 @@ namespace GameHub.Models.ViewModels
 
         public bool IsMember { get; set; }
 
-        [MaxLength(50)]
+        [MaxLength(50, ErrorMessage = "Membership number cannot exceed 50 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9\-]{3,}$", ErrorMessage = "Use letters, numbers and hyphens only.")]
         public string? MembershipNumber { get; set; }
 
         public DateOnly? MembershipStartDate { get; set; }
@@ -121,7 +133,8 @@ namespace GameHub.Models.ViewModels
         [MaxLength(2000)]
         public string? InternalNotes { get; set; }
 
-        [MaxLength(500)]
+        [MaxLength(500, ErrorMessage = "Customer tags cannot exceed 500 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9\s,#\-]*$", ErrorMessage = "Use letters, numbers, spaces, commas, hashtags and hyphens only.")]
         public string? CustomerTags { get; set; }
 
         public bool IsActive { get; set; } = true;
@@ -134,22 +147,7 @@ namespace GameHub.Models.ViewModels
                 yield return new ValidationResult("Date of birth cannot be in the future.", new[] { nameof(DateOfBirth) });
             }
 
-            if (!HasReasonablePhoneDigits(PrimaryPhone))
-            {
-                yield return new ValidationResult("Enter a valid primary phone number.", new[] { nameof(PrimaryPhone) });
-            }
-
-            if (!string.IsNullOrWhiteSpace(SecondaryPhone) && !HasReasonablePhoneDigits(SecondaryPhone))
-            {
-                yield return new ValidationResult("Enter a valid secondary phone number.", new[] { nameof(SecondaryPhone) });
-            }
-
-            if (!string.IsNullOrWhiteSpace(WhatsAppNumber) && !HasReasonablePhoneDigits(WhatsAppNumber))
-            {
-                yield return new ValidationResult("Enter a valid WhatsApp number.", new[] { nameof(WhatsAppNumber) });
-            }
-
-            if (!string.IsNullOrWhiteSpace(SecondaryPhone) && NormalizePhone(SecondaryPhone) == NormalizePhone(PrimaryPhone))
+            if (!string.IsNullOrWhiteSpace(SecondaryPhone) && string.Equals(NormalizePhone(SecondaryPhone), NormalizePhone(PrimaryPhone), StringComparison.Ordinal))
             {
                 yield return new ValidationResult("Secondary phone must be different from primary phone.", new[] { nameof(SecondaryPhone) });
             }
@@ -163,8 +161,6 @@ namespace GameHub.Models.ViewModels
                     yield return new ValidationResult("Emergency contact name is required.", new[] { nameof(EmergencyContactName) });
                 if (string.IsNullOrWhiteSpace(EmergencyContactPhone))
                     yield return new ValidationResult("Emergency contact phone is required.", new[] { nameof(EmergencyContactPhone) });
-                else if (!HasReasonablePhoneDigits(EmergencyContactPhone))
-                    yield return new ValidationResult("Enter a valid emergency contact phone.", new[] { nameof(EmergencyContactPhone) });
             }
 
             if (CustomerType == CustomerType.Corporate && string.IsNullOrWhiteSpace(OrganizationName))
@@ -194,13 +190,6 @@ namespace GameHub.Models.ViewModels
                 if (string.IsNullOrWhiteSpace(BlacklistReason) || BlacklistReason.Trim().Length < 10)
                     yield return new ValidationResult("Blacklist reason must be at least 10 characters.", new[] { nameof(BlacklistReason) });
             }
-        }
-
-        private static bool HasReasonablePhoneDigits(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return false;
-            var digits = new string(value.Where(char.IsDigit).ToArray());
-            return digits.Length is >= 7 and <= 15;
         }
 
         private static string NormalizePhone(string? value)

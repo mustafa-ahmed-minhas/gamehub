@@ -24,6 +24,22 @@ namespace GameHub.Models.Entities
         [MaxLength(20)]
         public string? PhoneNumber { get; set; }
 
+        [MaxLength(20)]
+        public string? CnicNumber { get; set; }
+
+        public Gender? Gender { get; set; }
+
+        public DateOnly? DateOfBirth { get; set; }
+
+        [MaxLength(500)]
+        public string? Address { get; set; }
+
+        [MaxLength(80)]
+        public string? Department { get; set; }
+
+        [MaxLength(100)]
+        public string? Designation { get; set; }
+
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
 

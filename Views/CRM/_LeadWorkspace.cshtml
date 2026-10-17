@@ -113,6 +113,17 @@
                             <div class="crm-card-actions">
                                 <a asp-action="LeadDetails" asp-route-id="@lead.Id" aria-label="View lead"><i class="bi bi-eye"></i></a>
                                 @if (Model.CanManageLeads || !Model.IsReadOnly) { <a asp-action="EditLead" asp-route-id="@lead.Id" aria-label="Edit lead"><i class="bi bi-pencil"></i></a> }
+                                @if (lead.IsConverted)
+                                {
+                                    if (lead.ConvertedOpportunityId.HasValue)
+                                    {
+                                        <a asp-action="OpportunityDetails" asp-route-id="@lead.ConvertedOpportunityId" aria-label="View converted opportunity"><i class="bi bi-trophy"></i></a>
+                                    }
+                                }
+                                else if (Model.CanManageOpportunities && lead.Status == LeadStatus.Qualified)
+                                {
+                                    <button type="button" data-crm-convert data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName" aria-label="Convert @lead.LeadNumber to an opportunity"><i class="bi bi-arrow-right-circle"></i></button>
+                                }
                             </div>
                         </article>
                     }
@@ -159,7 +170,7 @@
                             <td data-label="Priority"><span class="membership-status-badge crm-lead-badge priority-@lead.Priority.ToString().ToLowerInvariant()"><i></i>@lead.Priority.GetDisplayName()</span></td>
                             <td data-label="Temperature"><span class="membership-status-badge crm-lead-badge temp-@lead.Temperature.ToString().ToLowerInvariant()"><i></i>@lead.Temperature.GetDisplayName()</span></td>
                             <td data-label="Status"><span class="membership-status-badge crm-lead-badge status-@lead.Status.ToString().ToLowerInvariant()"><i></i>@lead.Status.GetDisplayName()</span></td>
-                            <td data-label="Next Follow-up"><span class="crm-followup @(overdue ? "overdue" : "")">@(lead.NextFollowUpAt?.ToString("MMM dd, hh:mm tt") ?? "Not scheduled")</span>@if (overdue) { <small class="crm-overdue-text">Overdue</small> }</td>
+                            <td data-label="Next Follow-up"><span class="crm-followup @(overdue ? "overdue" : "")@(lead.NextFollowUpAt.HasValue ? "" : " is-empty")">@(lead.NextFollowUpAt?.ToString("MMM dd, hh:mm tt") ?? "Not Scheduled")</span>@if (overdue) { <small class="crm-overdue-text">Overdue</small> }</td>
                             <td data-label="Actions">
                                 <div class="membership-action-menu crm-lead-actions">
                                     <a class="membership-icon-button" asp-action="LeadDetails" asp-route-id="@lead.Id" aria-label="View lead" data-tooltip="View"><i class="bi bi-eye"></i></a>
@@ -167,15 +178,49 @@
                                     {
                                         <a class="membership-icon-button" asp-action="EditLead" asp-route-id="@lead.Id" aria-label="Edit lead" data-tooltip="Edit"><i class="bi bi-pencil"></i></a>
                                         <a class="membership-icon-button" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions" aria-label="Add activity" data-tooltip="Activity"><i class="bi bi-chat-dots"></i></a>
+                                    }
+                                    @if (lead.IsConverted)
+                                    {
+                                        if (lead.ConvertedOpportunityId.HasValue)
+                                        {
+                                            <a class="crm-convert-pill crm-convert-pill-done" asp-action="OpportunityDetails" asp-route-id="@lead.ConvertedOpportunityId" aria-label="View converted opportunity"><i class="bi bi-trophy"></i> Converted</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="crm-convert-pill crm-convert-pill-done"><i class="bi bi-trophy"></i> Converted</span>
+                                        }
+                                    }
+                                    else if (Model.CanManageOpportunities)
+                                    {
+                                        if (lead.Status == LeadStatus.Qualified)
+                                        {
+                                            <button class="crm-convert-pill" type="button" data-crm-convert data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName" aria-label="Convert @lead.LeadNumber to an opportunity"><i class="bi bi-arrow-right-circle"></i> Convert</button>
+                                        }
+                                        else
+                                        {
+                                            <span class="crm-convert-pill is-disabled" role="button" tabindex="-1" aria-disabled="true" title="Qualify this lead before converting it"><i class="bi bi-lock"></i> Qualify first</span>
+                                        }
+                                    }
+                                    @if (Model.CanManageLeads || !Model.IsReadOnly)
+                                    {
                                         <div class="dropdown">
-                                            <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-tooltip="More"><i class="bi bi-three-dots"></i></button>
-                                            <div class="dropdown-menu crm-lead-more-menu">
+                                            <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport" data-bs-popper-config='{"strategy":"fixed"}' data-tooltip="More" aria-label="More actions"><i class="bi bi-three-dots"></i></button>
+                                            <div class="dropdown-menu dropdown-menu-end crm-lead-more-menu">
                                                 <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-patch-check"></i> Qualify</a>
                                                 <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-x-circle"></i> Disqualify</a>
-                                                @if (lead.Status == LeadStatus.Qualified && !lead.IsConverted)
+                                                @if (!lead.IsConverted && lead.Status == LeadStatus.Qualified && Model.CanManageOpportunities)
                                                 {
-                                                    <a class="dropdown-item" asp-action="ConvertToOpportunity" asp-route-id="@lead.Id"><i class="bi bi-arrow-right-circle"></i> Convert</a>
+                                                    <button class="dropdown-item" type="button" data-crm-convert data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName"><i class="bi bi-arrow-right-circle"></i> Convert to Opportunity</button>
                                                 }
+                                                else if (!lead.IsConverted && !Model.CanManageOpportunities)
+                                                {
+                                                    <span class="dropdown-item-text crm-followup-readonly"><i class="bi bi-lock"></i> Your role cannot convert leads</span>
+                                                }
+                                                else if (lead.IsConverted && lead.ConvertedOpportunityId.HasValue)
+                                                {
+                                                    <a class="dropdown-item" asp-action="OpportunityDetails" asp-route-id="@lead.ConvertedOpportunityId"><i class="bi bi-trophy"></i> View Opportunity</a>
+                                                }
+                                                <div class="dropdown-divider"></div>
                                                 <a class="dropdown-item" asp-action="EditLead" asp-route-id="@lead.Id"><i class="bi bi-person-gear"></i> Reassign</a>
                                             </div>
                                         </div>
@@ -189,6 +234,30 @@
             </div>
         }
     }
+
+    <div class="modal fade" id="crmConvertModal" tabindex="-1" aria-labelledby="crmConvertModalLabel" aria-hidden="true" data-crm-convert-modal>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="crmConvertModalLabel"><i class="bi bi-arrow-right-circle"></i> Convert to Opportunity</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="crm-convert-lead"><strong data-convert-lead-number></strong><span data-convert-lead-name></span></p>
+                    <ol class="crm-convert-steps">
+                        <li>An opportunity is created and prefilled from this lead.</li>
+                        <li>The lead is marked <strong>Converted</strong> and stays linked to the opportunity.</li>
+                        <li>The lead status becomes read-only so both records stay consistent.</li>
+                    </ol>
+                    <p class="crm-convert-note"><i class="bi bi-info-circle"></i> Review and adjust every detail on the next screen before saving. Nothing is converted until you save.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="admin-secondary-button" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <a class="admin-action-button" href="#" data-convert-continue><i class="bi bi-arrow-right"></i> Continue</a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     @if (Model.Leads.Any())
     {

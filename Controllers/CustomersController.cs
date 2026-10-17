@@ -189,9 +189,21 @@ namespace GameHub.Controllers
             }
             customer.ProfileImageUrl = imageResult.Url;
 
-            _dbContext.Customers.Add(customer);
-            await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
+            try
+            {
+                _dbContext.Customers.Add(customer);
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                await transaction.RollbackAsync();
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                DeleteProfileImage(imageResult.Url);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("Form", await AddSportsAsync(model));
+            }
 
             TempData.SetToast("success", "Success", "Customer created successfully.");
             return RedirectToAction(nameof(Details), new { id = customer.Id });
@@ -212,7 +224,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, CustomerFormViewModel model)
+        public async Task<IActionResult> Edit([FromRoute] int id, CustomerFormViewModel model)
         {
             if (EnsureCanManage() is IActionResult blocked) return blocked;
             if (model.Id != id) return NotFound();
@@ -254,7 +266,19 @@ namespace GameHub.Controllers
             }
             customer.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                DeleteProfileImage(imageResult.Url);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("Form", await AddSportsAsync(model));
+            }
+
             if (!string.IsNullOrWhiteSpace(imageResult.Url) || model.RemoveProfileImage)
             {
                 DeleteProfileImage(previousImage);
@@ -289,7 +313,14 @@ namespace GameHub.Controllers
             if (customer == null) return Json(new { success = false, message = "Customer not found." });
             customer.IsActive = !customer.IsActive;
             customer.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                return Json(new { success = false, message = DescribeDbError(exception) });
+            }
             var message = customer.IsActive ? "Customer activated successfully." : "Customer deactivated successfully.";
             return Json(new { success = true, isActive = customer.IsActive, statusText = customer.IsActive ? "Active" : "Inactive", message });
         }
@@ -309,7 +340,14 @@ namespace GameHub.Controllers
             customer.IsBlacklisted = !customer.IsBlacklisted;
             customer.BlacklistReason = customer.IsBlacklisted ? reason?.Trim() : null;
             customer.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                return Json(new { success = false, message = DescribeDbError(exception) });
+            }
             var message = customer.IsBlacklisted ? "Customer added to blacklist." : "Customer removed from blacklist.";
             return Json(new { success = true, isBlacklisted = customer.IsBlacklisted, message });
         }
@@ -319,7 +357,7 @@ namespace GameHub.Controllers
         {
             email = NormalizeEmail(email);
             if (string.IsNullOrWhiteSpace(email)) return Json(new { available = true, message = "Email is optional." });
-            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email)) return Json(new { available = false, message = "Invalid email format." });
+            if (!HasValidComEmail(email)) return Json(new { available = false, message = EmailFormatMessage });
             var exists = await _dbContext.Customers.AnyAsync(x => x.Email == email && (!id.HasValue || x.Id != id.Value));
             return Json(new { available = !exists, message = exists ? "Email address is already registered." : "Email is available." });
         }
@@ -328,7 +366,7 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CheckPhone(string? phone, int? id, string? field)
         {
             var normalized = NormalizePhone(phone);
-            if (!HasReasonablePhoneDigits(normalized)) return Json(new { available = false, message = "Invalid phone number." });
+            if (!HasValidPakPhone(normalized)) return Json(new { available = false, message = PhoneFormatMessage });
             var exists = await PhoneExistsAsync(normalized, id);
             return Json(new { available = !exists, message = exists ? "Phone number is already registered." : "Phone number is available." });
         }
@@ -345,6 +383,31 @@ namespace GameHub.Controllers
         private async Task PrepareAndValidateAsync(CustomerFormViewModel model, int? id = null)
         {
             NormalizeForm(model);
+
+            if (!HasValidPakPhone(model.PrimaryPhone))
+            {
+                ModelState.AddModelError(nameof(model.PrimaryPhone), PhoneFormatMessage);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.SecondaryPhone) && !HasValidPakPhone(model.SecondaryPhone))
+            {
+                ModelState.AddModelError(nameof(model.SecondaryPhone), PhoneFormatMessage);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.WhatsAppNumber) && !HasValidPakPhone(model.WhatsAppNumber))
+            {
+                ModelState.AddModelError(nameof(model.WhatsAppNumber), PhoneFormatMessage);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.EmergencyContactPhone) && !HasValidPakPhone(model.EmergencyContactPhone))
+            {
+                ModelState.AddModelError(nameof(model.EmergencyContactPhone), PhoneFormatMessage);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Email) && !HasValidComEmail(model.Email))
+            {
+                ModelState.AddModelError(nameof(model.Email), EmailFormatMessage);
+            }
 
             if (!string.IsNullOrWhiteSpace(model.Email) && await _dbContext.Customers.AnyAsync(x => x.Email == model.Email && (!id.HasValue || x.Id != id.Value)))
             {
@@ -630,6 +693,28 @@ namespace GameHub.Controllers
                 && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
         }
 
+        private const string PhoneFormatMessage = "Enter an 11-digit phone number starting with 0 (e.g. 03001234567).";
+        private const string EmailFormatMessage = "Enter a valid email address ending in .com.";
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex ComEmailPattern = new(@"^[^\s@]+@[^\s@]+\.com$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private static bool HasValidPakPhone(string? value) => !string.IsNullOrWhiteSpace(value) && PhonePattern.IsMatch(value);
+        private static bool HasValidComEmail(string? value) => !string.IsNullOrWhiteSpace(value) && ComEmailPattern.IsMatch(value);
+
+        private static string DescribeDbError(DbUpdateException exception)
+        {
+            var message = exception.GetBaseException().Message;
+            if (message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase) || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) || message.Contains("Cannot insert duplicate", StringComparison.OrdinalIgnoreCase))
+            {
+                return "This record conflicts with an existing customer. Check the email, phone, national ID and customer code for duplicates.";
+            }
+            if (message.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase) || message.Contains("REFERENCE", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The selected related record no longer exists. Refresh the page and try again.";
+            }
+            return "The customer could not be saved because of a database conflict. Please review the values and try again.";
+        }
+
         private static string NormalizeRequired(string? value) => value?.Trim() ?? string.Empty;
         private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private static string? NormalizeEmail(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
@@ -639,13 +724,6 @@ namespace GameHub.Controllers
             var trimmed = value.Trim();
             var prefix = trimmed.StartsWith("+", StringComparison.Ordinal) ? "+" : string.Empty;
             return prefix + new string(trimmed.Where(char.IsDigit).ToArray());
-        }
-
-        private static bool HasReasonablePhoneDigits(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return false;
-            var digits = new string(value.Where(char.IsDigit).ToArray());
-            return digits.Length is >= 7 and <= 15;
         }
 
         private static string? NormalizeCsv(string? value)

@@ -81,6 +81,7 @@ namespace GameHub.Controllers
                     CreatedAt = x.CreatedAt,
                     IsWebsiteInquiry = x.IsWebsiteInquiry,
                     IsConverted = x.IsConverted,
+                    ConvertedOpportunityId = x.ConvertedOpportunityId,
                     DaysOpen = (int)EF.Functions.DateDiffDay(x.CreatedAt, DateTime.UtcNow)
                 }).ToListAsync();
             }
@@ -155,9 +156,19 @@ namespace GameHub.Controllers
             lead.LeadNumber = await GenerateLeadNumberAsync();
             lead.CreatedAt = DateTime.UtcNow;
             lead.CreatedByUserId = CurrentUserId();
-            _dbContext.Leads.Add(lead);
-            await _dbContext.SaveChangesAsync();
-            await AddLeadActivityAsync(lead.Id, LeadActivityType.Note, "Lead created", "Lead was created manually.", null, true);
+            try
+            {
+                _dbContext.Leads.Add(lead);
+                await _dbContext.SaveChangesAsync();
+                await AddLeadActivityAsync(lead.Id, LeadActivityType.Note, "Lead created", "Lead was created manually.", null, true);
+            }
+            catch (DbUpdateException exception)
+            {
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("LeadForm", await AddLeadOptionsAsync(model));
+            }
             TempData.SetToast("success", "Lead Created", "Lead created successfully.");
             return RedirectToAction(nameof(LeadDetails), new { id = lead.Id });
         }
@@ -172,7 +183,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditLead(int id, LeadFormViewModel model)
+        public async Task<IActionResult> EditLead([FromRoute] int id, LeadFormViewModel model)
         {
             if (!CanCreateLeads()) return RedirectToAction("NotFound", "Error");
             if (model.Id != id) return RedirectToAction("NotFound", "Error");
@@ -180,6 +191,29 @@ namespace GameHub.Controllers
             await ValidateLeadAsync(model, id);
             var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
             if (lead == null) return RedirectToAction("NotFound", "Error");
+
+            model.PossibleDuplicates = await FindDuplicateLeadsAsync(model, id);
+            if (model.PossibleDuplicates.Any() && !model.AllowDuplicate)
+            {
+                ModelState.AddModelError(string.Empty, "Possible duplicate leads were found. Review them and tick proceed if this is a separate inquiry.");
+            }
+
+            if (lead.IsConverted && model.Status != LeadStatus.Converted)
+            {
+                ModelState.AddModelError(nameof(model.Status), "This lead was already converted to an opportunity, so its status cannot be changed here.");
+            }
+            if (!lead.IsConverted && model.Status == LeadStatus.Converted)
+            {
+                ModelState.AddModelError(nameof(model.Status), "A lead can only be marked converted through the Convert to Opportunity action.");
+            }
+            if (!lead.IsConverted && lead.Status != LeadStatus.Qualified && model.Status == LeadStatus.Qualified)
+            {
+                if (model.AssignedToUserId == null || !HasContact(model) || string.IsNullOrWhiteSpace(model.QualificationNotes))
+                {
+                    ModelState.AddModelError(nameof(model.Status), "Moving a lead to Qualified requires an owner, at least one contact method and qualification notes.");
+                }
+            }
+
             if (!ModelState.IsValid) return View("LeadForm", await AddLeadOptionsAsync(model));
             var previousStatus = lead.Status;
             var previousOwner = lead.AssignedToUserId;
@@ -188,7 +222,17 @@ namespace GameHub.Controllers
             lead.UpdatedByUserId = CurrentUserId();
             if (previousStatus != lead.Status) await AddLeadActivityAsync(lead.Id, LeadActivityType.StatusChange, "Status changed", $"{previousStatus.GetDisplayName()} to {lead.Status.GetDisplayName()}", null, true, save: false);
             if (previousOwner != lead.AssignedToUserId) await AddLeadActivityAsync(lead.Id, LeadActivityType.Assignment, "Assignment changed", "Lead owner was updated.", null, true, save: false);
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("LeadForm", await AddLeadOptionsAsync(model));
+            }
             TempData.SetToast("success", "Lead Updated", "Lead updated successfully.");
             return RedirectToAction(nameof(LeadDetails), new { id });
         }
@@ -214,10 +258,19 @@ namespace GameHub.Controllers
             var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
             if (lead == null) return RedirectToAction("NotFound", "Error");
             if (string.IsNullOrWhiteSpace(subject)) subject = activityType.GetDisplayName();
+            if (activityDate == default) activityDate = DateTime.UtcNow;
             await AddLeadActivityAsync(id, activityType, subject.Trim(), description?.Trim(), followUpDueAt, isCompleted, activityDate);
             if (followUpDueAt.HasValue) lead.NextFollowUpAt = followUpDueAt;
             if (activityType is LeadActivityType.PhoneCall or LeadActivityType.WhatsApp or LeadActivityType.Email or LeadActivityType.Meeting) lead.LastContactedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                TempData.SetToast("error", "Save Failed", DescribeDbError(exception));
+                return RedirectToAction(nameof(LeadDetails), new { id });
+            }
             TempData.SetToast("success", "Activity Added", "Lead activity recorded.");
             return RedirectToAction(nameof(LeadDetails), new { id });
         }
@@ -227,7 +280,9 @@ namespace GameHub.Controllers
         {
             if (!CanManageLeads()) return RedirectToAction("NotFound", "Error");
             var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
-            if (lead == null || !lead.IsActive || lead.IsConverted) return RedirectToAction("NotFound", "Error");
+            if (lead == null) return RedirectToAction("NotFound", "Error");
+            if (!lead.IsActive) { TempData.SetToast("warning", "Action Blocked", "Inactive leads cannot be qualified."); return RedirectToAction(nameof(LeadDetails), new { id }); }
+            if (lead.IsConverted) { TempData.SetToast("warning", "Action Blocked", "This lead has already been converted to an opportunity."); return RedirectToAction(nameof(LeadDetails), new { id }); }
             if (lead.AssignedToUserId == null || string.IsNullOrWhiteSpace(qualificationNotes) || !HasContact(lead))
             {
                 TempData.SetToast("warning", "Qualification Blocked", "Lead needs contact information, owner and qualification notes.");
@@ -237,7 +292,15 @@ namespace GameHub.Controllers
             lead.QualifiedAt = DateTime.UtcNow;
             lead.QualificationNotes = qualificationNotes.Trim();
             await AddLeadActivityAsync(id, LeadActivityType.Qualification, "Lead qualified", qualificationNotes.Trim(), null, true, save: false);
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                TempData.SetToast("error", "Save Failed", DescribeDbError(exception));
+                return RedirectToAction(nameof(LeadDetails), new { id });
+            }
             TempData.SetToast("success", "Lead Qualified", "Lead qualified successfully.");
             return RedirectToAction(nameof(LeadDetails), new { id });
         }
@@ -246,18 +309,28 @@ namespace GameHub.Controllers
         public async Task<IActionResult> DisqualifyLead(int id, string reason)
         {
             if (!CanManageLeads()) return RedirectToAction("NotFound", "Error");
+            var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
+            if (lead == null) return RedirectToAction("NotFound", "Error");
+            if (lead.IsConverted) { TempData.SetToast("warning", "Action Blocked", "A converted lead cannot be disqualified."); return RedirectToAction(nameof(LeadDetails), new { id }); }
+            if (!lead.IsActive) { TempData.SetToast("warning", "Action Blocked", "Inactive leads cannot be disqualified."); return RedirectToAction(nameof(LeadDetails), new { id }); }
             if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 10)
             {
                 TempData.SetToast("warning", "Reason Required", "Disqualification reason must be at least 10 characters.");
                 return RedirectToAction(nameof(LeadDetails), new { id });
             }
-            var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
-            if (lead == null || !lead.IsActive) return RedirectToAction("NotFound", "Error");
             lead.Status = LeadStatus.Disqualified;
             lead.DisqualifiedAt = DateTime.UtcNow;
             lead.DisqualificationReason = reason.Trim();
             await AddLeadActivityAsync(id, LeadActivityType.Disqualification, "Lead disqualified", reason.Trim(), null, true, save: false);
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                TempData.SetToast("error", "Save Failed", DescribeDbError(exception));
+                return RedirectToAction(nameof(LeadDetails), new { id });
+            }
             TempData.SetToast("success", "Lead Disqualified", "Lead history has been preserved.");
             return RedirectToAction(nameof(LeadDetails), new { id });
         }
@@ -267,11 +340,18 @@ namespace GameHub.Controllers
         {
             if (!CanManageOpportunities()) return RedirectToAction("NotFound", "Error");
             var lead = await _dbContext.Leads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-            if (lead == null || lead.Status != LeadStatus.Qualified || lead.IsConverted) return RedirectToAction("NotFound", "Error");
+            if (lead == null) return RedirectToAction("NotFound", "Error");
+            var reason = ConversionBlockReason(lead);
+            if (reason != null)
+            {
+                TempData.SetToast("warning", "Conversion Blocked", reason);
+                return RedirectToAction(nameof(LeadDetails), new { id });
+            }
             var model = new OpportunityFormViewModel
             {
                 LeadId = lead.Id,
                 CustomerId = lead.CustomerId,
+                IsLeadConversion = true,
                 Name = $"{lead.CustomerName} - {lead.ServiceInterest.GetDisplayName()}",
                 Type = MapOpportunityType(lead.ServiceInterest),
                 ExpectedCloseDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)),
@@ -287,16 +367,19 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> ConvertToOpportunity(int id, OpportunityFormViewModel model, bool createCustomerFromLead = false)
+        public async Task<IActionResult> ConvertToOpportunity([FromRoute] int id, OpportunityFormViewModel model, bool createCustomerFromLead = false)
         {
             if (!CanManageOpportunities()) return RedirectToAction("NotFound", "Error");
             var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == id);
-            if (lead == null || lead.Status != LeadStatus.Qualified || lead.IsConverted || lead.AssignedToUserId == null || !HasContact(lead))
+            if (lead == null) return RedirectToAction("NotFound", "Error");
+            var blockReason = ConversionBlockReason(lead);
+            if (blockReason != null)
             {
-                TempData.SetToast("warning", "Conversion Blocked", "Only qualified unconverted leads with owner and contact can be converted.");
+                TempData.SetToast("warning", "Conversion Blocked", blockReason);
                 return RedirectToAction(nameof(LeadDetails), new { id });
             }
             model.LeadId = id;
+            model.IsLeadConversion = true;
             NormalizeOpportunity(model);
             await ValidateOpportunityAsync(model);
             if (!ModelState.IsValid) return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
@@ -322,19 +405,40 @@ namespace GameHub.Controllers
             opportunity.CreatedAt = DateTime.UtcNow;
             opportunity.CreatedByUserId = CurrentUserId();
             ApplyStageRules(opportunity);
-            _dbContext.Opportunities.Add(opportunity);
-            await _dbContext.SaveChangesAsync();
-            lead.CustomerId = customerId;
-            lead.IsConverted = true;
-            lead.Status = LeadStatus.Converted;
-            lead.ConvertedAt = DateTime.UtcNow;
-            lead.ConvertedOpportunityId = opportunity.Id;
-            await AddLeadActivityAsync(lead.Id, LeadActivityType.Conversion, "Converted to opportunity", opportunity.OpportunityNumber, null, true, save: false);
-            _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = opportunity.Id, ActivityType = OpportunityActivityType.Note, Subject = "Opportunity created", Description = "Created from qualified lead.", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = CurrentUserId(), IsCompleted = true });
-            await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
+            try
+            {
+                _dbContext.Opportunities.Add(opportunity);
+                await _dbContext.SaveChangesAsync();
+                lead.CustomerId = customerId;
+                lead.IsConverted = true;
+                lead.Status = LeadStatus.Converted;
+                lead.ConvertedAt = DateTime.UtcNow;
+                lead.ConvertedOpportunityId = opportunity.Id;
+                await AddLeadActivityAsync(lead.Id, LeadActivityType.Conversion, "Converted to opportunity", opportunity.OpportunityNumber, null, true, save: false);
+                _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = opportunity.Id, ActivityType = OpportunityActivityType.Note, Subject = "Opportunity created", Description = "Created from qualified lead.", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = CurrentUserId(), IsCompleted = true });
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                await transaction.RollbackAsync();
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                TempData.SetToast("error", "Conversion Failed", message);
+                return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
+            }
             TempData.SetToast("success", "Opportunity Created", "Lead converted successfully.");
             return RedirectToAction(nameof(OpportunityDetails), new { id = opportunity.Id });
+        }
+
+        private string? ConversionBlockReason(Lead lead)
+        {
+            if (!lead.IsActive) return "This lead is inactive and cannot be converted.";
+            if (lead.IsConverted || lead.Status == LeadStatus.Converted) return "This lead has already been converted to an opportunity.";
+            if (lead.Status != LeadStatus.Qualified) return "Only qualified leads can be converted. Qualify the lead first.";
+            if (lead.AssignedToUserId == null) return "Assign an owner to this lead before converting it.";
+            if (!HasContact(lead)) return "Add at least one contact method to this lead before converting it.";
+            return null;
         }
 
         [HttpGet]
@@ -352,20 +456,47 @@ namespace GameHub.Controllers
             await ValidateOpportunityAsync(model);
             if (!ModelState.IsValid) return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
             var lead = await _dbContext.Leads.FirstOrDefaultAsync(x => x.Id == model.LeadId);
-            if (lead == null || lead.IsConverted) return RedirectToAction("NotFound", "Error");
+            if (lead == null)
+            {
+                ModelState.AddModelError(nameof(model.LeadId), "Selected lead no longer exists.");
+                return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
+            }
+            var blockReason = ConversionBlockReason(lead);
+            if (blockReason != null)
+            {
+                ModelState.AddModelError(nameof(model.LeadId), blockReason);
+            }
+            if (!ModelState.IsValid) return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             var opportunity = new Opportunity();
             MapOpportunity(model, opportunity);
+            opportunity.CustomerId = model.CustomerId ?? lead.CustomerId;
             opportunity.OpportunityNumber = await GenerateOpportunityNumberAsync();
             opportunity.CreatedAt = DateTime.UtcNow;
             opportunity.CreatedByUserId = CurrentUserId();
             ApplyStageRules(opportunity);
-            _dbContext.Opportunities.Add(opportunity);
-            await _dbContext.SaveChangesAsync();
-            lead.IsConverted = true; lead.Status = LeadStatus.Converted; lead.ConvertedAt = DateTime.UtcNow; lead.ConvertedOpportunityId = opportunity.Id;
-            _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = opportunity.Id, ActivityType = OpportunityActivityType.Note, Subject = "Opportunity created", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = CurrentUserId(), IsCompleted = true });
-            await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
+            try
+            {
+                _dbContext.Opportunities.Add(opportunity);
+                await _dbContext.SaveChangesAsync();
+                lead.CustomerId = opportunity.CustomerId;
+                lead.IsConverted = true;
+                lead.Status = LeadStatus.Converted;
+                lead.ConvertedAt = DateTime.UtcNow;
+                lead.ConvertedOpportunityId = opportunity.Id;
+                await AddLeadActivityAsync(lead.Id, LeadActivityType.Conversion, "Converted to opportunity", opportunity.OpportunityNumber, null, true, save: false);
+                _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = opportunity.Id, ActivityType = OpportunityActivityType.Note, Subject = "Opportunity created", Description = "Created from qualified lead.", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = CurrentUserId(), IsCompleted = true });
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                await transaction.RollbackAsync();
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
+            }
             TempData.SetToast("success", "Opportunity Created", "Opportunity created successfully.");
             return RedirectToAction(nameof(OpportunityDetails), new { id = opportunity.Id });
         }
@@ -380,7 +511,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditOpportunity(int id, OpportunityFormViewModel model)
+        public async Task<IActionResult> EditOpportunity([FromRoute] int id, OpportunityFormViewModel model)
         {
             if (!CanManageOpportunities()) return RedirectToAction("NotFound", "Error");
             if (model.Id != id) return RedirectToAction("NotFound", "Error");
@@ -402,7 +533,17 @@ namespace GameHub.Controllers
             {
                 _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = opportunity.Id, ActivityType = OpportunityActivityType.StageChange, Subject = "Stage changed", Description = $"{oldStage.GetDisplayName()} to {opportunity.Stage.GetDisplayName()}", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = CurrentUserId(), IsCompleted = true });
             }
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                var message = DescribeDbError(exception);
+                ModelState.AddModelError(string.Empty, message);
+                TempData.SetToast("error", "Save Failed", message);
+                return View("OpportunityForm", await AddOpportunityOptionsAsync(model));
+            }
             TempData.SetToast("success", "Opportunity Updated", "Opportunity updated successfully.");
             return RedirectToAction(nameof(OpportunityDetails), new { id });
         }
@@ -425,6 +566,7 @@ namespace GameHub.Controllers
         {
             if (!CanAccessCrm()) return RedirectToAction("NotFound", "Error");
             var model = await BuildFollowUpsAsync();
+            ViewBag.CanCompleteFollowUps = CanCreateLeads();
             return View(model);
         }
 
@@ -435,17 +577,30 @@ namespace GameHub.Controllers
             if (recordType == "Lead")
             {
                 var item = await _dbContext.LeadActivities.Include(x => x.Lead).FirstOrDefaultAsync(x => x.Id == activityId);
-                if (item == null) return RedirectToAction("NotFound", "Error");
+                if (item == null) { TempData.SetToast("warning", "Not Found", "Follow-up not found."); return RedirectToAction(nameof(FollowUps)); }
                 item.IsCompleted = true; item.UpdatedAt = DateTime.UtcNow;
                 item.Lead.NextFollowUpAt = await _dbContext.LeadActivities.Where(x => x.LeadId == item.LeadId && !x.IsCompleted && x.FollowUpDueAt != null && x.Id != item.Id).OrderBy(x => x.FollowUpDueAt).Select(x => x.FollowUpDueAt).FirstOrDefaultAsync();
             }
-            else
+            else if (recordType == "Opportunity")
             {
                 var item = await _dbContext.OpportunityActivities.FirstOrDefaultAsync(x => x.Id == activityId);
-                if (item == null) return RedirectToAction("NotFound", "Error");
+                if (item == null) { TempData.SetToast("warning", "Not Found", "Follow-up not found."); return RedirectToAction(nameof(FollowUps)); }
                 item.IsCompleted = true; item.UpdatedAt = DateTime.UtcNow;
             }
-            await _dbContext.SaveChangesAsync();
+            else
+            {
+                TempData.SetToast("warning", "Invalid Follow-up", "That follow-up type is not recognised.");
+                return RedirectToAction(nameof(FollowUps));
+            }
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException exception)
+            {
+                TempData.SetToast("error", "Save Failed", DescribeDbError(exception));
+                return RedirectToAction(nameof(FollowUps));
+            }
             TempData.SetToast("success", "Follow-up Completed", "Follow-up marked as complete.");
             return RedirectToAction(nameof(FollowUps));
         }
@@ -544,22 +699,43 @@ namespace GameHub.Controllers
         private async Task ValidateLeadAsync(LeadFormViewModel model, int? id = null)
         {
             if (string.IsNullOrWhiteSpace(model.Email) && string.IsNullOrWhiteSpace(model.Phone) && string.IsNullOrWhiteSpace(model.WhatsAppNumber)) ModelState.AddModelError(string.Empty, "At least one contact method is required.");
+            if (!string.IsNullOrWhiteSpace(model.Email) && !HasValidComEmail(model.Email)) ModelState.AddModelError(nameof(model.Email), EmailFormatMessage);
+            if (!string.IsNullOrWhiteSpace(model.Phone) && !HasValidPakPhone(model.Phone)) ModelState.AddModelError(nameof(model.Phone), PhoneFormatMessage);
+            if (!string.IsNullOrWhiteSpace(model.WhatsAppNumber) && !HasValidPakPhone(model.WhatsAppNumber)) ModelState.AddModelError(nameof(model.WhatsAppNumber), PhoneFormatMessage);
             if (model.PreferredDate.HasValue && model.PreferredDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)) ModelState.AddModelError(nameof(model.PreferredDate), "Preferred date cannot be in the past.");
-            if (model.AssignedToUserId.HasValue && !await _dbContext.Users.AnyAsync(x => x.Id == model.AssignedToUserId && x.IsActive)) ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user is invalid.");
+            if (id == null && model.NextFollowUpAt.HasValue && model.NextFollowUpAt.Value < DateTime.UtcNow) ModelState.AddModelError(nameof(model.NextFollowUpAt), "Next follow-up cannot be scheduled in the past.");
+            if (model.AssignedToUserId.HasValue && !await _dbContext.Users.AnyAsync(x => x.Id == model.AssignedToUserId && x.IsActive)) ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user is invalid or no longer active.");
+            if (model.CustomerId.HasValue && !await _dbContext.Customers.AnyAsync(x => x.Id == model.CustomerId)) ModelState.AddModelError(nameof(model.CustomerId), "Selected customer no longer exists.");
+            if (model.SportId.HasValue && !await _dbContext.Sports.AnyAsync(x => x.Id == model.SportId)) ModelState.AddModelError(nameof(model.SportId), "Selected sport no longer exists.");
+            if (model.FacilityId.HasValue && !await _dbContext.Facilities.AnyAsync(x => x.Id == model.FacilityId)) ModelState.AddModelError(nameof(model.FacilityId), "Selected facility no longer exists.");
+            if (model.CourtId.HasValue && !await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "Selected court no longer exists.");
+            if (model.MembershipPlanId.HasValue && !await _dbContext.MembershipPlans.AnyAsync(x => x.Id == model.MembershipPlanId)) ModelState.AddModelError(nameof(model.MembershipPlanId), "Selected membership plan no longer exists.");
+            if (model.CourtId.HasValue && model.FacilityId.HasValue && await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId && x.FacilityId != model.FacilityId))
+            {
+                ModelState.AddModelError(nameof(model.CourtId), "Selected court does not belong to the selected facility.");
+            }
         }
 
         private async Task ValidateOpportunityAsync(OpportunityFormViewModel model, int? id = null)
         {
-            if (!await _dbContext.Leads.AnyAsync(x => x.Id == model.LeadId)) ModelState.AddModelError(nameof(model.LeadId), "Lead is required.");
-            if (model.ExpectedCloseDate < DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1))) ModelState.AddModelError(nameof(model.ExpectedCloseDate), "Expected close date is invalid.");
-            if (model.Stage == OpportunityStage.Lost && string.IsNullOrWhiteSpace(model.LossReason)) ModelState.AddModelError(nameof(model.LossReason), "Loss reason is required.");
-            if (id == null && await _dbContext.Opportunities.AnyAsync(x => x.LeadId == model.LeadId)) ModelState.AddModelError(nameof(model.LeadId), "This lead already has an opportunity.");
+            if (!await _dbContext.Leads.AnyAsync(x => x.Id == model.LeadId)) ModelState.AddModelError(nameof(model.LeadId), "Selected lead no longer exists.");
+            if (model.CustomerId.HasValue && !await _dbContext.Customers.AnyAsync(x => x.Id == model.CustomerId)) ModelState.AddModelError(nameof(model.CustomerId), "Selected customer no longer exists.");
+            if (model.AssignedToUserId.HasValue && !await _dbContext.Users.AnyAsync(x => x.Id == model.AssignedToUserId && x.IsActive)) ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user is invalid or no longer active.");
+            if (model.SportId.HasValue && !await _dbContext.Sports.AnyAsync(x => x.Id == model.SportId)) ModelState.AddModelError(nameof(model.SportId), "Selected sport no longer exists.");
+            if (model.FacilityId.HasValue && !await _dbContext.Facilities.AnyAsync(x => x.Id == model.FacilityId)) ModelState.AddModelError(nameof(model.FacilityId), "Selected facility no longer exists.");
+            if (model.CourtId.HasValue && !await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "Selected court no longer exists.");
+            if (model.MembershipPlanId.HasValue && !await _dbContext.MembershipPlans.AnyAsync(x => x.Id == model.MembershipPlanId)) ModelState.AddModelError(nameof(model.MembershipPlanId), "Selected membership plan no longer exists.");
+            if (model.ExpectedCloseDate < DateOnly.FromDateTime(DateTime.UtcNow)) ModelState.AddModelError(nameof(model.ExpectedCloseDate), "Expected close date cannot be in the past.");
+            if (model.ActualCloseDate.HasValue && model.ActualCloseDate.Value > DateOnly.FromDateTime(DateTime.UtcNow)) ModelState.AddModelError(nameof(model.ActualCloseDate), "Actual close date cannot be in the future.");
+            if (model.Stage == OpportunityStage.Lost && string.IsNullOrWhiteSpace(model.LossReason)) ModelState.AddModelError(nameof(model.LossReason), "Loss reason is required when the stage is Lost.");
+            if (id == null && await _dbContext.Opportunities.AnyAsync(x => x.LeadId == model.LeadId)) ModelState.AddModelError(nameof(model.LeadId), "This lead already has an opportunity. Edit the existing opportunity instead.");
+            if (id != null && await _dbContext.Opportunities.AnyAsync(x => x.LeadId == model.LeadId && x.Id != id)) ModelState.AddModelError(nameof(model.LeadId), "Another opportunity already exists for the selected lead.");
         }
 
-        private async Task<List<LeadListItemViewModel>> FindDuplicateLeadsAsync(LeadFormViewModel model)
+        private async Task<List<LeadListItemViewModel>> FindDuplicateLeadsAsync(LeadFormViewModel model, int? id = null)
         {
             var recent = DateTime.UtcNow.AddDays(-7);
-            var q = _dbContext.Leads.AsNoTracking().Where(x => x.IsActive && x.CreatedAt >= recent && x.Status != LeadStatus.Converted && x.Status != LeadStatus.Disqualified);
+            var q = _dbContext.Leads.AsNoTracking().Where(x => x.IsActive && x.CreatedAt >= recent && x.Status != LeadStatus.Converted && x.Status != LeadStatus.Disqualified && (!id.HasValue || x.Id != id.Value));
             q = q.Where(x => (model.CustomerId != null && x.CustomerId == model.CustomerId) || (!string.IsNullOrWhiteSpace(model.Email) && x.Email == model.Email) || (!string.IsNullOrWhiteSpace(model.Phone) && x.Phone == model.Phone) || (!string.IsNullOrWhiteSpace(model.WhatsAppNumber) && x.WhatsAppNumber == model.WhatsAppNumber) || (x.CustomerName == model.CustomerName && x.ServiceInterest == model.ServiceInterest));
             return await q.Take(5).Select(x => new LeadListItemViewModel { Id = x.Id, LeadNumber = x.LeadNumber, CustomerName = x.CustomerName, Status = x.Status, ServiceInterest = x.ServiceInterest, CreatedAt = x.CreatedAt }).ToListAsync();
         }
@@ -635,6 +811,26 @@ namespace GameHub.Controllers
         private bool IsReadOnlyRole() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Viewer or UserRole.FinanceManager;
         private static string NormalizeTab(string? tab) => tab?.ToLowerInvariant() is "leads" or "opportunities" ? tab!.ToLowerInvariant() : "overview";
         private static bool HasContact(Lead lead) => !string.IsNullOrWhiteSpace(lead.Email) || !string.IsNullOrWhiteSpace(lead.Phone) || !string.IsNullOrWhiteSpace(lead.WhatsAppNumber);
+        private static bool HasContact(LeadFormViewModel model) => !string.IsNullOrWhiteSpace(model.Email) || !string.IsNullOrWhiteSpace(model.Phone) || !string.IsNullOrWhiteSpace(model.WhatsAppNumber);
+        private const string PhoneFormatMessage = "Enter an 11-digit phone number starting with 0 (e.g. 03001234567).";
+        private const string EmailFormatMessage = "Enter a valid email address ending in .com.";
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex ComEmailPattern = new(@"^[^\s@]+@[^\s@]+\.com$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        private static bool HasValidPakPhone(string? value) => !string.IsNullOrWhiteSpace(value) && PhonePattern.IsMatch(value);
+        private static bool HasValidComEmail(string? value) => !string.IsNullOrWhiteSpace(value) && ComEmailPattern.IsMatch(value);
+        private static string DescribeDbError(DbUpdateException exception)
+        {
+            var message = exception.GetBaseException().Message;
+            if (message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase) || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) || message.Contains("Cannot insert duplicate", StringComparison.OrdinalIgnoreCase))
+            {
+                return "This record conflicts with an existing CRM record. Check the lead or opportunity number, or the selected lead for a duplicate.";
+            }
+            if (message.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase) || message.Contains("REFERENCE", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The selected related record no longer exists. Refresh the page and try again.";
+            }
+            return "The record could not be saved because of a database conflict. Please review the values and try again.";
+        }
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private static string? NormalizeEmail(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
         private static string? NormalizePhone(string? value) { if (string.IsNullOrWhiteSpace(value)) return null; var prefix = value.Trim().StartsWith("+") ? "+" : ""; return prefix + new string(value.Where(char.IsDigit).ToArray()); }

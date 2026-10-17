@@ -61,6 +61,12 @@
         const password = formPage.querySelector("[data-password-input]");
         const confirmPassword = formPage.querySelector("[data-confirm-password]");
         const emailMessage = formPage.querySelector("[data-email-message]");
+        const cnic = formPage.querySelector("[data-cnic-input]");
+        const gender = formPage.querySelector("select[name='Gender']");
+        const dateOfBirth = formPage.querySelector("input[name='DateOfBirth']");
+        const department = formPage.querySelector("select[name='Department']");
+        const designation = formPage.querySelector("input[name='Designation']");
+        const address = formPage.querySelector("textarea[name='Address']");
         let emailAvailable = true;
 
         const roleSummaries = {
@@ -95,8 +101,9 @@
 
             formPage.querySelector("[data-preview-initials]").textContent = initials;
             formPage.querySelector("[data-preview-name]").textContent = fullName;
-            formPage.querySelector("[data-preview-email-text]").textContent = email?.value || "email@gamehub.pk";
+            formPage.querySelector("[data-preview-email-text]").textContent = email?.value || "email@gamehub.com";
             formPage.querySelector("[data-preview-phone-text]").textContent = phone?.value || "Phone not provided";
+            formPage.querySelector("[data-preview-designation-text]").textContent = designation?.value.trim() || "Designation not set";
             formPage.querySelector("[data-preview-role-text]").textContent = displayRoleNames[selectedRole] || "Select a role";
 
             const previewStatus = formPage.querySelector("[data-preview-status-text]");
@@ -108,9 +115,94 @@
             formPage.querySelector("[data-role-description]").textContent = role?.selectedOptions[0]?.dataset.description || "Select a role to define ERP access.";
         };
 
-        [firstName, lastName, email, phone, role, status].forEach((input) => {
+        [firstName, lastName, email, phone, role, status, designation].forEach((input) => {
             input?.addEventListener("input", updatePreview);
             input?.addEventListener("change", updatePreview);
+        });
+
+        // Frontend input guards: mirror the server-side validation rules as a first line of defence.
+        const restrictToDigits = (input, maxLength) => {
+            input?.addEventListener("input", () => {
+                const cleaned = input.value.replace(/\D+/g, "").slice(0, maxLength);
+                if (cleaned !== input.value) {
+                    input.value = cleaned;
+                }
+            });
+        };
+
+        restrictToDigits(phone, 11);
+        restrictToDigits(cnic, 13);
+
+        formPage.querySelectorAll("[data-name-input]").forEach((input) => {
+            input.addEventListener("input", () => {
+                const cleaned = input.value.replace(/[^A-Za-z ]/g, "");
+                if (cleaned !== input.value) {
+                    input.value = cleaned;
+                }
+            });
+        });
+
+        const fieldRules = [
+            { name: "FirstName", input: firstName, message: "First name can contain alphabetic characters and spaces only.", test: (value) => value.trim().length > 0 && /^[A-Za-z ]+$/.test(value.trim()) },
+            { name: "LastName", input: lastName, message: "Last name can contain alphabetic characters and spaces only.", test: (value) => value.trim().length > 0 && /^[A-Za-z ]+$/.test(value.trim()) },
+            { name: "PhoneNumber", input: phone, message: "Phone number must be exactly 11 digits and start with 0.", test: (value) => /^0\d{10}$/.test(value.trim()) },
+            { name: "CnicNumber", input: cnic, message: "CNIC must be exactly 13 digits without hyphens.", test: (value) => /^\d{13}$/.test(value.trim()) },
+            { name: "Gender", input: gender, message: "Gender is required.", test: (value) => value.trim().length > 0 },
+            { name: "DateOfBirth", input: dateOfBirth, message: "Date of birth is required.", test: (value) => value.trim().length > 0 },
+            { name: "Department", input: department, message: "Department is required.", test: (value) => value.trim().length > 0 },
+            { name: "Designation", input: designation, message: "Designation is required.", test: (value) => value.trim().length > 0 },
+            { name: "Address", input: address, message: "Address is required.", test: (value) => value.trim().length > 0 }
+        ];
+
+        const emailRule = { name: "Email", input: email, message: "Enter a valid email address ending with .com.", test: (value) => /^[^@\s]+@[^@\s]+\.com$/.test(value.trim()) };
+
+        const setFieldError = (rule, invalid) => {
+            rule.input?.classList.toggle("input-invalid", invalid);
+            const holder = rule.input?.closest(".premium-field");
+            holder?.classList.toggle("has-error", invalid);
+            const message = holder?.querySelector(`[data-valmsg-for='${rule.name}']`);
+            if (message && invalid) {
+                message.textContent = rule.message;
+            }
+        };
+
+        [...fieldRules, emailRule].forEach((rule) => {
+            const clear = () => setFieldError(rule, false);
+            rule.input?.addEventListener("input", clear);
+            rule.input?.addEventListener("change", clear);
+        });
+
+        let submitted = false;
+        form?.addEventListener("submit", (event) => {
+            if (submitted) {
+                event.preventDefault();
+                return;
+            }
+
+            let firstInvalid = null;
+            [...fieldRules, emailRule].forEach((rule) => {
+                const invalid = !rule.test(rule.input?.value ?? "");
+                setFieldError(rule, invalid);
+                if (invalid && !firstInvalid) {
+                    firstInvalid = rule.input;
+                }
+            });
+
+            if (firstInvalid || !emailAvailable) {
+                event.preventDefault();
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                }
+                showToast("Please fix the highlighted fields before saving.", true);
+                return;
+            }
+
+            // Lock the form to prevent duplicate submissions while the request is in flight.
+            submitted = true;
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add("is-loading");
+            }
         });
 
         formPage.querySelectorAll("[data-password-toggle]").forEach((button) => {
@@ -178,9 +270,9 @@
             const value = email?.value.trim() || "";
             const id = formPage.dataset.userId || "";
 
-            if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            if (!value || !/^[^@\s]+@[^@\s]+\.com$/.test(value)) {
                 emailAvailable = false;
-                emailMessage.textContent = "Invalid email format";
+                emailMessage.textContent = "Enter a valid email address ending with .com";
                 emailMessage.className = "email-error";
                 submitButton.disabled = true;
                 return;
@@ -208,12 +300,6 @@
 
         email?.addEventListener("input", checkEmail);
         email?.addEventListener("blur", checkEmail);
-        form?.addEventListener("submit", (event) => {
-            if (!emailAvailable) {
-                event.preventDefault();
-                showToast("Email address is already in use", true);
-            }
-        });
 
         updatePreview();
         evaluatePassword();

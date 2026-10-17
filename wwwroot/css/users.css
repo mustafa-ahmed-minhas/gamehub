@@ -100,7 +100,7 @@
 
 .users-toolbar {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) repeat(4, minmax(135px, auto)) auto;
+    grid-template-columns: minmax(260px, 1fr) repeat(5, minmax(135px, auto)) auto;
     gap: 0.7rem;
     align-items: center;
     margin-bottom: 1rem;
@@ -155,6 +155,46 @@
 .users-toolbar select:focus {
     border-color: rgba(214, 169, 80, 0.7);
     box-shadow: 0 0 0 4px rgba(214, 169, 80, 0.13);
+}
+
+.premium-field textarea {
+    width: 100%;
+    min-height: 5.5rem;
+    padding: 0.8rem 0.95rem;
+    color: var(--admin-text);
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.95rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 800;
+    line-height: 1.5;
+    outline: 0;
+    resize: vertical;
+}
+
+.premium-field textarea:focus {
+    border-color: rgba(214, 169, 80, 0.7);
+    box-shadow: 0 0 0 4px rgba(214, 169, 80, 0.13);
+}
+
+.premium-field.has-error > div,
+.premium-field.has-error textarea {
+    border-color: rgba(196, 72, 60, 0.65);
+    box-shadow: 0 0 0 4px rgba(196, 72, 60, 0.1);
+}
+
+.premium-field [data-valmsg-for] {
+    display: block;
+}
+
+.user-validation-summary:not(:empty) {
+    padding: 0.75rem 0.9rem;
+    background: rgba(196, 72, 60, 0.08);
+    border: 1px solid rgba(196, 72, 60, 0.28);
+    border-radius: 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 850;
 }
 
 .users-toolbar select {
@@ -664,6 +704,36 @@
     font-size: 0.82rem;
     font-weight: 950;
     text-align: right;
+}
+
+.detail-address {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    padding: 0.72rem;
+    background: #fbf7ef;
+    border-radius: 0.85rem;
+    text-align: left;
+}
+
+.detail-address span {
+    color: var(--admin-muted);
+    font-size: 0.74rem;
+    font-weight: 900;
+}
+
+.detail-address strong {
+    font-size: 0.82rem;
+    font-weight: 950;
+}
+
+.multiline-value {
+    white-space: pre-line;
+}
+
+.admin-action-button.is-loading {
+    opacity: 0.65;
+    pointer-events: none;
 }
 
 .activity-placeholder {

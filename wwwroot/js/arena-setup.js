@@ -48,7 +48,138 @@
         };
         form?.addEventListener("input", update);
         form?.addEventListener("change", update);
-        form?.addEventListener("submit", () => {
+
+        // Client-side validation mirrors the server-side rules for immediate feedback.
+        const rulePatterns = {
+            letters: { re: /^[A-Za-z ]+$/, message: "Only letters and spaces are allowed." },
+            title: { re: /^[A-Za-z0-9 \-]+$/, message: "Only letters, numbers, spaces and hyphens are allowed." },
+            code: { re: /^[A-Za-z0-9\-]+$/, message: "Only letters, numbers and hyphens are allowed." },
+            location: { re: /^[A-Za-z0-9 \-/#.]+$/, message: "Only letters, numbers, spaces and - / # . are allowed." },
+            int: { re: /^\d+$/, message: "Only whole numbers are allowed." },
+            decimal: { re: /^\d+(\.\d{1,2})?$/, message: "Enter a valid amount with up to 2 decimals." }
+        };
+
+        const sanitizers = {
+            letters: (v) => v.replace(/[^A-Za-z ]/g, ""),
+            title: (v) => v.replace(/[^A-Za-z0-9 \-]/g, ""),
+            code: (v) => v.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase(),
+            location: (v) => v.replace(/[^A-Za-z0-9 \-/#.]/g, ""),
+            int: (v) => v.replace(/[^\d]/g, "")
+        };
+
+        const messageElement = (input) => {
+            const holder = input.closest("label") || input.parentElement;
+            if (!holder) return null;
+            let message = holder.querySelector(`[data-valmsg-for='${input.name}']`);
+            if (!message) {
+                message = holder.querySelector(".arena-field-error");
+                if (!message) {
+                    message = document.createElement("small");
+                    message.className = "arena-field-error";
+                    holder.appendChild(message);
+                }
+            }
+            return message;
+        };
+
+        const setFieldError = (input, text) => {
+            input.classList.toggle("is-invalid", Boolean(text));
+            const message = messageElement(input);
+            if (message) message.textContent = text || "";
+        };
+
+        const validateInput = (input) => {
+            const value = (input.value || "").trim();
+            if (input.dataset.arenaRequired === "true" && !value) {
+                setFieldError(input, "This field is required.");
+                return false;
+            }
+            if (!value) {
+                setFieldError(input, "");
+                return true;
+            }
+            const rule = rulePatterns[input.dataset.arenaRule];
+            if (rule && !rule.re.test(value)) {
+                setFieldError(input, rule.message);
+                return false;
+            }
+            const min = input.dataset.arenaMin;
+            const max = input.dataset.arenaMax;
+            if ((min !== undefined || max !== undefined) && /^\d+(\.\d{1,2})?$/.test(value)) {
+                const numeric = Number(value);
+                if (min !== undefined && numeric < Number(min)) {
+                    setFieldError(input, `Must be at least ${min}.`);
+                    return false;
+                }
+                if (max !== undefined && numeric > Number(max)) {
+                    setFieldError(input, `Must be at most ${max}.`);
+                    return false;
+                }
+            }
+            setFieldError(input, "");
+            return true;
+        };
+
+        const validateOrder = (input) => {
+            const otherName = input.dataset.arenaBefore;
+            if (!otherName) return true;
+            const condition = input.dataset.arenaWhenUnchecked;
+            if (condition) {
+                const checkbox = form.querySelector(`[name='${condition}']`);
+                if (checkbox && checkbox.checked) {
+                    setFieldError(input, "");
+                    return true;
+                }
+            }
+            const other = form.querySelector(`[name='${otherName}']`);
+            if (input.value && other?.value && input.value >= other.value) {
+                setFieldError(input, "Start time must be before end time.");
+                return false;
+            }
+            setFieldError(input, "");
+            return true;
+        };
+
+        const validatedInputs = Array.from(form.querySelectorAll("[data-arena-rule],[data-arena-required],[data-arena-before]"));
+        validatedInputs.forEach((input) => {
+            const sanitize = sanitizers[input.dataset.arenaRule];
+            if (sanitize) {
+                input.addEventListener("input", () => {
+                    const cleaned = sanitize(input.value);
+                    if (cleaned !== input.value) input.value = cleaned;
+                });
+            }
+        });
+
+        const refresh = (input) => {
+            if (input.matches("[data-arena-rule],[data-arena-required]")) validateInput(input);
+            if (input.dataset.arenaBefore) validateOrder(input);
+            form.querySelectorAll("[data-arena-before]").forEach((other) => {
+                if (other.dataset.arenaBefore === input.name) validateOrder(other);
+            });
+        };
+
+        validatedInputs.forEach((input) => {
+            input.addEventListener("input", () => refresh(input));
+            input.addEventListener("change", () => refresh(input));
+        });
+
+        form?.addEventListener("submit", (event) => {
+            if (submitting) {
+                event.preventDefault();
+                return;
+            }
+            let firstInvalid = null;
+            validatedInputs.forEach((input) => {
+                const valid = validateInput(input) && validateOrder(input);
+                if (!valid && !firstInvalid) firstInvalid = input;
+            });
+            if (firstInvalid) {
+                event.preventDefault();
+                firstInvalid.focus();
+                window.GameHubToast?.show({ type: "error", title: "Please review the form", message: "Fix the highlighted fields before saving." });
+                return;
+            }
             submitting = true;
             if (save) {
                 save.disabled = true;

@@ -7,7 +7,9 @@ namespace GameHub.Models.ViewModels
     {
         public int? Id { get; set; }
         [Range(1, int.MaxValue, ErrorMessage = "Court is required.")] public int CourtId { get; set; }
-        [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
+        [Required, MaxLength(100)]
+        [RegularExpression(@"^[A-Za-z0-9 \-]+$", ErrorMessage = "Pricing rule name can contain letters, numbers, spaces and hyphens only.")]
+        public string Name { get; set; } = string.Empty;
         public DayOfWeek? DayOfWeek { get; set; }
         public TimeOnly StartTime { get; set; }
         public TimeOnly EndTime { get; set; }

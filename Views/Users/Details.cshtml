@@ -44,8 +44,32 @@
             <span class="user-status-badge @(Model.IsActive ? "active" : "inactive")" data-status-badge><i></i><span data-status-text>@(Model.IsActive ? "Active" : "Inactive")</span></span>
             <div class="profile-facts">
                 <div><span>Email</span><strong>@Model.Email</strong></div>
-                <div><span>Phone</span><strong>@(Model.PhoneNumber ?? "Phone not provided")</strong></div>
+                <div><span>Phone</span><strong>@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "Phone not provided" : Model.PhoneNumber)</strong></div>
+                <div><span>CNIC</span><strong>@(string.IsNullOrWhiteSpace(Model.CnicNumber) ? "Not provided" : Model.CnicNumber)</strong></div>
+                <div><span>Department</span><strong>@(string.IsNullOrWhiteSpace(Model.Department) ? "Not assigned" : Model.Department)</strong></div>
                 <div><span>User ID</span><strong>#@Model.Id</strong></div>
+            </div>
+        </article>
+
+        <article class="details-card admin-reveal">
+            <h2>Personal Information</h2>
+            <div class="detail-list">
+                <div><span>CNIC</span><strong>@(string.IsNullOrWhiteSpace(Model.CnicNumber) ? "Not provided" : Model.CnicNumber)</strong></div>
+                <div><span>Gender</span><strong>@(Model.Gender.HasValue ? Model.Gender.Value.GetDisplayName() : "Not specified")</strong></div>
+                <div><span>Date of Birth</span><strong>@(Model.DateOfBirth?.ToString("dd MMM yyyy") ?? "Not provided")</strong></div>
+            </div>
+            <div class="detail-address">
+                <span>Address</span>
+                <strong class="multiline-value">@(string.IsNullOrWhiteSpace(Model.Address) ? "Not provided" : Model.Address)</strong>
+            </div>
+        </article>
+
+        <article class="details-card admin-reveal">
+            <h2>Job Information</h2>
+            <div class="detail-list">
+                <div><span>Department</span><strong>@(string.IsNullOrWhiteSpace(Model.Department) ? "Not assigned" : Model.Department)</strong></div>
+                <div><span>Designation</span><strong>@(string.IsNullOrWhiteSpace(Model.Designation) ? "Not set" : Model.Designation)</strong></div>
+                <div><span>Role</span><strong>@Model.Role.GetDisplayName()</strong></div>
             </div>
         </article>
 

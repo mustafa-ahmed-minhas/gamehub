@@ -108,4 +108,28 @@
     document.querySelector('[data-preview-value]')?.addEventListener('input', (event) => setText('[data-preview-value-text]', Number(event.target.value || 0).toLocaleString()));
     document.querySelector('[data-preview-probability]')?.addEventListener('input', (event) => setText('[data-preview-probability-text]', event.target.value || 0));
     document.querySelector('[data-preview-stage]')?.addEventListener('change', (event) => setText('[data-preview-stage-text]', event.target.options[event.target.selectedIndex].text));
+
+    document.querySelectorAll('[data-fv-status-select]').forEach((select) => {
+        Array.from(select.options).forEach((option) => {
+            if (option.value === 'Converted') {
+                option.disabled = true;
+                option.title = 'A lead can only be converted through the Convert to Opportunity action.';
+            }
+        });
+    });
+
+    const convertModal = document.querySelector('[data-crm-convert-modal]');
+    if (convertModal && window.bootstrap?.Modal) {
+        const modal = bootstrap.Modal.getOrCreateInstance(convertModal);
+        const continueLink = convertModal.querySelector('[data-convert-continue]');
+        document.querySelectorAll('[data-crm-convert]').forEach((button) => {
+            button.addEventListener('click', () => {
+                convertModal.querySelector('[data-convert-lead-number]').textContent = button.dataset.leadNumber || '';
+                convertModal.querySelector('[data-convert-lead-name]').textContent = button.dataset.leadName || '';
+                if (continueLink) continueLink.href = `/CRM/ConvertToOpportunity/${encodeURIComponent(button.dataset.leadId)}`;
+                modal.show();
+            });
+        });
+        continueLink?.addEventListener('click', () => modal.hide());
+    }
 })();

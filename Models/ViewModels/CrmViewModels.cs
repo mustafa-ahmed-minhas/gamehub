@@ -62,6 +62,7 @@ namespace GameHub.Models.ViewModels
         public DateTime CreatedAt { get; set; }
         public bool IsWebsiteInquiry { get; set; }
         public bool IsConverted { get; set; }
+        public int? ConvertedOpportunityId { get; set; }
         public int DaysOpen { get; set; }
     }
 
@@ -87,11 +88,14 @@ namespace GameHub.Models.ViewModels
         public int? Id { get; set; }
         public string? LeadNumber { get; set; }
         public int? CustomerId { get; set; }
-        [Required, MaxLength(120)] public string CustomerName { get; set; } = string.Empty;
-        [MaxLength(150), EmailAddress] public string? Email { get; set; }
+        [Required, MaxLength(120), RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
+        public string CustomerName { get; set; } = string.Empty;
+        [MaxLength(150), EmailAddress(ErrorMessage = "Enter a valid email address."), RegularExpression(@"^[^\s@]+@[^\s@]+\.com$", ErrorMessage = "Enter a valid email address ending in .com.")]
+        public string? Email { get; set; }
         [MaxLength(20)] public string? Phone { get; set; }
         [MaxLength(20)] public string? WhatsAppNumber { get; set; }
-        [MaxLength(150)] public string? OrganizationName { get; set; }
+        [MaxLength(150), RegularExpression(@"^[A-Za-z0-9\s&.,'()\-]{2,}$", ErrorMessage = "Use letters, numbers, spaces and basic punctuation only.")]
+        public string? OrganizationName { get; set; }
         [Required] public LeadSource Source { get; set; } = LeadSource.WalkIn;
         [Required] public LeadServiceInterest ServiceInterest { get; set; } = LeadServiceInterest.CourtBooking;
         public int? SportId { get; set; }
@@ -102,7 +106,8 @@ namespace GameHub.Models.ViewModels
         public TimeOnly? PreferredStartTime { get; set; }
         [Range(1, 1440)] public int? PreferredDurationMinutes { get; set; }
         [Range(1, 1000)] public int? ExpectedPlayerCount { get; set; }
-        [MaxLength(150)] public string? InquirySubject { get; set; }
+        [MaxLength(150), RegularExpression(@"^[A-Za-z0-9\s&.,'()\-/]{2,}$", ErrorMessage = "Use letters, numbers, spaces and basic punctuation only.")]
+        public string? InquirySubject { get; set; }
         [MaxLength(2000)] public string? InquiryDetails { get; set; }
         public int? AssignedToUserId { get; set; }
         public LeadStatus Status { get; set; } = LeadStatus.New;
@@ -112,7 +117,8 @@ namespace GameHub.Models.ViewModels
         [MaxLength(1500)] public string? QualificationNotes { get; set; }
         [MaxLength(500)] public string? DisqualificationReason { get; set; }
         [MaxLength(2000)] public string? InternalNotes { get; set; }
-        [MaxLength(500)] public string? Tags { get; set; }
+        [MaxLength(500), RegularExpression(@"^[A-Za-z0-9\s,#\-]*$", ErrorMessage = "Use letters, numbers, spaces, commas, hashtags and hyphens only.")]
+        public string? Tags { get; set; }
         public bool IsActive { get; set; } = true;
         public bool AllowDuplicate { get; set; }
         public List<LeadListItemViewModel> PossibleDuplicates { get; set; } = new();
@@ -128,13 +134,16 @@ namespace GameHub.Models.ViewModels
     {
         public int? Id { get; set; }
         public string? OpportunityNumber { get; set; }
-        [Required, MaxLength(150)] public string Name { get; set; } = string.Empty;
-        [Required] public int LeadId { get; set; }
+        [Required, MaxLength(150), RegularExpression(@"^[A-Za-z0-9\s&.,'()\-]{2,}$", ErrorMessage = "Use letters, numbers, spaces and basic punctuation only.")]
+        public string Name { get; set; } = string.Empty;
+        [Required, Range(1, int.MaxValue, ErrorMessage = "Select a qualified lead for this opportunity.")]
+        public int LeadId { get; set; }
         public int? CustomerId { get; set; }
         [MaxLength(1000)] public string? Description { get; set; }
         public OpportunityType Type { get; set; } = OpportunityType.CourtBooking;
         public OpportunityStage Stage { get; set; } = OpportunityStage.Qualification;
-        [Range(0, double.MaxValue)] public decimal ExpectedValue { get; set; }
+        [Range(0, 9999999999.99, ErrorMessage = "Expected value must be zero or greater.")]
+        public decimal ExpectedValue { get; set; }
         [Range(0, 100)] public int ProbabilityPercentage { get; set; } = 10;
         [Required] public DateOnly ExpectedCloseDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14));
         public DateOnly? ActualCloseDate { get; set; }
@@ -148,8 +157,10 @@ namespace GameHub.Models.ViewModels
         [MaxLength(1000)] public string? CompetitorInformation { get; set; }
         [MaxLength(500)] public string? LossReason { get; set; }
         [MaxLength(2000)] public string? InternalNotes { get; set; }
-        [MaxLength(500)] public string? Tags { get; set; }
+        [MaxLength(500), RegularExpression(@"^[A-Za-z0-9\s,#\-]*$", ErrorMessage = "Use letters, numbers, spaces, commas, hashtags and hyphens only.")]
+        public string? Tags { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsLeadConversion { get; set; }
         public string CurrencySymbol { get; set; } = "Rs";
         public IReadOnlyList<SelectListItem> LeadOptions { get; set; } = Array.Empty<SelectListItem>();
         public IReadOnlyList<SelectListItem> CustomerOptions { get; set; } = Array.Empty<SelectListItem>();

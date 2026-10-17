@@ -16,7 +16,7 @@
         <a class="admin-secondary-button" asp-action="Index"><i class="bi bi-arrow-left"></i> Back to Customers</a>
     </header>
 
-    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="customer-form-grid" data-customer-form>
+    <form asp-action="@(Model.IsEditMode ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" class="customer-form-grid" data-customer-form data-fv-form>
         @Html.AntiForgeryToken()
         <input asp-for="Id" type="hidden" />
         <input asp-for="ExistingProfileImageUrl" type="hidden" />
@@ -26,13 +26,13 @@
             <section class="customer-form-card">
                 <h2><i class="bi bi-person"></i> Personal Information</h2>
                 <label><span>Customer Code</span><input asp-for="CustomerCode" placeholder="Auto generated" readonly /></label>
-                <label><span>First Name *</span><input asp-for="FirstName" data-preview-first /><small asp-validation-for="FirstName"></small></label>
-                <label><span>Last Name *</span><input asp-for="LastName" data-preview-last /><small asp-validation-for="LastName"></small></label>
-                <label><span>Preferred Name</span><input asp-for="PreferredName" data-preview-preferred /></label>
+                <label><span>First Name *</span><input asp-for="FirstName" data-preview-first data-fv-rule="required,letters" /><span asp-validation-for="FirstName" class="text-danger"></span></label>
+                <label><span>Last Name *</span><input asp-for="LastName" data-preview-last data-fv-rule="required,letters" /><span asp-validation-for="LastName" class="text-danger"></span></label>
+                <label><span>Preferred Name</span><input asp-for="PreferredName" data-preview-preferred data-fv-rule="letters" /><span asp-validation-for="PreferredName" class="text-danger"></span></label>
                 <label><span>Gender *</span><select asp-for="Gender" asp-items="Html.GetEnumSelectList<Gender>()"></select></label>
-                <label><span>Date of Birth</span><input asp-for="DateOfBirth" type="date" data-preview-dob /><small asp-validation-for="DateOfBirth"></small></label>
-                <label><span>National ID / Passport</span><input asp-for="NationalIdNumber" data-check-national-id data-current-id="@Model.Id" /><small asp-validation-for="NationalIdNumber"></small><em data-national-id-status></em></label>
-                <label><span>Profile Image</span><input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-input /><small asp-validation-for="ProfileImage"></small></label>
+                <label><span>Date of Birth</span><input asp-for="DateOfBirth" type="date" data-preview-dob data-fv-rule="future" /><span asp-validation-for="DateOfBirth" class="text-danger"></span></label>
+                <label><span>National ID / Passport</span><input asp-for="NationalIdNumber" data-check-national-id data-current-id="@Model.Id" data-fv-rule="code" /><span asp-validation-for="NationalIdNumber" class="text-danger"></span><em data-national-id-status></em></label>
+                <label><span>Profile Image</span><input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-input /><span asp-validation-for="ProfileImage" class="text-danger"></span></label>
                 @if (!string.IsNullOrWhiteSpace(Model.ExistingProfileImageUrl))
                 {
                     <label class="customer-toggle"><input asp-for="RemoveProfileImage" type="checkbox" /> Remove existing profile image</label>
@@ -41,11 +41,11 @@
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-telephone"></i> Contact Information</h2>
-                <label><span>Primary Phone *</span><input asp-for="PrimaryPhone" data-preview-phone data-check-phone data-current-id="@Model.Id" /><small asp-validation-for="PrimaryPhone"></small><em data-phone-status></em></label>
-                <label><span>Secondary Phone</span><input asp-for="SecondaryPhone" /><small asp-validation-for="SecondaryPhone"></small></label>
-                <label><span>WhatsApp Number</span><input asp-for="WhatsAppNumber" data-preview-whatsapp data-check-whatsapp data-current-id="@Model.Id" /><small asp-validation-for="WhatsAppNumber"></small><em data-whatsapp-status></em></label>
+                <label><span>Primary Phone *</span><input asp-for="PrimaryPhone" type="tel" inputmode="numeric" data-preview-phone data-check-phone data-current-id="@Model.Id" data-fv-rule="required,phone" /><span asp-validation-for="PrimaryPhone" class="text-danger"></span><em data-phone-status></em></label>
+                <label><span>Secondary Phone</span><input asp-for="SecondaryPhone" type="tel" inputmode="numeric" data-fv-rule="phone" /><span asp-validation-for="SecondaryPhone" class="text-danger"></span></label>
+                <label><span>WhatsApp Number</span><input asp-for="WhatsAppNumber" type="tel" inputmode="numeric" data-preview-whatsapp data-check-whatsapp data-current-id="@Model.Id" data-fv-rule="phone" /><span asp-validation-for="WhatsAppNumber" class="text-danger"></span><em data-whatsapp-status></em></label>
                 <label class="customer-toggle"><input type="checkbox" data-same-whatsapp /> Same as primary phone</label>
-                <label><span>Email</span><input asp-for="Email" data-preview-email data-check-email data-current-id="@Model.Id" /><small asp-validation-for="Email"></small><em data-email-status></em></label>
+                <label><span>Email</span><input asp-for="Email" type="email" data-preview-email data-check-email data-current-id="@Model.Id" data-fv-rule="email" /><span asp-validation-for="Email" class="text-danger"></span><em data-email-status></em></label>
                 <label><span>Preferred Contact</span><select asp-for="PreferredContactMethod" asp-items="Html.GetEnumSelectList<PreferredContactMethod>()"></select></label>
             </section>
 
@@ -53,25 +53,25 @@
                 <h2><i class="bi bi-geo-alt"></i> Address</h2>
                 <label><span>Address Line 1</span><input asp-for="AddressLine1" /></label>
                 <label><span>Address Line 2</span><input asp-for="AddressLine2" /></label>
-                <label><span>City</span><input asp-for="City" data-preview-city /></label>
-                <label><span>State / Province</span><input asp-for="StateProvince" /></label>
-                <label><span>Postal Code</span><input asp-for="PostalCode" /></label>
-                <label><span>Country *</span><input asp-for="Country" data-preview-country /><small asp-validation-for="Country"></small></label>
+                <label><span>City</span><input asp-for="City" data-preview-city data-fv-rule="location" /><span asp-validation-for="City" class="text-danger"></span></label>
+                <label><span>State / Province</span><input asp-for="StateProvince" data-fv-rule="location" /><span asp-validation-for="StateProvince" class="text-danger"></span></label>
+                <label><span>Postal Code</span><input asp-for="PostalCode" data-fv-rule="code" /><span asp-validation-for="PostalCode" class="text-danger"></span></label>
+                <label><span>Country *</span><input asp-for="Country" data-preview-country data-fv-rule="required,location" /><span asp-validation-for="Country" class="text-danger"></span></label>
             </section>
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-heart-pulse"></i> Emergency Contact</h2>
-                <label><span>Contact Name</span><input asp-for="EmergencyContactName" /><small asp-validation-for="EmergencyContactName"></small></label>
-                <label><span>Phone</span><input asp-for="EmergencyContactPhone" /><small asp-validation-for="EmergencyContactPhone"></small></label>
-                <label><span>Relationship</span><input asp-for="EmergencyContactRelation" /></label>
+                <label><span>Contact Name</span><input asp-for="EmergencyContactName" data-fv-rule="letters" /><span asp-validation-for="EmergencyContactName" class="text-danger"></span></label>
+                <label><span>Phone</span><input asp-for="EmergencyContactPhone" type="tel" inputmode="numeric" data-fv-rule="phone" /><span asp-validation-for="EmergencyContactPhone" class="text-danger"></span></label>
+                <label><span>Relationship</span><input asp-for="EmergencyContactRelation" data-fv-rule="letters" /><span asp-validation-for="EmergencyContactRelation" class="text-danger"></span></label>
             </section>
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-ui-checks-grid"></i> Classification</h2>
                 <label><span>Customer Type *</span><select asp-for="CustomerType" asp-items="Html.GetEnumSelectList<CustomerType>()" data-preview-type></select></label>
                 <label><span>Customer Source *</span><select asp-for="CustomerSource" asp-items="Html.GetEnumSelectList<CustomerSource>()" data-preview-source></select></label>
-                <label data-corporate-field><span>Organization Name</span><input asp-for="OrganizationName" /><small asp-validation-for="OrganizationName"></small></label>
-                <label><span>Occupation</span><input asp-for="Occupation" /></label>
+                <label data-corporate-field><span>Organization Name</span><input asp-for="OrganizationName" data-fv-rule="org" /><span asp-validation-for="OrganizationName" class="text-danger"></span></label>
+                <label><span>Occupation</span><input asp-for="Occupation" data-fv-rule="letters" /><span asp-validation-for="Occupation" class="text-danger"></span></label>
                 <div class="customer-check-list">
                     <span>Preferred Sports</span>
                     @foreach (var sport in Model.AvailableSports)
@@ -79,22 +79,22 @@
                         <label><input type="checkbox" name="SelectedSportCodes" value="@sport.Value" checked="@sport.Selected" data-sport-choice /> @sport.Text</label>
                     }
                 </div>
-                <label><span>Customer Tags</span><input asp-for="CustomerTags" data-tags-input placeholder="family, evening-player" /></label>
+                <label><span>Customer Tags</span><input asp-for="CustomerTags" data-tags-input data-fv-rule="tags" placeholder="family, evening-player" /><span asp-validation-for="CustomerTags" class="text-danger"></span></label>
             </section>
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-person-badge"></i> Membership</h2>
                 <label class="customer-toggle"><input asp-for="IsMember" type="checkbox" data-membership-toggle /> Is Member</label>
-                <label data-membership-field><span>Membership Number</span><input asp-for="MembershipNumber" /><small asp-validation-for="MembershipNumber"></small></label>
-                <label data-membership-field><span>Start Date</span><input asp-for="MembershipStartDate" type="date" /><small asp-validation-for="MembershipStartDate"></small></label>
-                <label data-membership-field><span>Expiry Date</span><input asp-for="MembershipExpiryDate" type="date" /><small asp-validation-for="MembershipExpiryDate"></small></label>
+                <label data-membership-field><span>Membership Number</span><input asp-for="MembershipNumber" data-fv-rule="code" /><span asp-validation-for="MembershipNumber" class="text-danger"></span></label>
+                <label data-membership-field><span>Start Date</span><input asp-for="MembershipStartDate" type="date" /><span asp-validation-for="MembershipStartDate" class="text-danger"></span></label>
+                <label data-membership-field><span>Expiry Date</span><input asp-for="MembershipExpiryDate" type="date" data-fv-rule="before:MembershipStartDate" data-fv-label="the membership start date" /><span asp-validation-for="MembershipExpiryDate" class="text-danger"></span></label>
             </section>
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-wallet2"></i> Credit and Loyalty</h2>
                 <label class="customer-toggle"><input asp-for="AllowCredit" type="checkbox" data-credit-toggle /> Allow Credit</label>
-                <label data-credit-field><span>Credit Limit</span><input asp-for="CreditLimit" type="number" min="0" step="0.01" /><small asp-validation-for="CreditLimit"></small></label>
-                <label><span>Loyalty Points</span><input asp-for="LoyaltyPoints" type="number" min="0" data-preview-loyalty /><small asp-validation-for="LoyaltyPoints"></small></label>
+                <label data-credit-field><span>Credit Limit</span><input asp-for="CreditLimit" type="number" min="0" step="0.01" data-fv-rule="decimal" data-fv-min="0" data-fv-max="999999999" /><span asp-validation-for="CreditLimit" class="text-danger"></span></label>
+                <label><span>Loyalty Points</span><input asp-for="LoyaltyPoints" type="number" min="0" data-preview-loyalty data-fv-rule="int" data-fv-min="0" data-fv-max="2000000000" /><span asp-validation-for="LoyaltyPoints" class="text-danger"></span></label>
                 <label><span>Outstanding Balance</span><input asp-for="OutstandingBalance" readonly /></label>
             </section>
 
@@ -104,12 +104,12 @@
                 <label class="customer-toggle"><input asp-for="ReceiveMarketingMessages" type="checkbox" /> Receive Marketing Messages</label>
                 <label class="customer-toggle"><input asp-for="IsActive" type="checkbox" data-preview-active /> Active Customer</label>
                 <label class="customer-toggle"><input asp-for="IsBlacklisted" type="checkbox" data-blacklist-form-toggle /> Blacklisted</label>
-                <label data-blacklist-field><span>Blacklist Reason</span><textarea asp-for="BlacklistReason"></textarea><small asp-validation-for="BlacklistReason"></small></label>
+                <label data-blacklist-field><span>Blacklist Reason</span><textarea asp-for="BlacklistReason"></textarea><span asp-validation-for="BlacklistReason" class="text-danger"></span></label>
             </section>
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-journal-text"></i> Internal Notes</h2>
-                <label><span>Internal Notes</span><textarea asp-for="InternalNotes" rows="5"></textarea><small asp-validation-for="InternalNotes"></small></label>
+                <label><span>Internal Notes</span><textarea asp-for="InternalNotes" rows="5"></textarea><span asp-validation-for="InternalNotes" class="text-danger"></span></label>
             </section>
         </div>
 
@@ -146,5 +146,5 @@
 </section>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/field-validation.js" asp-append-version="true"></script>
 }

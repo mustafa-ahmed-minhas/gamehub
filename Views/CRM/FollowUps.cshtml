@@ -4,6 +4,7 @@
     ViewData["Title"] = "CRM Follow-ups";
     Layout = "_AdminLayout";
     var now = DateTime.UtcNow;
+    var canComplete = ViewBag.CanCompleteFollowUps as bool? ?? false;
     var dueToday = Model.Count(x => !x.IsCompleted && x.DueAt.Date == now.Date);
     var overdue = Model.Count(x => !x.IsCompleted && x.DueAt < now);
     var upcoming = Model.Count(x => !x.IsCompleted && x.DueAt.Date > now.Date);
@@ -142,16 +143,21 @@
                                                     <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More follow-up actions" data-tooltip="More"><i class="bi bi-three-dots"></i></button>
                                                     <div class="dropdown-menu dropdown-menu-end crm-followup-more-menu">
                                                         <a class="dropdown-item" asp-action="@relatedAction" asp-route-id="@item.ParentId"><i class="bi bi-box-arrow-up-right"></i> Open Record</a>
-                                                        <button class="dropdown-item" type="button" disabled><i class="bi bi-calendar-plus"></i> Reschedule</button>
-                                                        <button class="dropdown-item" type="button" disabled><i class="bi bi-chat-left-text"></i> Add Note</button>
                                                         @if (!item.IsCompleted)
                                                         {
-                                                            <form asp-action="CompleteFollowUp" method="post">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="recordType" value="@item.RecordType" />
-                                                                <input type="hidden" name="activityId" value="@item.ActivityId" />
-                                                                <button class="dropdown-item" type="submit"><i class="bi bi-check2-circle"></i> Mark Complete</button>
-                                                            </form>
+                                                            if (canComplete)
+                                                            {
+                                                                <form asp-action="CompleteFollowUp" method="post">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="recordType" value="@item.RecordType" />
+                                                                    <input type="hidden" name="activityId" value="@item.ActivityId" />
+                                                                    <button class="dropdown-item" type="submit"><i class="bi bi-check2-circle"></i> Mark Complete</button>
+                                                                </form>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="dropdown-item-text crm-followup-readonly"><i class="bi bi-lock"></i> Your role cannot complete follow-ups</span>
+                                                            }
                                                         }
                                                     </div>
                                                 </div>

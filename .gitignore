@@ -543,3 +543,7 @@ wwwroot/uploads/employees/*
 Storage/hr/**
 !Storage/hr/**/
 !Storage/hr/**/.gitkeep
+
+# Ad-hoc local debugging / smoke-test scripts (never part of the deliverable)
+/smoke-*.ps1
+/cleanup-*.sql

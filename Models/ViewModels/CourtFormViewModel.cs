@@ -7,8 +7,12 @@ namespace GameHub.Models.ViewModels
     public class CourtFormViewModel
     {
         public int? Id { get; set; }
-        [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
-        [Required, MaxLength(30)] public string Code { get; set; } = string.Empty;
+        [Required, MaxLength(100)]
+        [RegularExpression(@"^[A-Za-z0-9 \-]+$", ErrorMessage = "Court name can contain letters, numbers, spaces and hyphens only.")]
+        public string Name { get; set; } = string.Empty;
+        [Required, MaxLength(30)]
+        [RegularExpression(@"^[A-Za-z0-9\-]+$", ErrorMessage = "Court code can contain letters, numbers and hyphens only.")]
+        public string Code { get; set; } = string.Empty;
         [Range(1, int.MaxValue, ErrorMessage = "Sport is required.")] public int SportId { get; set; }
         [Range(1, int.MaxValue, ErrorMessage = "Facility is required.")] public int FacilityId { get; set; }
         public CourtStatus Status { get; set; }

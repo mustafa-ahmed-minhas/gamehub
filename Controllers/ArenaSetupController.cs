@@ -63,8 +63,16 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(string.Empty, "Sport code already exists.");
             }
             if (!ModelState.IsValid) return View("SportForm", model);
-            _dbContext.Sports.Add(new Sport { Name = model.Name, Code = model.Code, Description = model.Description, IconClass = model.IconClass, ImageUrl = model.ImageUrl, AccentColor = model.AccentColor, DefaultDurationMinutes = model.DefaultDurationMinutes, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                _dbContext.Sports.Add(new Sport { Name = model.Name, Code = model.Code, Description = model.Description, IconClass = model.IconClass, ImageUrl = model.ImageUrl, AccentColor = model.AccentColor, DefaultDurationMinutes = model.DefaultDurationMinutes, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("SportForm", model);
+            }
             TempData.SetToast("success", "Success", "Sport created successfully.");
             return RedirectToAction(nameof(Index), new { tab = "sports" });
         }
@@ -94,7 +102,15 @@ namespace GameHub.Controllers
             if (item.IsActive && !model.IsActive && await _dbContext.Courts.AnyAsync(x => x.SportId == id && x.IsActive)) ModelState.AddModelError(string.Empty, "Cannot deactivate a sport while active courts depend on it.");
             if (!ModelState.IsValid) return View("SportForm", model);
             item.Name = model.Name; item.Code = model.Code; item.Description = model.Description; item.IconClass = model.IconClass; item.ImageUrl = model.ImageUrl; item.AccentColor = model.AccentColor; item.DefaultDurationMinutes = model.DefaultDurationMinutes; item.DisplayOrder = model.DisplayOrder; item.IsActive = model.IsActive; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("SportForm", model);
+            }
             TempData.SetToast("success", "Success", "Sport updated successfully.");
             return RedirectToAction(nameof(SportDetails), new { id });
         }
@@ -120,8 +136,16 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(string.Empty, "Facility code already exists.");
             }
             if (!ModelState.IsValid) return View("FacilityForm", model);
-            _dbContext.Facilities.Add(new Facility { Name = model.Name, Code = model.Code, Description = model.Description, Type = model.Type, LocationLabel = model.LocationLabel, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                _dbContext.Facilities.Add(new Facility { Name = model.Name, Code = model.Code, Description = model.Description, Type = model.Type, LocationLabel = model.LocationLabel, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("FacilityForm", model);
+            }
             TempData.SetToast("success", "Success", "Facility created successfully.");
             return RedirectToAction(nameof(Index), new { tab = "facilities" });
         }
@@ -151,7 +175,15 @@ namespace GameHub.Controllers
             if (item.IsActive && !model.IsActive && await _dbContext.Courts.AnyAsync(x => x.FacilityId == id && x.IsActive)) ModelState.AddModelError(string.Empty, "Cannot deactivate a facility while active courts depend on it.");
             if (!ModelState.IsValid) return View("FacilityForm", model);
             item.Name = model.Name; item.Code = model.Code; item.Description = model.Description; item.Type = model.Type; item.LocationLabel = model.LocationLabel; item.DisplayOrder = model.DisplayOrder; item.IsActive = model.IsActive; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("FacilityForm", model);
+            }
             TempData.SetToast("success", "Success", "Facility updated successfully.");
             return RedirectToAction(nameof(FacilityDetails), new { id });
         }
@@ -180,9 +212,19 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.Code), "Court code already exists.");
                 ModelState.AddModelError(string.Empty, "Court code already exists.");
             }
+            if (!await _dbContext.Sports.AnyAsync(x => x.Id == model.SportId)) ModelState.AddModelError(nameof(model.SportId), "The selected sport no longer exists.");
+            if (!await _dbContext.Facilities.AnyAsync(x => x.Id == model.FacilityId)) ModelState.AddModelError(nameof(model.FacilityId), "The selected facility no longer exists.");
             if (!ModelState.IsValid) return View("CourtForm", await AddCourtOptionsAsync(model));
-            _dbContext.Courts.Add(new Court { Name = model.Name, Code = model.Code, SportId = model.SportId, FacilityId = model.FacilityId, Status = model.Status, Description = model.Description, Capacity = model.Capacity, ImageUrl = model.ImageUrl, Notes = model.Notes, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                _dbContext.Courts.Add(new Court { Name = model.Name, Code = model.Code, SportId = model.SportId, FacilityId = model.FacilityId, Status = model.Status, Description = model.Description, Capacity = model.Capacity, ImageUrl = model.ImageUrl, Notes = model.Notes, DisplayOrder = model.DisplayOrder, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("CourtForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Court created successfully.");
             return RedirectToAction(nameof(Index), new { tab = "courts" });
         }
@@ -207,11 +249,22 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.Code), "Court code already exists.");
                 ModelState.AddModelError(string.Empty, "Court code already exists.");
             }
+            if (!await _dbContext.Sports.AnyAsync(x => x.Id == model.SportId)) ModelState.AddModelError(nameof(model.SportId), "The selected sport no longer exists.");
+            if (!await _dbContext.Facilities.AnyAsync(x => x.Id == model.FacilityId)) ModelState.AddModelError(nameof(model.FacilityId), "The selected facility no longer exists.");
             var item = await _dbContext.Courts.FindAsync(id);
             if (item == null) return NotFound();
+            if (item.IsActive && !model.IsActive && await CourtHasActiveDependenciesAsync(id)) ModelState.AddModelError(string.Empty, "Cannot deactivate this court while it still has active pricing rules or schedules.");
             if (!ModelState.IsValid) return View("CourtForm", await AddCourtOptionsAsync(model));
             item.Name = model.Name; item.Code = model.Code; item.SportId = model.SportId; item.FacilityId = model.FacilityId; item.Status = model.Status; item.Description = model.Description; item.Capacity = model.Capacity; item.ImageUrl = model.ImageUrl; item.Notes = model.Notes; item.DisplayOrder = model.DisplayOrder; item.IsActive = model.IsActive; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("CourtForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Court updated successfully.");
             return RedirectToAction(nameof(CourtDetails), new { id });
         }
@@ -230,10 +283,19 @@ namespace GameHub.Controllers
         {
             if (EnsureCanManage() is IActionResult blocked) return blocked;
             NormalizePricing(model);
+            if (!await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "The selected court no longer exists.");
             if (await PricingDuplicateAsync(model)) ModelState.AddModelError(string.Empty, "Duplicate pricing rule already exists for this court and time range.");
             if (!ModelState.IsValid) return View("PricingForm", await AddCourtOptionsAsync(model));
-            _dbContext.CourtPricings.Add(new CourtPricing { CourtId = model.CourtId, Name = model.Name, DayOfWeek = model.DayOfWeek, StartTime = model.StartTime, EndTime = model.EndTime, DurationMinutes = model.DurationMinutes, Price = model.Price, IsPeakRate = model.IsPeakRate, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                _dbContext.CourtPricings.Add(new CourtPricing { CourtId = model.CourtId, Name = model.Name, DayOfWeek = model.DayOfWeek, StartTime = model.StartTime, EndTime = model.EndTime, DurationMinutes = model.DurationMinutes, Price = model.Price, IsPeakRate = model.IsPeakRate, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("PricingForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Pricing rule created successfully.");
             return RedirectToAction(nameof(Index), new { tab = "pricing" });
         }
@@ -253,12 +315,21 @@ namespace GameHub.Controllers
             if (EnsureCanManage() is IActionResult blocked) return blocked;
             if (model.Id != id) return NotFound();
             NormalizePricing(model);
+            if (!await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "The selected court no longer exists.");
             if (await PricingDuplicateAsync(model, id)) ModelState.AddModelError(string.Empty, "Duplicate pricing rule already exists for this court and time range.");
             var item = await _dbContext.CourtPricings.FindAsync(id);
             if (item == null) return NotFound();
             if (!ModelState.IsValid) return View("PricingForm", await AddCourtOptionsAsync(model));
             item.CourtId = model.CourtId; item.Name = model.Name; item.DayOfWeek = model.DayOfWeek; item.StartTime = model.StartTime; item.EndTime = model.EndTime; item.DurationMinutes = model.DurationMinutes; item.Price = model.Price; item.IsPeakRate = model.IsPeakRate; item.IsActive = model.IsActive; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("PricingForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Pricing rule updated successfully.");
             return RedirectToAction(nameof(PricingDetails), new { id });
         }
@@ -276,10 +347,19 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CreateSchedule(CourtScheduleFormViewModel model)
         {
             if (EnsureCanManage() is IActionResult blocked) return blocked;
+            if (!await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "The selected court no longer exists.");
             if (await ScheduleDuplicateAsync(model)) ModelState.AddModelError(string.Empty, "One active schedule already exists for this court and day.");
             if (!ModelState.IsValid) return View("ScheduleForm", await AddCourtOptionsAsync(model));
-            _dbContext.CourtSchedules.Add(new CourtSchedule { CourtId = model.CourtId, DayOfWeek = model.DayOfWeek, OpeningTime = model.OpeningTime, ClosingTime = model.ClosingTime, IsClosed = model.IsClosed, SlotDurationMinutes = model.SlotDurationMinutes, BufferMinutes = model.BufferMinutes, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                _dbContext.CourtSchedules.Add(new CourtSchedule { CourtId = model.CourtId, DayOfWeek = model.DayOfWeek, OpeningTime = model.OpeningTime, ClosingTime = model.ClosingTime, IsClosed = model.IsClosed, SlotDurationMinutes = model.SlotDurationMinutes, BufferMinutes = model.BufferMinutes, IsActive = model.IsActive, CreatedAt = DateTime.UtcNow });
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("ScheduleForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Schedule created successfully.");
             return RedirectToAction(nameof(Index), new { tab = "schedules" });
         }
@@ -298,12 +378,21 @@ namespace GameHub.Controllers
         {
             if (EnsureCanManage() is IActionResult blocked) return blocked;
             if (model.Id != id) return NotFound();
+            if (!await _dbContext.Courts.AnyAsync(x => x.Id == model.CourtId)) ModelState.AddModelError(nameof(model.CourtId), "The selected court no longer exists.");
             if (await ScheduleDuplicateAsync(model, id)) ModelState.AddModelError(string.Empty, "One active schedule already exists for this court and day.");
             var item = await _dbContext.CourtSchedules.FindAsync(id);
             if (item == null) return NotFound();
             if (!ModelState.IsValid) return View("ScheduleForm", await AddCourtOptionsAsync(model));
             item.CourtId = model.CourtId; item.DayOfWeek = model.DayOfWeek; item.OpeningTime = model.OpeningTime; item.ClosingTime = model.ClosingTime; item.IsClosed = model.IsClosed; item.SlotDurationMinutes = model.SlotDurationMinutes; item.BufferMinutes = model.BufferMinutes; item.IsActive = model.IsActive; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                ModelState.AddModelError(string.Empty, DescribeDbError(ex));
+                return View("ScheduleForm", await AddCourtOptionsAsync(model));
+            }
             TempData.SetToast("success", "Success", "Schedule updated successfully.");
             return RedirectToAction(nameof(ScheduleDetails), new { id });
         }
@@ -324,11 +413,18 @@ namespace GameHub.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateCourtOperationalStatus(int id, CourtStatus status)
         {
-            if (EnsureCanManage() is IActionResult blocked) return blocked;
+            if (EnsureCanManage() is IActionResult blocked) return Json(new { success = false, message = "You do not have permission to change court status." });
             var item = await _dbContext.Courts.FindAsync(id);
             if (item == null) return Json(new { success = false, message = "Court not found." });
             item.Status = status; item.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                return Json(new { success = false, message = DescribeDbError(ex) });
+            }
             return Json(new { success = true, message = "Court operational status updated.", statusText = status.ToString() });
         }
 
@@ -342,9 +438,22 @@ namespace GameHub.Controllers
             var newValue = !(bool)activeProp.GetValue(item)!;
             if (typeof(T) == typeof(Sport) && !newValue && await _dbContext.Courts.AnyAsync(x => x.SportId == id && x.IsActive)) return Json(new { success = false, message = "Cannot deactivate sport while active courts depend on it." });
             if (typeof(T) == typeof(Facility) && !newValue && await _dbContext.Courts.AnyAsync(x => x.FacilityId == id && x.IsActive)) return Json(new { success = false, message = "Cannot deactivate facility while active courts depend on it." });
+            if (typeof(T) == typeof(Court) && !newValue && await CourtHasActiveDependenciesAsync(id)) return Json(new { success = false, message = "Cannot deactivate this court while it still has active pricing rules or schedules." });
+            if (typeof(T) == typeof(CourtSchedule) && newValue && item is CourtSchedule schedule)
+            {
+                var conflict = await _dbContext.CourtSchedules.AnyAsync(x => x.Id != schedule.Id && x.CourtId == schedule.CourtId && x.DayOfWeek == schedule.DayOfWeek && x.IsActive);
+                if (conflict) return Json(new { success = false, message = "An active schedule already exists for this court and day." });
+            }
             activeProp.SetValue(item, newValue);
             updatedProp?.SetValue(item, DateTime.UtcNow);
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                return Json(new { success = false, message = DescribeDbError(ex) });
+            }
             return Json(new { success = true, isActive = newValue, statusText = newValue ? "Active" : "Inactive", message = $"{label} {(newValue ? "activated" : "deactivated")} successfully." });
         }
 
@@ -369,6 +478,7 @@ namespace GameHub.Controllers
             q = ApplyActiveFilter(q, model.StatusFilter);
             q = model.SortBy == "name" ? q.OrderBy(x => x.Name) : q.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name);
             model.TotalRecords = await q.CountAsync(); model.TotalPages = Pages(model.TotalRecords, model.PageSize);
+            model.CurrentPage = Math.Min(model.CurrentPage, model.TotalPages);
             model.Sports = await q.Skip((model.CurrentPage - 1) * model.PageSize).Take(model.PageSize).Select(x => new SportListItemViewModel { Id = x.Id, Name = x.Name, Code = x.Code, IconClass = x.IconClass, AccentColor = x.AccentColor, DefaultDurationMinutes = x.DefaultDurationMinutes, DisplayOrder = x.DisplayOrder, CourtCount = x.Courts.Count, IsActive = x.IsActive }).ToListAsync();
         }
 
@@ -377,8 +487,10 @@ namespace GameHub.Controllers
             var q = _dbContext.Facilities.AsNoTracking().Include(x => x.Courts).AsQueryable();
             if (!string.IsNullOrWhiteSpace(model.Search)) q = q.Where(x => x.Name.Contains(model.Search) || x.Code.Contains(model.Search) || (x.LocationLabel != null && x.LocationLabel.Contains(model.Search)));
             if (Enum.TryParse<FacilityType>(model.Type, out var type)) q = q.Where(x => x.Type == type);
-            q = ApplyActiveFilter(q, model.StatusFilter).OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name);
+            q = ApplyActiveFilter(q, model.StatusFilter);
+            q = model.SortBy == "name" ? q.OrderBy(x => x.Name) : q.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name);
             model.TotalRecords = await q.CountAsync(); model.TotalPages = Pages(model.TotalRecords, model.PageSize);
+            model.CurrentPage = Math.Min(model.CurrentPage, model.TotalPages);
             model.Facilities = await q.Skip((model.CurrentPage - 1) * model.PageSize).Take(model.PageSize).Select(x => new FacilityListItemViewModel { Id = x.Id, Name = x.Name, Code = x.Code, Type = x.Type, LocationLabel = x.LocationLabel, CourtCount = x.Courts.Count, IsActive = x.IsActive }).ToListAsync();
         }
 
@@ -389,8 +501,10 @@ namespace GameHub.Controllers
             if (model.SportId.HasValue) q = q.Where(x => x.SportId == model.SportId);
             if (model.FacilityId.HasValue) q = q.Where(x => x.FacilityId == model.FacilityId);
             if (Enum.TryParse<CourtStatus>(model.OperationalStatus, out var status)) q = q.Where(x => x.Status == status);
-            q = ApplyActiveFilter(q, model.StatusFilter).OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name);
+            q = ApplyActiveFilter(q, model.StatusFilter);
+            q = model.SortBy == "name" ? q.OrderBy(x => x.Name) : q.OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name);
             model.TotalRecords = await q.CountAsync(); model.TotalPages = Pages(model.TotalRecords, model.PageSize);
+            model.CurrentPage = Math.Min(model.CurrentPage, model.TotalPages);
             model.Courts = await q.Skip((model.CurrentPage - 1) * model.PageSize).Take(model.PageSize).Select(x => new CourtListItemViewModel { Id = x.Id, Name = x.Name, Code = x.Code, SportName = x.Sport.Name, FacilityName = x.Facility.Name, Status = x.Status, Capacity = x.Capacity, PricingCount = x.Pricings.Count, IsActive = x.IsActive }).ToListAsync();
         }
 
@@ -402,19 +516,30 @@ namespace GameHub.Controllers
             if (model.SportId.HasValue) q = q.Where(x => x.Court.SportId == model.SportId);
             if (Enum.TryParse<DayOfWeek>(model.Day, out var day)) q = q.Where(x => x.DayOfWeek == day);
             if (model.Type == "peak") q = q.Where(x => x.IsPeakRate); else if (model.Type == "standard") q = q.Where(x => !x.IsPeakRate);
-            q = ApplyActiveFilter(q, model.StatusFilter).OrderBy(x => x.Court.Name).ThenBy(x => x.StartTime);
+            q = ApplyActiveFilter(q, model.StatusFilter);
+            q = model.SortBy switch
+            {
+                "price" => q.OrderBy(x => x.Price).ThenBy(x => x.Court.Name),
+                "priceDesc" => q.OrderByDescending(x => x.Price).ThenBy(x => x.Court.Name),
+                "name" => q.OrderBy(x => x.Name).ThenBy(x => x.Court.Name),
+                _ => q.OrderBy(x => x.Court.Name).ThenBy(x => x.StartTime)
+            };
             model.TotalRecords = await q.CountAsync(); model.TotalPages = Pages(model.TotalRecords, model.PageSize);
+            model.CurrentPage = Math.Min(model.CurrentPage, model.TotalPages);
             model.Pricings = await q.Skip((model.CurrentPage - 1) * model.PageSize).Take(model.PageSize).Select(x => new PricingListItemViewModel { Id = x.Id, Name = x.Name, CourtName = x.Court.Name, SportName = x.Court.Sport.Name, DayOfWeek = x.DayOfWeek, StartTime = x.StartTime, EndTime = x.EndTime, DurationMinutes = x.DurationMinutes, Price = x.Price, IsPeakRate = x.IsPeakRate, IsActive = x.IsActive }).ToListAsync();
         }
 
         private async Task LoadSchedulesAsync(ArenaSetupViewModel model)
         {
             var q = _dbContext.CourtSchedules.AsNoTracking().Include(x => x.Court).ThenInclude(x => x.Sport).AsQueryable();
+            if (!string.IsNullOrWhiteSpace(model.Search)) q = q.Where(x => x.Court.Name.Contains(model.Search) || x.Court.Sport.Name.Contains(model.Search));
             if (model.CourtId.HasValue) q = q.Where(x => x.CourtId == model.CourtId);
             if (model.SportId.HasValue) q = q.Where(x => x.Court.SportId == model.SportId);
             if (Enum.TryParse<DayOfWeek>(model.Day, out var day)) q = q.Where(x => x.DayOfWeek == day);
-            q = ApplyActiveFilter(q, model.StatusFilter).OrderBy(x => x.Court.Name).ThenBy(x => x.DayOfWeek);
+            q = ApplyActiveFilter(q, model.StatusFilter);
+            q = model.SortBy == "day" ? q.OrderBy(x => x.DayOfWeek).ThenBy(x => x.Court.Name) : q.OrderBy(x => x.Court.Name).ThenBy(x => x.DayOfWeek);
             model.TotalRecords = await q.CountAsync(); model.TotalPages = Pages(model.TotalRecords, model.PageSize);
+            model.CurrentPage = Math.Min(model.CurrentPage, model.TotalPages);
             model.Schedules = await q.Skip((model.CurrentPage - 1) * model.PageSize).Take(model.PageSize).Select(x => new ScheduleListItemViewModel { Id = x.Id, CourtName = x.Court.Name, SportName = x.Court.Sport.Name, DayOfWeek = x.DayOfWeek, OpeningTime = x.OpeningTime, ClosingTime = x.ClosingTime, IsClosed = x.IsClosed, SlotDurationMinutes = x.SlotDurationMinutes, BufferMinutes = x.BufferMinutes, IsActive = x.IsActive }).ToListAsync();
         }
 
@@ -428,17 +553,82 @@ namespace GameHub.Controllers
         private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role != UserRole.Viewer;
         private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
         private static int Pages(int total, int size) => total == 0 ? 1 : (int)Math.Ceiling(total / (double)size);
+
+        private async Task<bool> CourtHasActiveDependenciesAsync(int courtId) =>
+            await _dbContext.CourtPricings.AnyAsync(x => x.CourtId == courtId && x.IsActive) ||
+            await _dbContext.CourtSchedules.AnyAsync(x => x.CourtId == courtId && x.IsActive);
+
+        private static string DescribeDbError(DbUpdateException exception)
+        {
+            var detail = exception.InnerException?.Message ?? exception.Message;
+            if (detail.Contains("duplicate", StringComparison.OrdinalIgnoreCase) || detail.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase))
+            {
+                return "A record with the same unique values already exists. Please review the code and other unique fields.";
+            }
+
+            if (detail.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase) || detail.Contains("REFERENCE constraint", StringComparison.OrdinalIgnoreCase))
+            {
+                return "A related record selected for this entry no longer exists. Please refresh and try again.";
+            }
+
+            return "The record could not be saved because it conflicts with existing data. Please review your input and try again.";
+        }
+
         private static string NormalizeTab(string? tab)
         {
             var normalized = tab?.ToLowerInvariant();
             return new[] { "sports", "facilities", "courts", "pricing", "schedules" }.Contains(normalized) ? normalized! : "sports";
         }
-        private async Task<IReadOnlyList<SelectListItem>> SportOptionsAsync() => await _dbContext.Sports.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
-        private async Task<IReadOnlyList<SelectListItem>> FacilityOptionsAsync() => await _dbContext.Facilities.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
-        private async Task<IReadOnlyList<SelectListItem>> CourtOptionsAsync() => await _dbContext.Courts.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
-        private async Task<CourtFormViewModel> AddCourtOptionsAsync(CourtFormViewModel model) { model.SportOptions = await SportOptionsAsync(); model.FacilityOptions = await FacilityOptionsAsync(); return model; }
-        private async Task<CourtPricingFormViewModel> AddCourtOptionsAsync(CourtPricingFormViewModel model) { model.CourtOptions = await CourtOptionsAsync(); return model; }
-        private async Task<CourtScheduleFormViewModel> AddCourtOptionsAsync(CourtScheduleFormViewModel model) { model.CourtOptions = await CourtOptionsAsync(); return model; }
+
+        private async Task<IReadOnlyList<SelectListItem>> SportOptionsAsync(int? includeId = null)
+        {
+            var items = await _dbContext.Sports.AsNoTracking()
+                .Where(x => x.IsActive || (includeId.HasValue && x.Id == includeId.Value))
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.Id, x.Name, x.IsActive })
+                .ToListAsync();
+            return items.Select(x => new SelectListItem(x.IsActive ? x.Name : $"{x.Name} (Inactive)", x.Id.ToString())).ToList();
+        }
+
+        private async Task<IReadOnlyList<SelectListItem>> FacilityOptionsAsync(int? includeId = null)
+        {
+            var items = await _dbContext.Facilities.AsNoTracking()
+                .Where(x => x.IsActive || (includeId.HasValue && x.Id == includeId.Value))
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.Id, x.Name, x.IsActive })
+                .ToListAsync();
+            return items.Select(x => new SelectListItem(x.IsActive ? x.Name : $"{x.Name} (Inactive)", x.Id.ToString())).ToList();
+        }
+
+        private async Task<IReadOnlyList<SelectListItem>> CourtOptionsAsync(int? includeId = null)
+        {
+            var items = await _dbContext.Courts.AsNoTracking()
+                .Where(x => x.IsActive || (includeId.HasValue && x.Id == includeId.Value))
+                .OrderBy(x => x.Name)
+                .Select(x => new { x.Id, x.Name, x.IsActive })
+                .ToListAsync();
+            return items.Select(x => new SelectListItem(x.IsActive ? x.Name : $"{x.Name} (Inactive)", x.Id.ToString())).ToList();
+        }
+
+        private async Task<CourtFormViewModel> AddCourtOptionsAsync(CourtFormViewModel model)
+        {
+            model.SportOptions = await SportOptionsAsync(model.SportId > 0 ? model.SportId : null);
+            model.FacilityOptions = await FacilityOptionsAsync(model.FacilityId > 0 ? model.FacilityId : null);
+            return model;
+        }
+
+        private async Task<CourtPricingFormViewModel> AddCourtOptionsAsync(CourtPricingFormViewModel model)
+        {
+            model.CourtOptions = await CourtOptionsAsync(model.CourtId > 0 ? model.CourtId : null);
+            return model;
+        }
+
+        private async Task<CourtScheduleFormViewModel> AddCourtOptionsAsync(CourtScheduleFormViewModel model)
+        {
+            model.CourtOptions = await CourtOptionsAsync(model.CourtId > 0 ? model.CourtId : null);
+            return model;
+        }
+
         private static string? Clean(string? value, bool upper = false) { value = string.IsNullOrWhiteSpace(value) ? null : value.Trim(); return upper ? value?.ToUpperInvariant() : value; }
         private static void NormalizeSport(SportFormViewModel m) { m.Name = Clean(m.Name)!; m.Code = Clean(m.Code, true)!; m.Description = Clean(m.Description); m.IconClass = Clean(m.IconClass); m.ImageUrl = Clean(m.ImageUrl); m.AccentColor = Clean(m.AccentColor); }
         private static void NormalizeFacility(FacilityFormViewModel m) { m.Name = Clean(m.Name)!; m.Code = Clean(m.Code, true)!; m.Description = Clean(m.Description); m.LocationLabel = Clean(m.LocationLabel); }

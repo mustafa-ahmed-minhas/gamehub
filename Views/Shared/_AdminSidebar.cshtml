@@ -11,7 +11,11 @@
     bool On(string name) => string.Equals(controller, name, StringComparison.OrdinalIgnoreCase);
     bool Arena(string value) => On("ArenaSetup") && string.Equals(tab, value, StringComparison.OrdinalIgnoreCase);
     bool Crm(string value) => On("CRM") && string.Equals(tab, value, StringComparison.OrdinalIgnoreCase);
+    // The Sales helper is referenced only by the temporarily-hidden Sales section below.
+    // Keep it (and suppress "declared but never used") so that section can be re-enabled as-is.
+#pragma warning disable CS8321
     bool Sales(string value) => On("Sales") && string.Equals(tab, value, StringComparison.OrdinalIgnoreCase);
+#pragma warning restore CS8321
 
     // A section renders expanded when it contains the currently active page.
     bool DashboardActive = On("Dashboard");
@@ -87,6 +91,7 @@
             </section>
         }
 
+        @* TEMPORARILY HIDDEN - Sales section. Remove these comment markers to restore it.
         @if (Can("Sales") || Can("Invoices") || Can("Payments"))
         {
             <section class="@GroupClass(SalesActive)" data-nav-group>
@@ -113,7 +118,9 @@
                 </div>
             </section>
         }
+        *@
 
+        @* TEMPORARILY HIDDEN - Operations section. Remove these comment markers to restore it.
         @if (Can("Bookings") || Can("Memberships"))
         {
             <section class="@GroupClass(OperationsActive)" data-nav-group>
@@ -135,7 +142,9 @@
                 </div>
             </section>
         }
+        *@
 
+        @* TEMPORARILY HIDDEN - HR section. Remove these comment markers to restore it.
         @if (Can("HR"))
         {
             <section class="@GroupClass(HrActive)" data-nav-group>
@@ -156,6 +165,7 @@
                 </div>
             </section>
         }
+        *@
 
         @if (Can("Users") || Can("Settings"))
         {
@@ -168,8 +178,7 @@
                     <div class="admin-nav-group-inner">
                         @if (Can("Users"))
                         {
-                            <a class="admin-nav-link @(On("Users") && !string.Equals(Context.Request.Query["section"], "roles", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="Users" asp-action="Index"><i class="bi bi-person-gear"></i><span>Users</span></a>
-                            <a class="admin-nav-link @(On("Users") && string.Equals(Context.Request.Query["section"], "roles", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="Users" asp-action="Index" asp-route-section="roles"><i class="bi bi-shield-check"></i><span>Roles</span></a>
+                            <a class="admin-nav-link @(On("Users") ? "active" : "")" asp-controller="Users" asp-action="Index"><i class="bi bi-person-gear"></i><span>Users</span></a>
                         }
                         @if (Can("Settings"))
                         {
@@ -180,6 +189,7 @@
             </section>
         }
 
+        @* TEMPORARILY HIDDEN - Reports section. Remove these comment markers to restore it.
         @if (Can("Reports"))
         {
             <section class="@GroupClass(ReportsActive)" data-nav-group>
@@ -194,6 +204,7 @@
                 </div>
             </section>
         }
+        *@
 
     </nav>
     <div class="admin-profile-block"><div class="admin-avatar">@initials</div><div class="admin-profile-text"><strong>@name</strong><span class="admin-role-badge">@role</span></div><form asp-controller="Auth" asp-action="Logout" method="post" class="admin-sidebar-logout">@Html.AntiForgeryToken()<button type="submit" class="icon-button" title="Sign Out" aria-label="Sign Out"><i class="bi bi-box-arrow-right"></i></button></form></div>

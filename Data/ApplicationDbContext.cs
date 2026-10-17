@@ -72,6 +72,9 @@ namespace GameHub.Data
                 entity.HasIndex(user => user.PhoneNumber)
                     .IsUnique()
                     .HasFilter("[PhoneNumber] IS NOT NULL");
+                entity.HasIndex(user => user.CnicNumber)
+                    .IsUnique()
+                    .HasFilter("[CnicNumber] IS NOT NULL");
 
                 entity.Property(user => user.FirstName)
                     .IsRequired()
@@ -87,6 +90,22 @@ namespace GameHub.Data
 
                 entity.Property(user => user.PhoneNumber)
                     .HasMaxLength(20);
+
+                entity.Property(user => user.CnicNumber)
+                    .HasMaxLength(20);
+
+                entity.Property(user => user.Gender)
+                    .HasConversion<string>()
+                    .HasMaxLength(30);
+
+                entity.Property(user => user.Address)
+                    .HasMaxLength(500);
+
+                entity.Property(user => user.Department)
+                    .HasMaxLength(80);
+
+                entity.Property(user => user.Designation)
+                    .HasMaxLength(100);
 
                 entity.Property(user => user.PasswordHash)
                     .IsRequired();
@@ -227,7 +246,8 @@ namespace GameHub.Data
                 entity.Property(pricing => pricing.Name).IsRequired().HasMaxLength(100);
                 entity.Property(pricing => pricing.Price).HasPrecision(10, 2);
                 entity.HasIndex(pricing => new { pricing.CourtId, pricing.DayOfWeek, pricing.StartTime, pricing.EndTime, pricing.DurationMinutes })
-                    .IsUnique();
+                    .IsUnique()
+                    .HasFilter("[DayOfWeek] IS NOT NULL");
                 entity.HasOne(pricing => pricing.Court)
                     .WithMany(court => court.Pricings)
                     .HasForeignKey(pricing => pricing.CourtId)

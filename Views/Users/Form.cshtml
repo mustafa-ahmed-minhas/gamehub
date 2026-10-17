@@ -18,7 +18,7 @@
     </div>
 
     <div class="user-form-grid">
-        <form class="users-form-card admin-reveal" method="post" asp-controller="Users" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" novalidate>
+        <form class="users-form-card admin-reveal" method="post" asp-controller="Users" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" novalidate data-user-form-element>
             @Html.AntiForgeryToken()
             <input asp-for="Id" type="hidden" />
             <input asp-for="ExistingProfileImageUrl" type="hidden" />
@@ -30,28 +30,94 @@
                 <div class="form-grid-two">
                     <div class="premium-field">
                         <label asp-for="FirstName">First Name <span>*</span></label>
-                        <div><i class="bi bi-person"></i><input asp-for="FirstName" data-preview-first placeholder="Mustafa" /></div>
+                        <div><i class="bi bi-person"></i><input asp-for="FirstName" data-preview-first data-name-input placeholder="Mustafa" /></div>
+                        <small>Letters and spaces only.</small>
                         <span asp-validation-for="FirstName" class="text-danger"></span>
                     </div>
                     <div class="premium-field">
                         <label asp-for="LastName">Last Name <span>*</span></label>
-                        <div><i class="bi bi-person"></i><input asp-for="LastName" data-preview-last placeholder="Ahmed" /></div>
+                        <div><i class="bi bi-person"></i><input asp-for="LastName" data-preview-last data-name-input placeholder="Ahmed" /></div>
+                        <small>Letters and spaces only.</small>
                         <span asp-validation-for="LastName" class="text-danger"></span>
                     </div>
                 </div>
                 <div class="form-grid-two">
                     <div class="premium-field">
                         <label asp-for="Email">Email Address <span>*</span></label>
-                        <div><i class="bi bi-envelope"></i><input asp-for="Email" data-preview-email data-email-check placeholder="email@gamehub.pk" /></div>
-                        <small data-email-message>Use a unique email address.</small>
+                        <div><i class="bi bi-envelope"></i><input asp-for="Email" data-preview-email data-email-check placeholder="email@gamehub.com" /></div>
+                        <small data-email-message>Use a unique email address ending with .com.</small>
                         <span asp-validation-for="Email" class="text-danger"></span>
                     </div>
                     <div class="premium-field">
-                        <label asp-for="PhoneNumber">Phone Number</label>
-                        <div><i class="bi bi-telephone"></i><input asp-for="PhoneNumber" data-preview-phone placeholder="0300-0000000" /></div>
-                        <small>Optional Pakistani or international format.</small>
+                        <label asp-for="PhoneNumber">Phone Number <span>*</span></label>
+                        <div><i class="bi bi-telephone"></i><input asp-for="PhoneNumber" data-preview-phone data-phone-input inputmode="numeric" maxlength="11" placeholder="03001234567" /></div>
+                        <small>Exactly 11 digits and must start with 0.</small>
                         <span asp-validation-for="PhoneNumber" class="text-danger"></span>
                     </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend><i class="bi bi-card-list"></i> Additional Details</legend>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="CnicNumber">CNIC <span>*</span></label>
+                        <div><i class="bi bi-card-text"></i><input asp-for="CnicNumber" data-cnic-input inputmode="numeric" maxlength="13" placeholder="3520212345678" /></div>
+                        <small>Exactly 13 digits, without hyphens.</small>
+                        <span asp-validation-for="CnicNumber" class="text-danger"></span>
+                    </div>
+                    <div class="premium-field">
+                        <label asp-for="Gender">Gender <span>*</span></label>
+                        <div><i class="bi bi-gender-ambiguous"></i><select asp-for="Gender">
+                            <option value="">Select gender</option>
+                            @foreach (Gender gender in Enum.GetValues<Gender>())
+                            {
+                                <option value="@gender">@gender.GetDisplayName()</option>
+                            }
+                        </select></div>
+                        <small>Used for internal records only.</small>
+                        <span asp-validation-for="Gender" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="DateOfBirth">Date of Birth <span>*</span></label>
+                        <div><i class="bi bi-calendar-event"></i><input asp-for="DateOfBirth" type="date" max="@DateTime.UtcNow.ToString("yyyy-MM-dd")" /></div>
+                        <small>Date of birth cannot be in the future.</small>
+                        <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+                    </div>
+                    <div class="premium-field">
+                        <label asp-for="Department">Department <span>*</span></label>
+                        <div><i class="bi bi-diagram-3"></i><select asp-for="Department">
+                            <option value="">Select department</option>
+                            @foreach (var department in HRLists.Departments)
+                            {
+                                <option value="@department">@department</option>
+                            }
+                        </select></div>
+                        <small>Choose the department this user belongs to.</small>
+                        <span asp-validation-for="Department" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="form-grid-two">
+                    <div class="premium-field">
+                        <label asp-for="Designation">Designation <span>*</span></label>
+                        <div><i class="bi bi-briefcase"></i><input asp-for="Designation" list="designationOptions" placeholder="e.g., Accountant" /></div>
+                        <datalist id="designationOptions">
+                            @foreach (var designation in HRLists.Designations)
+                            {
+                                <option value="@designation"></option>
+                            }
+                        </datalist>
+                        <small>Pick a suggestion or type a custom designation.</small>
+                        <span asp-validation-for="Designation" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="premium-field">
+                    <label asp-for="Address">Address <span>*</span></label>
+                    <textarea asp-for="Address" rows="3" maxlength="500" placeholder="House / Street, Area, City"></textarea>
+                    <small>Complete residential address.</small>
+                    <span asp-validation-for="Address" class="text-danger"></span>
                 </div>
             </fieldset>
 
@@ -70,9 +136,9 @@
                         <span asp-validation-for="Role" class="text-danger"></span>
                     </div>
                     <div class="premium-toggle-field">
-                        <label>Active User</label>
+                        <label>Account Status</label>
                         <input asp-for="IsActive" data-preview-status />
-                        <span>This user can access ERP once authentication is connected.</span>
+                        <span>Toggle between Active and Inactive. Active users can access the ERP.</span>
                     </div>
                 </div>
             </fieldset>
@@ -127,8 +193,9 @@
             <article class="user-preview-card">
                 <span class="user-avatar large" data-preview-initials>NU</span>
                 <h2 data-preview-name>New User</h2>
-                <p data-preview-email-text>email@gamehub.pk</p>
+                <p data-preview-email-text>email@gamehub.com</p>
                 <p data-preview-phone-text>Phone not provided</p>
+                <p data-preview-designation-text>Designation not set</p>
                 <span class="role-badge" data-preview-role-text>Select a role</span>
                 <span class="user-status-badge active" data-preview-status-text><i></i><span>Active</span></span>
             </article>

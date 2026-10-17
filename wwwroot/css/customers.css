@@ -1118,3 +1118,9 @@
         width: 100%;
     }
 }
+
+
+/* ---- Field validation message placement (server + client) ---- */
+.customer-form-card label > span[data-valmsg-for]:empty {
+    display: none;
+}

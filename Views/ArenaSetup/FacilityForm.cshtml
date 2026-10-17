@@ -2,15 +2,15 @@
 @{ ViewData["Title"] = Model.IsEditMode ? "Edit Facility" : "Create Facility"; Layout = "_AdminLayout"; }
 <section class="arena-form-page" data-arena-form>
     <div class="arena-header"><div><span class="admin-label">Arena Setup</span><h1>@ViewData["Title"]</h1><p>Manage facility blocks, type, location, and status.</p></div><a class="admin-secondary-button" asp-action="Index" asp-route-tab="facilities"><i class="bi bi-arrow-left"></i> Back</a></div>
-    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditFacility" : "CreateFacility")" asp-route-id="@Model.Id">
+    <form class="arena-form-grid" method="post" asp-action="@(Model.IsEditMode ? "EditFacility" : "CreateFacility")" asp-route-id="@Model.Id" novalidate>
         @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
         <div class="arena-form-card"><div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <label><span>Name</span><input asp-for="Name" data-preview-name /><small asp-validation-for="Name"></small></label>
-            <label><span>Code</span><input asp-for="Code" data-preview-code /><small asp-validation-for="Code"></small></label>
+            <label><span>Name *</span><input asp-for="Name" maxlength="100" data-preview-name data-arena-rule="letters" data-arena-required="true" /><small asp-validation-for="Name"></small></label>
+            <label><span>Code *</span><input asp-for="Code" maxlength="20" data-preview-code data-arena-rule="code" data-arena-required="true" /><small asp-validation-for="Code"></small></label>
             <label><span>Type</span><select asp-for="Type" asp-items="Html.GetEnumSelectList<FacilityType>()" data-preview-type></select><small asp-validation-for="Type"></small></label>
-            <label><span>Location</span><input asp-for="LocationLabel" data-preview-location /><small asp-validation-for="LocationLabel"></small></label>
-            <label><span>Description</span><textarea asp-for="Description"></textarea><small asp-validation-for="Description"></small></label>
-            <label><span>Display Order</span><input asp-for="DisplayOrder" type="number" /><small asp-validation-for="DisplayOrder"></small></label>
+            <label><span>Location</span><input asp-for="LocationLabel" maxlength="150" data-preview-location data-arena-rule="location" /><small asp-validation-for="LocationLabel"></small></label>
+            <label><span>Description</span><textarea asp-for="Description" maxlength="300"></textarea><small asp-validation-for="Description"></small></label>
+            <label><span>Display Order</span><input asp-for="DisplayOrder" type="number" min="0" max="9999" data-arena-rule="int" data-arena-min="0" data-arena-max="9999" /><small asp-validation-for="DisplayOrder"></small></label>
             <label class="arena-toggle"><input asp-for="IsActive" data-preview-active /><span>Active Facility</span></label>
         </div>
         <aside class="arena-preview-card"><i class="bi bi-building"></i><h2 data-preview-name-target>@(Model.Name == "" ? "Facility Name" : Model.Name)</h2><p data-preview-code-target>@(Model.Code == "" ? "CODE" : Model.Code)</p><span data-preview-type-target>@Model.Type</span><span data-preview-location-target>@(Model.LocationLabel ?? "Location not set")</span><strong data-preview-active-target>@(Model.IsActive ? "Active" : "Inactive")</strong></aside>

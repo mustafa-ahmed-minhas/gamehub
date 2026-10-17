@@ -43,35 +43,54 @@
     <section class="arena-card">
         <form class="arena-toolbar" method="get" asp-controller="ArenaSetup" asp-action="Index" data-arena-filter-form>
             <input type="hidden" name="tab" value="@Model.ActiveTab" />
-            <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search @Model.ActiveTab..." data-arena-search /></div>
-            <select name="statusFilter" data-arena-auto>
+            <div class="arena-search"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search @Model.ActiveTab..." aria-label="Search @Model.ActiveTab" data-arena-search /></div>
+            <select name="statusFilter" aria-label="Filter by status" data-arena-auto>
                 <option value="">All Status</option>
                 <option value="active" selected="@(Model.StatusFilter == "active")">Active</option>
                 <option value="inactive" selected="@(Model.StatusFilter == "inactive")">Inactive</option>
             </select>
+            <select name="sortBy" aria-label="Sort results" data-arena-auto>
+                @if (Model.ActiveTab == "pricing")
+                {
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.SortBy))">Court &amp; time</option>
+                    <option value="name" selected="@(Model.SortBy == "name")">Name (A&ndash;Z)</option>
+                    <option value="price" selected="@(Model.SortBy == "price")">Price (low &rarr; high)</option>
+                    <option value="priceDesc" selected="@(Model.SortBy == "priceDesc")">Price (high &rarr; low)</option>
+                }
+                else if (Model.ActiveTab == "schedules")
+                {
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.SortBy))">Court &amp; day</option>
+                    <option value="day" selected="@(Model.SortBy == "day")">Day of week</option>
+                }
+                else
+                {
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.SortBy))">Default order</option>
+                    <option value="name" selected="@(Model.SortBy == "name")">Name (A&ndash;Z)</option>
+                }
+            </select>
             @if (Model.ActiveTab is "courts" or "pricing" or "schedules")
             {
-                <select name="sportId" data-arena-auto><option value="">All Sports</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value" selected="@(Model.SportId?.ToString() == item.Value)">@item.Text</option> }</select>
+                <select name="sportId" aria-label="Filter by sport" data-arena-auto><option value="">All Sports</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value" selected="@(Model.SportId?.ToString() == item.Value)">@item.Text</option> }</select>
             }
             @if (Model.ActiveTab == "courts")
             {
-                <select name="facilityId" data-arena-auto><option value="">All Facilities</option>@foreach (var item in Model.FacilityOptions) { <option value="@item.Value" selected="@(Model.FacilityId?.ToString() == item.Value)">@item.Text</option> }</select>
-                <select name="operationalStatus" data-arena-auto><option value="">All Court Status</option>@foreach (CourtStatus s in Enum.GetValues<CourtStatus>()) { <option value="@s" selected="@(Model.OperationalStatus == s.ToString())">@s</option> }</select>
+                <select name="facilityId" aria-label="Filter by facility" data-arena-auto><option value="">All Facilities</option>@foreach (var item in Model.FacilityOptions) { <option value="@item.Value" selected="@(Model.FacilityId?.ToString() == item.Value)">@item.Text</option> }</select>
+                <select name="operationalStatus" aria-label="Filter by court status" data-arena-auto><option value="">All Court Status</option>@foreach (CourtStatus s in Enum.GetValues<CourtStatus>()) { <option value="@s" selected="@(Model.OperationalStatus == s.ToString())">@s</option> }</select>
             }
             @if (Model.ActiveTab == "facilities")
             {
-                <select name="type" data-arena-auto><option value="">All Types</option>@foreach (FacilityType t in Enum.GetValues<FacilityType>()) { <option value="@t" selected="@(Model.Type == t.ToString())">@t</option> }</select>
+                <select name="type" aria-label="Filter by facility type" data-arena-auto><option value="">All Types</option>@foreach (FacilityType t in Enum.GetValues<FacilityType>()) { <option value="@t" selected="@(Model.Type == t.ToString())">@t</option> }</select>
             }
             @if (Model.ActiveTab is "pricing" or "schedules")
             {
-                <select name="courtId" data-arena-auto><option value="">All Courts</option>@foreach (var item in Model.CourtOptions) { <option value="@item.Value" selected="@(Model.CourtId?.ToString() == item.Value)">@item.Text</option> }</select>
-                <select name="day" data-arena-auto><option value="">All Days</option>@foreach (DayOfWeek d in Enum.GetValues<DayOfWeek>()) { <option value="@d" selected="@(Model.Day == d.ToString())">@d</option> }</select>
+                <select name="courtId" aria-label="Filter by court" data-arena-auto><option value="">All Courts</option>@foreach (var item in Model.CourtOptions) { <option value="@item.Value" selected="@(Model.CourtId?.ToString() == item.Value)">@item.Text</option> }</select>
+                <select name="day" aria-label="Filter by day" data-arena-auto><option value="">All Days</option>@foreach (DayOfWeek d in Enum.GetValues<DayOfWeek>()) { <option value="@d" selected="@(Model.Day == d.ToString())">@d</option> }</select>
             }
             @if (Model.ActiveTab == "pricing")
             {
-                <select name="type" data-arena-auto><option value="">All Rates</option><option value="peak" selected="@(Model.Type == "peak")">Peak</option><option value="standard" selected="@(Model.Type == "standard")">Standard</option></select>
+                <select name="type" aria-label="Filter by rate type" data-arena-auto><option value="">All Rates</option><option value="peak" selected="@(Model.Type == "peak")">Peak</option><option value="standard" selected="@(Model.Type == "standard")">Standard</option></select>
             }
-            <select name="pageSize" data-arena-auto>@foreach (var size in new[] { 10, 25, 50 }) { <option value="@size" selected="@(Model.PageSize == size)">@size / page</option> }</select>
+            <select name="pageSize" aria-label="Rows per page" data-arena-auto>@foreach (var size in new[] { 10, 25, 50 }) { <option value="@size" selected="@(Model.PageSize == size)">@size / page</option> }</select>
             <input type="hidden" name="page" value="1" />
             <a class="admin-secondary-button" href="@TabUrl(Model.ActiveTab)"><i class="bi bi-x-lg"></i> Clear</a>
         </form>

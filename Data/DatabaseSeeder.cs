@@ -14,20 +14,39 @@ namespace GameHub.Data
 
             if (!await dbContext.Users.AnyAsync())
             {
-                var admin = new User
+                // One development test user per application role (UserRole). Every
+                // account shares the same password so each role can be exercised
+                // end-to-end. The SuperAdmin keeps the original admin@gamehub.pk.
+                const string seedPassword = "Admin@123";
+                var seedUsers = new[]
                 {
-                    FirstName = "Mustafa",
-                    LastName = "Ahmed",
-                    Email = "admin@gamehub.pk",
-                    PhoneNumber = "0300-0000000",
-                    Role = UserRole.SuperAdmin,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
+                    new { First = "Mustafa", Last = "Ahmed",    Email = "admin@gamehub.pk",            Phone = "03001234000", Role = UserRole.SuperAdmin },
+                    new { First = "Ayesha",  Last = "Siddiqui", Email = "admin@gamehub.com",           Phone = "03001234001", Role = UserRole.Admin },
+                    new { First = "Hamza",   Last = "Tariq",    Email = "booking.manager@gamehub.com", Phone = "03001234002", Role = UserRole.BookingManager },
+                    new { First = "Usman",   Last = "Ghani",    Email = "court.manager@gamehub.com",   Phone = "03001234003", Role = UserRole.CourtManager },
+                    new { First = "Fatima",  Last = "Noor",     Email = "finance.manager@gamehub.com", Phone = "03001234004", Role = UserRole.FinanceManager },
+                    new { First = "Kamran",  Last = "Aslam",    Email = "staff.manager@gamehub.com",   Phone = "03001234005", Role = UserRole.StaffManager },
+                    new { First = "Sana",    Last = "Iqbal",    Email = "receptionist@gamehub.com",    Phone = "03001234006", Role = UserRole.Receptionist },
+                    new { First = "Tariq",   Last = "Jameel",   Email = "viewer@gamehub.com",          Phone = "03001234007", Role = UserRole.Viewer }
                 };
 
-                admin.PasswordHash = PasswordHelper.HashPassword(admin, "Admin@123");
+                foreach (var seedUser in seedUsers)
+                {
+                    var user = new User
+                    {
+                        FirstName = seedUser.First,
+                        LastName = seedUser.Last,
+                        Email = seedUser.Email,
+                        PhoneNumber = seedUser.Phone,
+                        Role = seedUser.Role,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
 
-                dbContext.Users.Add(admin);
+                    user.PasswordHash = PasswordHelper.HashPassword(user, seedPassword);
+                    dbContext.Users.Add(user);
+                }
+
                 await dbContext.SaveChangesAsync();
             }
 
@@ -416,18 +435,22 @@ namespace GameHub.Data
 
             var owner = await dbContext.Users.FirstOrDefaultAsync();
             var sports = await dbContext.Sports.ToListAsync();
-            var customers = await dbContext.Customers.Take(3).ToListAsync();
+            var customers = await dbContext.Customers.OrderBy(x => x.Id).Take(10).ToListAsync();
             if (owner == null) return;
 
             var now = DateTime.UtcNow;
             var leads = new List<Lead>
             {
-                new() { LeadNumber = "LEAD-000001", CustomerName = "Saad Farooq", Email = "saad.farooq@example.pk", Phone = "03055550101", Source = LeadSource.WebsiteInquiry, ServiceInterest = LeadServiceInterest.CourtBooking, SportId = sports.FirstOrDefault()?.Id, Status = LeadStatus.New, Priority = LeadPriority.High, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(6), InquirySubject = "Evening padel booking", InquiryDetails = "Looking for recurring evening court availability.", IsWebsiteInquiry = true, PublicReferenceNumber = "INQ-100001", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-1), IsActive = true },
-                new() { LeadNumber = "LEAD-000002", CustomerId = customers.ElementAtOrDefault(0)?.Id, CustomerName = customers.ElementAtOrDefault(0)?.FullName ?? "Ayaan Khan", Email = customers.ElementAtOrDefault(0)?.Email, Phone = customers.ElementAtOrDefault(0)?.PrimaryPhone, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.Membership, Status = LeadStatus.Contacted, Priority = LeadPriority.Medium, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddDays(1), InquirySubject = "Premium membership upgrade", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-3), IsActive = true },
-                new() { LeadNumber = "LEAD-000003", CustomerName = "Mehwish Ali", Phone = "03055550103", WhatsAppNumber = "03055550103", OrganizationName = "Lahore Tech Hub", Source = LeadSource.Corporate, ServiceInterest = LeadServiceInterest.CorporateBooking, Status = LeadStatus.Qualified, Priority = LeadPriority.Urgent, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, QualifiedAt = now.AddDays(-1), QualificationNotes = "Corporate team sports package required.", InquirySubject = "Corporate sports evening", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-7), IsActive = true },
-                new() { LeadNumber = "LEAD-000004", CustomerName = "Hamza Noor", Email = "hamza.noor@example.pk", Phone = "03055550104", Source = LeadSource.Phone, ServiceInterest = LeadServiceInterest.Tournament, Status = LeadStatus.FollowUp, Priority = LeadPriority.High, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(-4), InquirySubject = "Weekend tournament", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-4), IsActive = true },
-                new() { LeadNumber = "LEAD-000005", CustomerName = "Nimra Sheikh", Email = "nimra.sheikh@example.pk", Phone = "03055550105", Source = LeadSource.SocialMedia, ServiceInterest = LeadServiceInterest.Coaching, Status = LeadStatus.Disqualified, Priority = LeadPriority.Low, Temperature = LeadTemperature.Cold, AssignedToUserId = owner.Id, DisqualifiedAt = now.AddDays(-1), DisqualificationReason = "Outside current coaching scope.", InquirySubject = "Tennis coaching", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-8), IsActive = true },
-                new() { LeadNumber = "LEAD-000006", CustomerName = "Bilal Raza", OrganizationName = "Northstar Sports Club", Phone = "03021234567", Source = LeadSource.Referral, ServiceInterest = LeadServiceInterest.Event, Status = LeadStatus.Qualified, Priority = LeadPriority.High, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, QualifiedAt = now.AddDays(-2), QualificationNotes = "Facility event package likely.", InquirySubject = "Sports family day", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-10), IsActive = true }
+                new() { LeadNumber = "LEAD-000001", CustomerId = customers.ElementAtOrDefault(0)?.Id, CustomerName = customers.ElementAtOrDefault(0)?.FullName ?? "Ayaan Khan", Email = customers.ElementAtOrDefault(0)?.Email, Phone = customers.ElementAtOrDefault(0)?.PrimaryPhone, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.Membership, Status = LeadStatus.Contacted, Priority = LeadPriority.Medium, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddDays(1), InquirySubject = "Premium membership upgrade", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-3), IsActive = true },
+                new() { LeadNumber = "LEAD-000002", CustomerId = customers.ElementAtOrDefault(1)?.Id, CustomerName = customers.ElementAtOrDefault(1)?.FullName ?? "Zara Malik", Email = customers.ElementAtOrDefault(1)?.Email, Phone = customers.ElementAtOrDefault(1)?.PrimaryPhone, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.CourtBooking, Status = LeadStatus.Qualified, Priority = LeadPriority.High, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, QualifiedAt = now.AddDays(-1), QualificationNotes = "Wants recurring weekend padel slots.", InquirySubject = "Weekend padel package", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-9), IsActive = true },
+                new() { LeadNumber = "LEAD-000003", CustomerId = customers.ElementAtOrDefault(2)?.Id, CustomerName = customers.ElementAtOrDefault(2)?.FullName ?? "Bilal Raza", Email = customers.ElementAtOrDefault(2)?.Email, Phone = customers.ElementAtOrDefault(2)?.PrimaryPhone, OrganizationName = customers.ElementAtOrDefault(2)?.OrganizationName, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.CorporateBooking, Status = LeadStatus.Qualified, Priority = LeadPriority.High, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, QualifiedAt = now.AddDays(-2), QualificationNotes = "Corporate event package likely.", InquirySubject = "Corporate sports family day", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-10), IsActive = true },
+                new() { LeadNumber = "LEAD-000004", CustomerName = "Saad Farooq", Email = "saad.farooq@gamehub.com", Phone = "03005550101", Source = LeadSource.WebsiteInquiry, ServiceInterest = LeadServiceInterest.CourtBooking, SportId = sports.FirstOrDefault()?.Id, Status = LeadStatus.New, Priority = LeadPriority.High, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(6), InquirySubject = "Evening padel booking", InquiryDetails = "Looking for recurring evening court availability.", IsWebsiteInquiry = true, PublicReferenceNumber = "INQ-100001", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-1), IsActive = true },
+                new() { LeadNumber = "LEAD-000005", CustomerName = "Mehwish Ali", Email = "mehwish.ali@lahoretechhub.com", Phone = "03005550103", WhatsAppNumber = "03005550103", OrganizationName = "Lahore Tech Hub", Source = LeadSource.Corporate, ServiceInterest = LeadServiceInterest.CorporateBooking, Status = LeadStatus.Contacted, Priority = LeadPriority.Urgent, Temperature = LeadTemperature.Hot, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(8), InquirySubject = "Corporate sports evening", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-7), IsActive = true },
+                new() { LeadNumber = "LEAD-000006", CustomerId = customers.ElementAtOrDefault(3)?.Id, CustomerName = customers.ElementAtOrDefault(3)?.FullName ?? "Hina Shah", Email = customers.ElementAtOrDefault(3)?.Email, Phone = customers.ElementAtOrDefault(3)?.PrimaryPhone, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.Coaching, Status = LeadStatus.FollowUp, Priority = LeadPriority.Medium, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(-4), InquirySubject = "Badminton coaching enquiry", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-4), IsActive = true },
+                new() { LeadNumber = "LEAD-000007", CustomerName = "Hamza Noor", Email = "hamza.noor@gamehub.com", Phone = "03005550107", Source = LeadSource.Phone, ServiceInterest = LeadServiceInterest.Tournament, Status = LeadStatus.FollowUp, Priority = LeadPriority.High, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddDays(2), InquirySubject = "Weekend tournament", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-5), IsActive = true },
+                new() { LeadNumber = "LEAD-000008", CustomerName = "Nimra Sheikh", Email = "nimra.sheikh@gamehub.com", Phone = "03005550108", Source = LeadSource.SocialMedia, ServiceInterest = LeadServiceInterest.Coaching, Status = LeadStatus.Disqualified, Priority = LeadPriority.Low, Temperature = LeadTemperature.Cold, AssignedToUserId = owner.Id, DisqualifiedAt = now.AddDays(-1), DisqualificationReason = "Outside current coaching scope.", InquirySubject = "Tennis coaching", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-8), IsActive = true },
+                new() { LeadNumber = "LEAD-000009", CustomerName = "Usman Tariq", Email = "usman.tariq@skylinebuilders.com", Phone = "03005550109", OrganizationName = "Skyline Builders", Source = LeadSource.WebsiteInquiry, ServiceInterest = LeadServiceInterest.GeneralInquiry, Status = LeadStatus.New, Priority = LeadPriority.Medium, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddHours(12), InquirySubject = "Arena corporate membership", IsWebsiteInquiry = true, PublicReferenceNumber = "INQ-100002", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-2), IsActive = true },
+                new() { LeadNumber = "LEAD-000010", CustomerId = customers.ElementAtOrDefault(8)?.Id, CustomerName = customers.ElementAtOrDefault(8)?.FullName ?? "Hassan Ali", Email = customers.ElementAtOrDefault(8)?.Email, Phone = customers.ElementAtOrDefault(8)?.PrimaryPhone, Source = LeadSource.ExistingCustomer, ServiceInterest = LeadServiceInterest.Membership, Status = LeadStatus.New, Priority = LeadPriority.Medium, Temperature = LeadTemperature.Warm, AssignedToUserId = owner.Id, NextFollowUpAt = now.AddDays(3), InquirySubject = "Student membership enquiry", CreatedByUserId = owner.Id, CreatedAt = now.AddDays(-6), IsActive = true }
             };
 
             dbContext.Leads.AddRange(leads);
@@ -588,7 +611,8 @@ namespace GameHub.Data
                     Gender = Gender.Male,
                     PrimaryPhone = "03001234567",
                     WhatsAppNumber = "03001234567",
-                    Email = "ayaan.khan@example.pk",
+                    Email = "ayaan.khan@gamehub.com",
+                    NationalIdNumber = "3520212345671",
                     City = "Lahore",
                     Country = "Pakistan",
                     CustomerType = CustomerType.Individual,
@@ -607,7 +631,8 @@ namespace GameHub.Data
                     LastName = "Malik",
                     Gender = Gender.Female,
                     PrimaryPhone = "03011234567",
-                    Email = "zara.malik@example.pk",
+                    Email = "zara.malik@gamehub.com",
+                    NationalIdNumber = "6110187654321",
                     City = "Islamabad",
                     Country = "Pakistan",
                     CustomerType = CustomerType.VIP,
@@ -633,7 +658,8 @@ namespace GameHub.Data
                     LastName = "Raza",
                     Gender = Gender.Male,
                     PrimaryPhone = "03021234567",
-                    Email = "sportsdesk@example.pk",
+                    Email = "bilal.raza@northstarsports.com",
+                    NationalIdNumber = "4210176543219",
                     City = "Karachi",
                     Country = "Pakistan",
                     CustomerType = CustomerType.Corporate,
@@ -657,6 +683,8 @@ namespace GameHub.Data
                     LastName = "Shah",
                     Gender = Gender.Female,
                     PrimaryPhone = "03031234567",
+                    Email = "hina.shah@gamehub.com",
+                    NationalIdNumber = "3520198765432",
                     City = "Lahore",
                     Country = "Pakistan",
                     CustomerType = CustomerType.Student,
@@ -669,7 +697,7 @@ namespace GameHub.Data
                     MembershipExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)),
                     LoyaltyPoints = 60,
                     ReceiveBookingReminders = true,
-                    IsActive = false,
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow.AddDays(-140)
                 },
                 new Customer
@@ -679,16 +707,136 @@ namespace GameHub.Data
                     LastName = "Qureshi",
                     Gender = Gender.Male,
                     PrimaryPhone = "03041234567",
+                    Email = "danish.qureshi@gamehub.com",
+                    NationalIdNumber = "3310165432198",
                     City = "Faisalabad",
                     Country = "Pakistan",
                     CustomerType = CustomerType.WalkIn,
                     CustomerSource = CustomerSource.PhoneCall,
                     PreferredContactMethod = PreferredContactMethod.Phone,
-                    IsBlacklisted = true,
-                    BlacklistReason = "Repeated no-shows without prior notice.",
-                    ReceiveBookingReminders = false,
+                    ReceiveBookingReminders = true,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow.AddDays(-25)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUS-000006",
+                    FirstName = "Fatima",
+                    LastName = "Sheikh",
+                    PreferredName = "Fatima",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03051234567",
+                    WhatsAppNumber = "03051234567",
+                    Email = "fatima.sheikh@gamehub.com",
+                    NationalIdNumber = "3740181234567",
+                    AddressLine1 = "House 5, Bahria Town Phase 4",
+                    City = "Rawalpindi",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Family,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "PAD,FTB",
+                    LoyaltyPoints = 320,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-70)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUS-000007",
+                    FirstName = "Usman",
+                    LastName = "Chaudhry",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03061234567",
+                    Email = "usman.chaudhry@vertextech.com",
+                    NationalIdNumber = "3520176543210",
+                    AddressLine1 = "Office 302, Arfa Software Technology Park",
+                    City = "Lahore",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Corporate,
+                    CustomerSource = CustomerSource.Website,
+                    OrganizationName = "Vertex Technologies",
+                    Occupation = "Procurement Manager",
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "FTB,BDM",
+                    AllowCredit = true,
+                    CreditLimit = 150000,
+                    OutstandingBalance = 0,
+                    LoyaltyPoints = 700,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-60)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUS-000008",
+                    FirstName = "Ayesha",
+                    LastName = "Nawaz",
+                    PreferredName = "Ayesha",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03071234567",
+                    WhatsAppNumber = "03071234567",
+                    Email = "ayesha.nawaz@gamehub.com",
+                    NationalIdNumber = "1730165432109",
+                    AddressLine1 = "Flat 3-B, University Road",
+                    City = "Peshawar",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.VIP,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "BDM,CRK",
+                    AllowCredit = true,
+                    CreditLimit = 40000,
+                    LoyaltyPoints = 980,
+                    ReceiveBookingReminders = true,
+                    ReceiveMarketingMessages = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-50)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUS-000009",
+                    FirstName = "Hassan",
+                    LastName = "Ali",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03081234567",
+                    WhatsAppNumber = "03081234567",
+                    Email = "hassan.ali@gamehub.com",
+                    NationalIdNumber = "3630154321098",
+                    AddressLine1 = "House 18, Gulgasht Colony",
+                    City = "Multan",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Student,
+                    CustomerSource = CustomerSource.WalkIn,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "PAD",
+                    LoyaltyPoints = 140,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-35)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUS-000010",
+                    FirstName = "Sana",
+                    LastName = "Yousaf",
+                    PreferredName = "Sana",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03091234567",
+                    WhatsAppNumber = "03091234567",
+                    Email = "sana.yousaf@gamehub.com",
+                    NationalIdNumber = "5440143210987",
+                    AddressLine1 = "House 22, Jinnah Road",
+                    City = "Quetta",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Family,
+                    CustomerSource = CustomerSource.SocialMedia,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "FTB,BDM",
+                    LoyaltyPoints = 260,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow.AddDays(-20)
                 });
 
             await dbContext.SaveChangesAsync();

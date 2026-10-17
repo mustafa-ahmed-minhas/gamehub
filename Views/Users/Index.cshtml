@@ -11,6 +11,7 @@
         search = Model.Search,
         role = Model.Role,
         status = Model.Status,
+        department = Model.Department,
         sortBy = Model.SortBy,
         sortDirection = Model.SortDirection,
         page,
@@ -61,7 +62,7 @@
         <form class="users-toolbar" method="get" asp-controller="Users" asp-action="Index" data-users-filter-form>
             <div class="user-search-field">
                 <i class="bi bi-search"></i>
-                <input name="search" value="@Model.Search" type="search" placeholder="Search users by name, email, or phone..." data-live-search />
+                <input name="search" value="@Model.Search" type="search" placeholder="Search by name, email, phone, CNIC, or department..." data-live-search />
             </div>
 
             <select name="role" aria-label="Filter by role" data-auto-submit>
@@ -69,6 +70,14 @@
                 @foreach (UserRole role in Enum.GetValues<UserRole>())
                 {
                     <option value="@role" selected="@(Model.Role == role)">@role.GetDisplayName()</option>
+                }
+            </select>
+
+            <select name="department" aria-label="Filter by department" data-auto-submit>
+                <option value="">All Departments</option>
+                @foreach (var department in Model.Departments)
+                {
+                    <option value="@department" selected="@(Model.Department == department)">@department</option>
                 }
             </select>
 
@@ -120,6 +129,7 @@
                             <th>User</th>
                             <th>Contact</th>
                             <th>Role</th>
+                            <th>Department</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Last Login</th>
@@ -142,10 +152,17 @@
                                 <td data-label="Contact">
                                     <div class="muted-stack">
                                         <span>@user.Email</span>
-                                        <small>@(user.PhoneNumber ?? "Phone not provided")</small>
+                                        <small>@(string.IsNullOrWhiteSpace(user.PhoneNumber) ? "Phone not provided" : user.PhoneNumber)</small>
+                                        <small>@(string.IsNullOrWhiteSpace(user.CnicNumber) ? "CNIC not provided" : $"CNIC {user.CnicNumber}")</small>
                                     </div>
                                 </td>
                                 <td data-label="Role"><span class="role-badge role-@user.Role.ToString().ToLowerInvariant()">@user.Role.GetDisplayName()</span></td>
+                                <td data-label="Department">
+                                    <div class="muted-stack">
+                                        <span>@(string.IsNullOrWhiteSpace(user.Department) ? "Not assigned" : user.Department)</span>
+                                        <small>@(string.IsNullOrWhiteSpace(user.Designation) ? "Designation not set" : user.Designation)</small>
+                                    </div>
+                                </td>
                                 <td data-label="Status">
                                     <span class="user-status-badge @(user.IsActive ? "active" : "inactive")" data-status-badge>
                                         <i></i><span data-status-text>@(user.IsActive ? "Active" : "Inactive")</span>
