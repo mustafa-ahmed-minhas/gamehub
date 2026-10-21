@@ -12,10 +12,29 @@
     var lifecycle = new[] { OpportunityStage.Qualification, OpportunityStage.NeedsAnalysis, OpportunityStage.ProposalPreparation, OpportunityStage.ProposalSent, OpportunityStage.Negotiation, OpportunityStage.Won };
 }
 <section class="crm-page crm-page-pro">
-    <header class="crm-command-header"><div class="crm-command-copy"><a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to Opportunities</a><span class="admin-kicker">Opportunity Details</span><h1>@Model.Name</h1><p>@Model.OpportunityNumber - sourced from @Model.Lead.LeadNumber</p></div><div class="crm-command-actions">@if (canManage) { <a class="admin-action-button crm-premium-button" asp-action="EditOpportunity" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Opportunity</a> }</div></header>
+    <header class="crm-command-header">
+    <div class="crm-command-copy">
+        <a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to Opportunities</a>
+        <span class="admin-kicker">Opportunity Details</span>
+        <h1>@Model.Name</h1>
+        <p>@Model.OpportunityNumber - sourced from @Model.Lead.LeadNumber</p>
+    </div>
+    <div class="crm-command-actions">@if (canManage) { <a class="admin-action-button crm-premium-button" asp-action="EditOpportunity" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Opportunity</a> }</div>
+</header>
     <div class="crm-workspace-shell">
     <main class="crm-workspace-main">
-    <article class="crm-profile-hero crm-profile-hero-pro opportunity"><div><span class="crm-avatar"><i class="bi bi-briefcase"></i></span><h2>@currency @Model.ExpectedValue.ToString("N0")</h2><p>@Model.ProbabilityPercentage% probability - @currency @Model.WeightedValue.ToString("N0") weighted</p></div><div class="crm-profile-badges"><span class="crm-badge stage">@Model.Stage.GetDisplayName()</span><span class="crm-badge source">@Model.Type.GetDisplayName()</span><span class="crm-badge @(Model.IsOverdue ? "priority-urgent" : "priority-medium")">@(Model.IsOverdue ? "Overdue" : "On Track")</span></div></article>
+    <article class="crm-profile-hero crm-profile-hero-pro opportunity">
+        <div><span class="crm-avatar"><i class="bi bi-briefcase"></i></span><h2>@currency @Model.ExpectedValue.ToString("N0")</h2><p>@Model.ProbabilityPercentage% probability - @currency @Model.WeightedValue.ToString("N0") weighted</p></div>
+        <div class="crm-profile-badges">
+            <span class="crm-badge stage">@Model.Stage.GetDisplayName()</span>
+            <span class="crm-badge source">@Model.Type.GetDisplayName()</span>
+            <span class="crm-badge @(Model.IsOverdue ? "priority-urgent" : "priority-medium")">@(Model.IsOverdue ? "Overdue" : "On Track")</span>
+            @if (Model.NextFollowUpAt.HasValue)
+            {
+                <span class="crm-badge">Next follow-up: @Model.NextFollowUpAt.Value.ToString("MMM dd, yyyy")</span>
+            }
+        </div>
+    </article>
     <div class="crm-lifecycle opportunity">
         @foreach (var step in lifecycle)
         {
@@ -29,13 +48,92 @@
         }
     </div>
     <div class="crm-detail-grid">
-        <article class="crm-card"><header><h2>Commercial</h2></header><dl class="crm-detail-list"><div><dt>Expected Value</dt><dd>@currency @Model.ExpectedValue.ToString("N0")</dd></div><div><dt>Probability</dt><dd>@Model.ProbabilityPercentage%</dd></div><div><dt>Weighted</dt><dd>@currency @Model.WeightedValue.ToString("N0")</dd></div><div><dt>Expected Close</dt><dd>@Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</dd></div><div><dt>Actual Close</dt><dd>@(Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "-")</dd></div></dl></article>
+        <article class="crm-card"><header><h2>Close Dates</h2></header><dl class="crm-detail-list"><div><dt>Expected Close</dt><dd>@Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</dd></div><div><dt>Actual Close</dt><dd>@(Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "-")</dd></div></dl></article>
         <article class="crm-card"><header><h2>Customer and Lead</h2></header><dl class="crm-detail-list"><div><dt>Customer</dt><dd>@(Model.Customer?.FullName ?? Model.Lead.CustomerName)</dd></div><div><dt>Lead</dt><dd><a asp-action="LeadDetails" asp-route-id="@Model.LeadId">@Model.Lead.LeadNumber</a></dd></div><div><dt>Owner</dt><dd>@(Model.AssignedToUser?.FullName ?? "Unassigned")</dd></div><div><dt>Tags</dt><dd>@(Model.Tags ?? "No tags")</dd></div></dl></article>
         <article class="crm-card"><header><h2>Service Context</h2></header><dl class="crm-detail-list"><div><dt>Sport</dt><dd>@(Model.Sport?.Name ?? "Any")</dd></div><div><dt>Facility</dt><dd>@(Model.Facility?.Name ?? "Any")</dd></div><div><dt>Court</dt><dd>@(Model.Court?.Name ?? "Any")</dd></div><div><dt>Membership</dt><dd>@(Model.MembershipPlan?.Name ?? "No plan")</dd></div></dl></article>
         <article class="crm-card"><header><h2>Requirement</h2></header><p>@(Model.CustomerRequirement ?? "No requirement recorded.")</p><h3>Proposed Solution</h3><p>@(Model.ProposedSolution ?? "No solution recorded.")</p><h3>Competitor</h3><p>@(Model.CompetitorInformation ?? "No competitor information.")</p></article>
     </div>
-    <article class="crm-card crm-disabled-card"><header><h2>Future Quotation</h2><span>Not connected yet</span></header><p>Quotation module is intentionally outside this CRM stage.</p><button class="admin-secondary-button crm-premium-button secondary" disabled><i class="bi bi-file-earmark-text"></i> Create Quotation</button></article>
-    <article class="crm-card crm-timeline-card"><header><h2>Activity Timeline</h2><span>@Model.Activities.Count activities</span></header><div class="crm-timeline">@foreach (var item in Model.Activities.OrderByDescending(x => x.ActivityDate)) { <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div> }@if (!Model.Activities.Any()) { <div class="crm-empty-state compact"><i class="bi bi-chat-dots"></i><strong>No activity yet</strong><span>Opportunity notes and stage movement will appear here.</span></div> }</div></article>
+    <article class="crm-card">
+        <header><h2>Quotation</h2><span>Sales workflow</span></header>
+        @{
+            var linkedQuotation = ViewBag.LinkedQuotation as SalesQuotation;
+            var quotationBlocksNew = ViewBag.QuotationBlocksNew as bool? ?? false;
+            var canCreateQuotation = ViewBag.CanCreateQuotation as bool? ?? false;
+        }
+        @if (linkedQuotation != null)
+        {
+            <p class="mb-2"><i class="bi bi-file-earmark-text"></i> <strong>@linkedQuotation.QuotationNumber</strong> · @linkedQuotation.Status.GetDisplayName()</p>
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="admin-secondary-button crm-premium-button secondary" asp-controller="Sales" asp-action="QuotationDetails" asp-route-id="@linkedQuotation.Id"><i class="bi bi-eye"></i> View Quotation</a>
+                @if (!quotationBlocksNew && canCreateQuotation)
+                {
+                    <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-plus-circle"></i> Create New Quotation</a>
+                }
+            </div>
+            @if (quotationBlocksNew)
+            {
+                <small class="text-muted d-block mt-2">An active quotation already exists for this opportunity.</small>
+            }
+        }
+        else if (canCreateQuotation)
+        {
+            <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-file-earmark-text"></i> Create Quotation</a>
+        }
+        else
+        {
+            <p class="mb-0">Your role cannot create quotations.</p>
+        }
+    </article>
+
+    @if (canManage)
+    {
+        <article class="crm-card crm-action-card" id="opportunity-actions">
+            <header>
+                <h2>Opportunity Actions</h2>
+                <span>Log activities and schedule follow-ups</span>
+            </header>
+            <form asp-action="AddOpportunityActivity" asp-route-id="@Model.Id" method="post" class="crm-inline-form">
+                @Html.AntiForgeryToken()
+                <select name="activityType" asp-items="Html.GetEnumSelectList<OpportunityActivityType>()" class="form-select"></select>
+                <input name="subject" placeholder="Activity subject" class="form-control" />
+                <input name="activityDate" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" class="form-control" />
+                <input name="followUpDueAt" type="datetime-local" placeholder="Follow-up due (optional)" class="form-control" />
+                <textarea name="description" placeholder="Description" class="form-control wide"></textarea>
+                <label class="crm-premium-check">
+                    <input name="isCompleted" type="checkbox" value="true" />
+                    <span>Mark as completed</span>
+                </label>
+                <button class="admin-action-button crm-premium-button">Add Activity</button>
+            </form>
+        </article>
+    }
+
+    <article class="crm-card crm-timeline-card">
+        <header><h2>Activity Timeline</h2><span>@Model.Activities.Count activities</span></header>
+        <div class="crm-timeline">
+            @foreach (var item in Model.Activities.OrderByDescending(x => x.ActivityDate))
+            {
+                <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div>
+            }
+            @if (!Model.Activities.Any())
+            {
+                <div class="crm-empty-state compact"><i class="bi bi-chat-dots"></i><strong>No activity yet</strong><span>Opportunity notes and stage movement will appear here.</span></div>
+            }
+        </div>
+    </article>
+
+    @if (Model.Lead != null && Model.Lead.Activities != null && Model.Lead.Activities.Any())
+    {
+        <article class="crm-card crm-timeline-card">
+            <header><h2>Source Lead History</h2><span>@Model.Lead.Activities.Count activity@(Model.Lead.Activities.Count == 1 ? "" : "ies") · <a asp-action="LeadDetails" asp-route-id="@Model.LeadId" class="text-decoration-none">View Lead</a></span></header>
+            <div class="crm-timeline">
+                @foreach (var item in Model.Lead.Activities.OrderByDescending(x => x.ActivityDate))
+                {
+                    <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div>
+                }
+            </div>
+        </article>
+    }
     </main>
     <partial name="_GuidancePanel" />
     </div>

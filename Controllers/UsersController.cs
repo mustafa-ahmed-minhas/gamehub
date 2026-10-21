@@ -527,8 +527,11 @@ namespace GameHub.Controllers
             model.FirstName = model.FirstName?.Trim() ?? string.Empty;
             model.LastName = model.LastName?.Trim() ?? string.Empty;
             model.Email = NormalizeEmail(model.Email);
-            model.PhoneNumber = DigitsOnly(model.PhoneNumber);
-            model.CnicNumber = DigitsOnly(model.CnicNumber);
+            // Phone and CNIC keep the user's exact digits: validation requires
+            // 11 / 13 plain digits with no separators, so anything else must
+            // surface as a field error instead of being silently rewritten.
+            model.PhoneNumber = model.PhoneNumber?.Trim();
+            model.CnicNumber = model.CnicNumber?.Trim();
             model.Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim();
             model.Department = string.IsNullOrWhiteSpace(model.Department) ? null : model.Department.Trim();
             model.Designation = string.IsNullOrWhiteSpace(model.Designation) ? null : model.Designation.Trim();

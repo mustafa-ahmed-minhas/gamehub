@@ -344,9 +344,10 @@ namespace GameHub.Controllers
 
         private void ValidateProfile(CustomerProfileViewModel model)
         {
-            if (model.DateOfBirth.HasValue && model.DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
+            var dateOfBirthError = DateOfBirthRules.Validate(model.DateOfBirth);
+            if (dateOfBirthError != null)
             {
-                ModelState.AddModelError(nameof(model.DateOfBirth), "Date of birth cannot be in the future.");
+                ModelState.AddModelError(nameof(model.DateOfBirth), dateOfBirthError);
             }
         }
 

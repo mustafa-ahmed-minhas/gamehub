@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Html
 @using System.Net
 @{
-    var activeFilters = new[] { "status", "source", "priority", "temperature", "serviceInterest", "assignedToUserId", "sportId" }.Count(x => !string.IsNullOrWhiteSpace(Q(x)));
+    var activeFilters = new[] { "status", "source", "priority", "serviceInterest", "assignedToUserId", "sportId" }.Count(x => !string.IsNullOrWhiteSpace(Q(x)));
     var stages = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Converted, LeadStatus.Lost, LeadStatus.Disqualified };
     var hasFilters = !string.IsNullOrWhiteSpace(Model.Search) || activeFilters > 0;
     var start = Model.Leads.Count == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
@@ -30,7 +30,6 @@
             <option value="oldest" selected="@(Q("sortBy") == "oldest")">Oldest</option>
             <option value="name" selected="@(Q("sortBy") == "name")">Name</option>
             <option value="priority" selected="@(Q("sortBy") == "priority")">Priority</option>
-            <option value="temperature" selected="@(Q("sortBy") == "temperature")">Temperature</option>
             <option value="followup" selected="@(Q("sortBy") == "followup")">Follow-up</option>
             <option value="status" selected="@(Q("sortBy") == "status")">Status</option>
         </select>
@@ -54,7 +53,6 @@
                 <label>Status<select name="status">@(FilterOptions<LeadStatus>("status"))</select></label>
                 <label>Source<select name="source">@(FilterOptions<LeadSource>("source"))</select></label>
                 <label>Priority<select name="priority">@(FilterOptions<LeadPriority>("priority"))</select></label>
-                <label>Temperature<select name="temperature">@(FilterOptions<LeadTemperature>("temperature"))</select></label>
                 <label>Service<select name="serviceInterest">@(FilterOptions<LeadServiceInterest>("serviceInterest"))</select></label>
                 <label>Owner<select name="assignedToUserId"><option value="">All Owners</option>@foreach (var item in Model.UserOptions) { <option value="@item.Value" selected="@(Q("assignedToUserId") == item.Value)">@item.Text</option> }</select></label>
                 <label>Sport<select name="sportId"><option value="">All Sports</option>@foreach (var item in Model.SportOptions) { <option value="@item.Value" selected="@(Q("sportId") == item.Value)">@item.Text</option> }</select></label>
@@ -67,7 +65,7 @@
     </form>
 
     <div class="crm-active-filters">
-        @foreach (var key in new[] { "status", "source", "priority", "temperature", "serviceInterest", "assignedToUserId", "sportId" })
+        @foreach (var key in new[] { "status", "source", "priority", "serviceInterest", "assignedToUserId", "sportId" })
         {
             if (!string.IsNullOrWhiteSpace(Q(key)))
             {
@@ -103,7 +101,6 @@
                             <div class="crm-card-meta">
                                 <span class="crm-badge source">@lead.Source.GetDisplayName()</span>
                                 <span class="crm-badge priority-@lead.Priority.ToString().ToLowerInvariant()">@lead.Priority.GetDisplayName()</span>
-                                <span class="crm-badge temp-@lead.Temperature.ToString().ToLowerInvariant()">@lead.Temperature.GetDisplayName()</span>
                             </div>
                             <div class="crm-card-footer">
                                 <span><i class="bi bi-person-circle"></i> @(lead.AssignedTo ?? "Unassigned")</span>
@@ -154,7 +151,7 @@
         {
             <div class="arena-table-wrap crm-leads-table-wrap">
                 <table class="arena-table crm-table crm-leads-table">
-                    <thead><tr><th>Lead</th><th>Contact</th><th>Interest</th><th>Source</th><th>Owner</th><th>Priority</th><th>Temperature</th><th>Status</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Lead</th><th>Contact</th><th>Interest</th><th>Source</th><th>Owner</th><th>Priority</th><th>Status</th><th>Next Follow-up</th><th>Actions</th></tr></thead>
                     <tbody>
                     @foreach (var lead in Model.Leads)
                     {
@@ -168,7 +165,6 @@
                             <td data-label="Source"><span class="membership-code crm-source-code">@lead.Source.GetDisplayName()</span></td>
                             <td data-label="Owner"><div class="user-cell membership-name-cell crm-owner-cell"><span class="user-avatar membership-table-avatar">@ownerInitials</span><div><strong>@(lead.AssignedTo ?? "Unassigned")</strong>@if (string.IsNullOrWhiteSpace(lead.AssignedTo)) { <small class="crm-overdue-text">Needs owner</small> }</div></div></td>
                             <td data-label="Priority"><span class="membership-status-badge crm-lead-badge priority-@lead.Priority.ToString().ToLowerInvariant()"><i></i>@lead.Priority.GetDisplayName()</span></td>
-                            <td data-label="Temperature"><span class="membership-status-badge crm-lead-badge temp-@lead.Temperature.ToString().ToLowerInvariant()"><i></i>@lead.Temperature.GetDisplayName()</span></td>
                             <td data-label="Status"><span class="membership-status-badge crm-lead-badge status-@lead.Status.ToString().ToLowerInvariant()"><i></i>@lead.Status.GetDisplayName()</span></td>
                             <td data-label="Next Follow-up"><span class="crm-followup @(overdue ? "overdue" : "")@(lead.NextFollowUpAt.HasValue ? "" : " is-empty")">@(lead.NextFollowUpAt?.ToString("MMM dd, hh:mm tt") ?? "Not Scheduled")</span>@if (overdue) { <small class="crm-overdue-text">Overdue</small> }</td>
                             <td data-label="Actions">

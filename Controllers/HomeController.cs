@@ -2,6 +2,7 @@
 using GameHub.Models.Enums;
 using GameHub.Models.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
@@ -58,6 +59,14 @@ namespace GameHub.Controllers
                 Facilities = facilities,
                 CurrencySymbol = string.IsNullOrWhiteSpace(settings?.CurrencySymbol) ? "Rs" : settings.CurrencySymbol!
             };
+
+            // Sport options for the Customer Inquiry section on the home page.
+            // Mirrors the sport dropdown used by the public inquiry page and the CRM lead form.
+            ViewData["InquirySportOptions"] = await _dbContext.Sports.AsNoTracking()
+                .Where(sport => sport.IsActive)
+                .OrderBy(sport => sport.DisplayOrder)
+                .Select(sport => new SelectListItem(sport.Name, sport.Id.ToString()))
+                .ToListAsync();
 
             ViewBag.SupportPhone = settings?.Phone ?? "+92 300 1234567";
             ViewBag.SupportEmail = settings?.Email ?? "info@gamehub.pk";

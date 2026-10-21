@@ -9,6 +9,7 @@
         location: /^[A-Za-z\s.,\-]{2,}$/,
         tags: /^[A-Za-z0-9\s,#\-]*$/,
         phone: /^0\d{10}$/,
+        cnic: /^\d{13}$/,
         email: /^[^\s@]+@[^\s@]+\.com$/i,
         int: /^\d{1,10}$/,
         decimal: /^\d{1,12}(\.\d{1,2})?$/
@@ -22,6 +23,7 @@
         location: 'Use letters, spaces, periods, commas and hyphens only.',
         tags: 'Use letters, numbers, spaces, commas, hashtags and hyphens only.',
         phone: 'Enter an 11-digit number starting with 0 (e.g. 03001234567).',
+        cnic: 'Enter the 13-digit CNIC without spaces or hyphens (e.g. 3520212345678).',
         email: 'Enter a valid email address ending in .com.',
         int: 'Enter a whole number.',
         decimal: 'Enter a valid amount (up to 2 decimals).',
@@ -78,6 +80,7 @@
             case 'code':
             case 'location':
             case 'tags':
+            case 'cnic':
             case 'email':
                 return !patterns[rule].test(value);
             case 'phone':
@@ -175,6 +178,17 @@
                     }
                 });
             }
+            if (field.getAttribute('data-fv-rule').includes('cnic')) {
+                field.addEventListener('input', () => {
+                    const caretAtEnd = field.selectionStart === field.value.length;
+                    const digits = normalizePhone(field.value);
+                    const next = digits.length > 13 ? digits.slice(0, 13) : digits;
+                    if (next !== field.value) {
+                        field.value = next;
+                        if (caretAtEnd) field.setSelectionRange(next.length, next.length);
+                    }
+                });
+            }
         });
 
         form.addEventListener('submit', (event) => {
@@ -195,7 +209,7 @@
 
     const bindAll = () => document.querySelectorAll('form[data-fv-form]').forEach(bind);
 
-    window.GameHubFieldValidation = { bind, bindAll, patterns };
+    window.GameHubFieldValidation = { bind, bindAll, patterns, validateField, runRule, isEmpty };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAll);
     else bindAll();

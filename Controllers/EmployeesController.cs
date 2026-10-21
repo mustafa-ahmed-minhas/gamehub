@@ -308,8 +308,8 @@ namespace GameHub.Controllers
         [HttpGet]
         public async Task<IActionResult> CheckPhone(string? phone, int? id)
         {
-            var normalized = NormalizePhone(phone);
-            if (!HasReasonablePhoneDigits(normalized)) return Json(new { available = false, message = "Invalid phone number." });
+            var normalized = NormalizeRequired(phone);
+            if (!HasValidPakPhone(normalized)) return Json(new { available = false, message = PhoneFormatMessage });
             var exists = await PhoneExistsAsync(normalized, id);
             return Json(new { available = !exists, message = exists ? "Phone number is already registered to an active employee." : "Phone number is available." });
         }
@@ -318,7 +318,8 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CheckNationalId(string? nationalId, int? id)
         {
             nationalId = NormalizeOptional(nationalId);
-            if (string.IsNullOrWhiteSpace(nationalId)) return Json(new { available = true, message = "National ID is required." });
+            if (string.IsNullOrWhiteSpace(nationalId)) return Json(new { available = false, message = NationalIdRequiredMessage });
+            if (!HasValidNationalId(nationalId)) return Json(new { available = false, message = NationalIdFormatMessage });
             var exists = await _dbContext.Employees.AnyAsync(employee => employee.NationalIdNumber == nationalId && employee.IsActive && (!id.HasValue || employee.Id != id.Value));
             return Json(new { available = !exists, message = exists ? "National ID / CNIC is already registered to an active employee." : "National ID / CNIC is available." });
         }
@@ -326,6 +327,25 @@ namespace GameHub.Controllers
         private async Task PrepareAndValidateAsync(EmployeeFormViewModel model, int? id = null)
         {
             NormalizeForm(model);
+
+            if (!HasValidPakPhone(model.PhoneNumber))
+            {
+                ModelState.AddModelError(nameof(model.PhoneNumber), PhoneFormatMessage);
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.EmergencyContactNumber) && !HasValidPakPhone(model.EmergencyContactNumber))
+            {
+                ModelState.AddModelError(nameof(model.EmergencyContactNumber), PhoneFormatMessage);
+            }
+
+            if (string.IsNullOrWhiteSpace(model.NationalIdNumber))
+            {
+                ModelState.AddModelError(nameof(model.NationalIdNumber), NationalIdRequiredMessage);
+            }
+            else if (!HasValidNationalId(model.NationalIdNumber))
+            {
+                ModelState.AddModelError(nameof(model.NationalIdNumber), NationalIdFormatMessage);
+            }
 
             if (await _dbContext.Employees.AnyAsync(employee => employee.Email == model.Email && employee.IsActive && (!id.HasValue || employee.Id != id.Value)))
             {
@@ -339,7 +359,7 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(string.Empty, "Phone number is already registered.");
             }
 
-            if (await _dbContext.Employees.AnyAsync(employee => employee.NationalIdNumber == model.NationalIdNumber && employee.IsActive && (!id.HasValue || employee.Id != id.Value)))
+            if (!string.IsNullOrWhiteSpace(model.NationalIdNumber) && await _dbContext.Employees.AnyAsync(employee => employee.NationalIdNumber == model.NationalIdNumber && employee.IsActive && (!id.HasValue || employee.Id != id.Value)))
             {
                 ModelState.AddModelError(nameof(model.NationalIdNumber), "National ID / CNIC is already registered.");
                 ModelState.AddModelError(string.Empty, "National ID / CNIC is already registered.");
@@ -351,15 +371,13 @@ namespace GameHub.Controllers
             model.FirstName = NormalizeRequired(model.FirstName);
             model.LastName = NormalizeRequired(model.LastName);
             model.Email = NormalizeEmail(model.Email) ?? string.Empty;
-            model.PhoneNumber = NormalizePhone(model.PhoneNumber);
-            model.NationalIdNumber = NationalIdValidator.TryNormalize(model.NationalIdNumber, "Pakistan", out var nationalId, out _)
-                ? nationalId
-                : NormalizeRequired(model.NationalIdNumber);
+            model.PhoneNumber = NormalizeRequired(model.PhoneNumber);
+            model.NationalIdNumber = NormalizeRequired(model.NationalIdNumber);
             model.Department = NormalizeRequired(model.Department);
             model.Designation = NormalizeRequired(model.Designation);
             model.EmploymentAddress = NormalizeOptional(model.EmploymentAddress);
             model.EmergencyContactName = NormalizeOptional(model.EmergencyContactName);
-            model.EmergencyContactNumber = NormalizeOptional(NormalizePhone(model.EmergencyContactNumber));
+            model.EmergencyContactNumber = NormalizeOptional(model.EmergencyContactNumber);
             model.Notes = NormalizeOptional(model.Notes);
         }
 
@@ -644,12 +662,14 @@ namespace GameHub.Controllers
             return prefix + new string(trimmed.Where(char.IsDigit).ToArray());
         }
 
-        private static bool HasReasonablePhoneDigits(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value)) return false;
-            var digits = new string(value.Where(char.IsDigit).ToArray());
-            return digits.Length is >= 7 and <= 15;
-        }
+        private const string PhoneFormatMessage = "Enter an 11-digit phone number starting with 0 (e.g. 03001234567).";
+        private const string NationalIdRequiredMessage = "National ID / CNIC is required.";
+        private const string NationalIdFormatMessage = "National ID / CNIC must be exactly 13 numeric digits without spaces or hyphens (e.g. 3520212345678).";
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex NationalIdPattern = new(@"^\d{13}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static bool HasValidPakPhone(string? value) => !string.IsNullOrWhiteSpace(value) && PhonePattern.IsMatch(value);
+        private static bool HasValidNationalId(string? value) => !string.IsNullOrWhiteSpace(value) && NationalIdPattern.IsMatch(value);
 
         private static string NormalizeOption(string? value) => value?.Trim().ToLowerInvariant() ?? string.Empty;
 

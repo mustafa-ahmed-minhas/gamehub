@@ -81,7 +81,7 @@
             </label>
             <label>
                 <span>Date of Birth</span>
-                <input asp-for="DateOfBirth" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-18)).ToString("yyyy-MM-dd")" />
+                <input asp-for="DateOfBirth" type="date" data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-18)).ToString("yyyy-MM-dd")" />
                 <span asp-validation-for="DateOfBirth"></span>
             </label>
             <label>
@@ -117,13 +117,14 @@
             </label>
             <label>
                 <span>Phone Number *</span>
-                <input asp-for="Phone" maxlength="30" placeholder="+92 300 1234567" />
+                <input asp-for="Phone" inputmode="numeric" maxlength="11" placeholder="03001234567" />
+                <small class="hr-hint">Enter an 11-digit phone number starting with 0, e.g. 03001234567.</small>
                 <span asp-validation-for="Phone"></span>
             </label>
             <label class="hr-form-wide">
                 <span>National ID Number *</span>
-                <input asp-for="NationalIdNumber" maxlength="30" placeholder="e.g. 35202-1234567-8" data-cnic-input />
-                <small class="hr-hint">For Pakistan, enter the 13-digit CNIC. Hyphens are optional.</small>
+                <input asp-for="NationalIdNumber" maxlength="13" placeholder="3520212345678" data-cnic-input />
+                <small class="hr-hint">Enter the 13-digit CNIC without spaces or hyphens, e.g. 3520212345678.</small>
                 <span asp-validation-for="NationalIdNumber"></span>
             </label>
         </section>

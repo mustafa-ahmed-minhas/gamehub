@@ -135,6 +135,20 @@
         form.querySelector("[data-check-phone]")?.addEventListener("input", event => verify(event.target, "/Employees/CheckPhone", document.querySelector("[data-phone-status]"), "phone"));
         form.querySelector("[data-check-national-id]")?.addEventListener("input", event => verify(event.target, "/Employees/CheckNationalId", document.querySelector("[data-national-id-status]"), "nationalId"));
 
+        // Frontend input guards: mirror the server-side validation rules (11-digit
+        // phone starting with 0, 13-digit numeric CNIC) as a first line of defence.
+        const restrictToDigits = (input, maxLength) => {
+            input?.addEventListener("input", () => {
+                const cleaned = input.value.replace(/\D+/g, "").slice(0, maxLength);
+                if (cleaned !== input.value) {
+                    input.value = cleaned;
+                }
+            });
+        };
+        restrictToDigits(form.querySelector("[name='PhoneNumber']"), 11);
+        restrictToDigits(form.querySelector("[name='NationalIdNumber']"), 13);
+        restrictToDigits(form.querySelector("[name='EmergencyContactNumber']"), 11);
+
         form.querySelectorAll("[data-counter-target]").forEach(target => {
             const field = form.querySelector(`[name="${target.dataset.counterTarget}"]`);
             if (!field) return;

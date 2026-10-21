@@ -97,7 +97,7 @@
     window.GameHubToast = {
         show(options) {
             const type = ["success", "error", "warning", "info"].includes(options?.type) ? options.type : "info";
-            const duration = durations[type];
+            const duration = Number.isFinite(options?.duration) && options.duration > 0 ? options.duration : durations[type];
             const toast = document.createElement("div");
             toast.className = `gamehub-toast ${type}`;
             toast.setAttribute("role", type === "error" ? "alert" : "status");
@@ -114,6 +114,17 @@
             toast.querySelector(".toast-close").addEventListener("click", () => removeToast(toast));
             toast.addEventListener("mouseenter", () => toast.classList.add("paused"));
             toast.addEventListener("mouseleave", () => toast.classList.remove("paused"));
+
+            // Optional call-to-action link (for example "View Lead" on a new
+            // website inquiry). Additive: existing callers are unaffected.
+            if (options?.action?.href) {
+                const action = document.createElement("a");
+                action.className = "toast-action";
+                action.href = options.action.href;
+                action.textContent = options.action.label || "Open";
+                action.addEventListener("click", () => removeToast(toast));
+                toast.querySelector(".toast-copy").appendChild(action);
+            }
 
             region.appendChild(toast);
             playSound(type);

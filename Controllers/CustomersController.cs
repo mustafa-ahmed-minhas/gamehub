@@ -375,7 +375,8 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CheckNationalId(string? nationalId, int? id)
         {
             nationalId = NormalizeOptional(nationalId);
-            if (string.IsNullOrWhiteSpace(nationalId)) return Json(new { available = true, message = "National ID is optional." });
+            if (string.IsNullOrWhiteSpace(nationalId)) return Json(new { available = false, message = NationalIdRequiredMessage });
+            if (!HasValidNationalId(nationalId)) return Json(new { available = false, message = NationalIdFormatMessage });
             var exists = await _dbContext.Customers.AnyAsync(x => x.NationalIdNumber == nationalId && (!id.HasValue || x.Id != id.Value));
             return Json(new { available = !exists, message = exists ? "National ID is already registered." : "National ID is available." });
         }
@@ -426,7 +427,15 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.WhatsAppNumber), "WhatsApp number is already registered.");
             }
 
-            if (!string.IsNullOrWhiteSpace(model.NationalIdNumber) && await _dbContext.Customers.AnyAsync(x => x.NationalIdNumber == model.NationalIdNumber && (!id.HasValue || x.Id != id.Value)))
+            if (string.IsNullOrWhiteSpace(model.NationalIdNumber))
+            {
+                ModelState.AddModelError(nameof(model.NationalIdNumber), NationalIdRequiredMessage);
+            }
+            else if (!HasValidNationalId(model.NationalIdNumber))
+            {
+                ModelState.AddModelError(nameof(model.NationalIdNumber), NationalIdFormatMessage);
+            }
+            else if (await _dbContext.Customers.AnyAsync(x => x.NationalIdNumber == model.NationalIdNumber && (!id.HasValue || x.Id != id.Value)))
             {
                 ModelState.AddModelError(nameof(model.NationalIdNumber), "National ID is already registered.");
                 ModelState.AddModelError(string.Empty, "National ID is already registered.");
@@ -695,10 +704,14 @@ namespace GameHub.Controllers
 
         private const string PhoneFormatMessage = "Enter an 11-digit phone number starting with 0 (e.g. 03001234567).";
         private const string EmailFormatMessage = "Enter a valid email address ending in .com.";
+        private const string NationalIdRequiredMessage = "CNIC / National ID is required.";
+        private const string NationalIdFormatMessage = "CNIC / National ID must be exactly 13 numeric digits without spaces or hyphens (e.g. 3520212345678).";
         private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex NationalIdPattern = new(@"^\d{13}$", System.Text.RegularExpressions.RegexOptions.Compiled);
         private static readonly System.Text.RegularExpressions.Regex ComEmailPattern = new(@"^[^\s@]+@[^\s@]+\.com$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         private static bool HasValidPakPhone(string? value) => !string.IsNullOrWhiteSpace(value) && PhonePattern.IsMatch(value);
+        private static bool HasValidNationalId(string? value) => !string.IsNullOrWhiteSpace(value) && NationalIdPattern.IsMatch(value);
         private static bool HasValidComEmail(string? value) => !string.IsNullOrWhiteSpace(value) && ComEmailPattern.IsMatch(value);
 
         private static string DescribeDbError(DbUpdateException exception)

@@ -7,10 +7,15 @@
     <div class="container inquiry-grid">
         <form method="post" class="inquiry-card" data-public-inquiry-form>
             @Html.AntiForgeryToken()
+            @* Anti-spam honeypot: hidden from humans, left empty. Bots that auto-fill every field trigger it and the submission is silently dropped. *@
+            <div class="inquiry-honeypot" aria-hidden="true" style="position:absolute!important;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+                <label for="inquiry-website-url-standalone">Website URL</label>
+                <input id="inquiry-website-url-standalone" name="WebsiteUrl" type="text" tabindex="-1" autocomplete="off" />
+            </div>
             <span class="eyebrow-pill"><i class="bi bi-chat-dots"></i> GameHub Inquiry</span>
             <h1>Tell us what you want to play</h1>
             <p>Our team will review your inquiry and contact you with the best next step.</p>
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div asp-validation-summary="All" class="text-danger"></div>
             <div class="form-grid two"><div class="form-floating"><input asp-for="FullName" class="form-control" placeholder="Full name" /><label>Full Name</label></div><div class="form-floating"><input asp-for="Email" class="form-control" placeholder="Email" /><label>Email</label></div><div class="form-floating"><input asp-for="Phone" class="form-control" placeholder="Phone" /><label>Phone</label></div><div class="form-floating"><input asp-for="WhatsAppNumber" class="form-control" placeholder="WhatsApp" /><label>WhatsApp</label></div><div class="form-floating"><select asp-for="ServiceInterest" class="form-select" asp-items="Html.GetEnumSelectList<LeadServiceInterest>()"></select><label>Service Interested</label></div><div class="form-floating"><select asp-for="SportId" class="form-select" asp-items="Model.SportOptions"><option value="">Any sport</option></select><label>Sport</label></div><div class="form-floating"><input asp-for="PreferredDate" class="form-control" type="date" /><label>Preferred Date</label></div><div class="form-floating"><input asp-for="PreferredTime" class="form-control" type="time" /><label>Preferred Time</label></div><div class="form-floating"><input asp-for="PlayerCount" class="form-control" type="number" min="1" /><label>Player Count</label></div><div class="form-floating"><input asp-for="InquirySubject" class="form-control" placeholder="Subject" /><label>Subject</label></div><div class="form-floating wide"><textarea asp-for="InquiryDetails" class="form-control" placeholder="Details"></textarea><label>Inquiry Details</label></div></div>
             <label class="premium-policy-check"><input asp-for="AcceptPrivacyPolicy" /><span></span> I accept the privacy policy and agree to be contacted by GameHub.</label>
             <button class="btn-premium inquiry-submit" type="submit"><i class="bi bi-send"></i> Submit Inquiry</button>

@@ -5,10 +5,6 @@
 @{
     var activeFilters = new[] { "stage", "type", "assignedToUserId", "sportId" }.Count(x => !string.IsNullOrWhiteSpace(Q(x)));
     var stages = Enum.GetValues<OpportunityStage>();
-    var avgProbability = Model.Opportunities.Any() ? (int)Math.Round(Model.Opportunities.Average(x => x.ProbabilityPercentage)) : 0;
-    var closingThisMonth = Model.Opportunities.Count(x => x.ExpectedCloseDate.Month == DateTime.UtcNow.Month && x.ExpectedCloseDate.Year == DateTime.UtcNow.Year);
-    var won = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Won);
-    var lost = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Lost);
     var hasFilters = !string.IsNullOrWhiteSpace(Model.Search) || activeFilters > 0;
     var start = Model.Opportunities.Count == 0 ? 0 : ((Model.CurrentPage - 1) * Model.PageSize) + 1;
     var end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords);
@@ -81,9 +77,8 @@
         <div class="crm-pipeline-summary crm-opportunity-strip">
             <span>Total pipeline <strong>@Model.CurrencySymbol @Model.PipelineValue.ToString("N0")</strong></span>
             <span>Weighted <strong>@Model.CurrencySymbol @Model.WeightedPipeline.ToString("N0")</strong></span>
-            <span>Average probability <strong>@avgProbability%</strong></span>
-            <span>Closing this month <strong>@closingThisMonth</strong></span>
-            <span>Win rate <strong>@(won + lost == 0 ? 0 : (int)Math.Round(won * 100m / (won + lost)))%</strong></span>
+            <span>Closing this month <strong>@Model.ClosingThisMonth</strong></span>
+            <span>Win rate <strong>@(Model.WonOpportunities + Model.LostOpportunities == 0 ? 0 : (int)Math.Round(Model.WonOpportunities * 100m / (Model.WonOpportunities + Model.LostOpportunities)))%</strong></span>
         </div>
         <div class="crm-kanban crm-kanban-pro opportunities">
             @foreach (var stage in stages)

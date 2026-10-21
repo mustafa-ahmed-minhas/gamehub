@@ -22,14 +22,12 @@ namespace GameHub.Models.Entities
         public int? MembershipPlanId { get; set; }
         public DateOnly? PreferredDate { get; set; }
         public TimeOnly? PreferredStartTime { get; set; }
-        public int? PreferredDurationMinutes { get; set; }
         public int? ExpectedPlayerCount { get; set; }
         [MaxLength(150)] public string? InquirySubject { get; set; }
         [MaxLength(2000)] public string? InquiryDetails { get; set; }
         public int? AssignedToUserId { get; set; }
         public LeadStatus Status { get; set; }
         public LeadPriority Priority { get; set; }
-        public LeadTemperature Temperature { get; set; }
         public DateTime? NextFollowUpAt { get; set; }
         public DateTime? LastContactedAt { get; set; }
         [MaxLength(1500)] public string? QualificationNotes { get; set; }

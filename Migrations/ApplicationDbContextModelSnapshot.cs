@@ -2319,9 +2319,6 @@ namespace GameHub.Migrations
                     b.Property<DateOnly?>("PreferredDate")
                         .HasColumnType("date");
 
-                    b.Property<int?>("PreferredDurationMinutes")
-                        .HasColumnType("int");
-
                     b.Property<TimeOnly?>("PreferredStartTime")
                         .HasColumnType("time");
 
@@ -2365,11 +2362,6 @@ namespace GameHub.Migrations
                     b.Property<string>("Tags")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Temperature")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -2738,10 +2730,6 @@ namespace GameHub.Migrations
                         .HasMaxLength(1500)
                         .HasColumnType("nvarchar(1500)");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
                     b.Property<DateOnly>("ExpectedCloseDate")
                         .HasColumnType("date");
 
@@ -2751,10 +2739,6 @@ namespace GameHub.Migrations
 
                     b.Property<int?>("FacilityId")
                         .HasColumnType("int");
-
-                    b.Property<string>("InternalNotes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -2778,6 +2762,9 @@ namespace GameHub.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("NextFollowUpAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("OpportunityNumber")
                         .IsRequired()
@@ -2839,6 +2826,8 @@ namespace GameHub.Migrations
                         .IsUnique();
 
                     b.HasIndex("MembershipPlanId");
+
+                    b.HasIndex("NextFollowUpAt");
 
                     b.HasIndex("OpportunityNumber")
                         .IsUnique();

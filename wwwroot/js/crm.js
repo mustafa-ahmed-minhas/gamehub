@@ -110,12 +110,9 @@
     document.querySelector('[data-preview-stage]')?.addEventListener('change', (event) => setText('[data-preview-stage-text]', event.target.options[event.target.selectedIndex].text));
 
     document.querySelectorAll('[data-fv-status-select]').forEach((select) => {
-        Array.from(select.options).forEach((option) => {
-            if (option.value === 'Converted') {
-                option.disabled = true;
-                option.title = 'A lead can only be converted through the Convert to Opportunity action.';
-            }
-        });
+        // The lead status workflow is enforced server-side (LeadStatusRules);
+        // the form only ever offers valid options, nothing to patch here.
+        select.addEventListener('change', () => setText('[data-preview-status-text]', select.options[select.selectedIndex]?.text || ''));
     });
 
     const convertModal = document.querySelector('[data-crm-convert-modal]');

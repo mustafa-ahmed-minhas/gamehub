@@ -88,7 +88,6 @@
                                     <th>Assigned To</th>
                                     <th>Follow-up Type</th>
                                     <th>Scheduled Date &amp; Time</th>
-                                    <th>Priority</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -108,17 +107,16 @@
                                         "today" => "Today",
                                         _ => "Upcoming"
                                     };
-                                    <tr data-followup-state="@state" data-followup-search-row="@($"{item.Subject} {item.Customer} {item.Number} {item.RecordType} {item.Owner} {item.Priority}")">
+                                    <tr data-followup-state="@state" data-followup-search-row="@($"{item.Subject} {item.Customer} {item.Number} {item.RecordType} {item.Owner}")">
                                         <td data-label="Follow-up">
                                             <div class="user-cell membership-name-cell crm-person-cell">
                                                 <span class="user-avatar membership-table-avatar crm-mini-avatar">@initials</span>
                                                 <div>
                                                     <strong>@item.Subject</strong>
-                                                    <small>@item.DueAt.ToString("MMM dd, yyyy")</small>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td data-label="Customer"><strong>@item.Customer</strong><small>CRM contact</small></td>
+                                        <td data-label="Customer"><strong>@item.Customer</strong></td>
                                         <td data-label="Related">
                                             <a asp-action="@relatedAction" asp-route-id="@item.ParentId"><strong>@item.Number</strong></a>
                                             <small>@item.RecordType</small>
@@ -126,15 +124,14 @@
                                         <td data-label="Assigned To">
                                             <div class="user-cell crm-owner-cell">
                                                 <span class="user-avatar">@ownerInitials</span>
-                                                <div><strong>@(item.Owner ?? "Unassigned")</strong><small>@(string.IsNullOrWhiteSpace(item.Owner) ? "Needs owner" : "Owner")</small></div>
+                                                <div><strong>@(item.Owner ?? "Unassigned")</strong>@if (string.IsNullOrWhiteSpace(item.Owner)) { <small class="crm-overdue-text">Needs owner</small> }</div>
                                             </div>
                                         </td>
-                                        <td data-label="Follow-up Type"><span class="membership-code">@item.RecordType Activity</span></td>
+                                        <td data-label="Follow-up Type"><span class="membership-code">@(item.ActivityType ?? $"{item.RecordType} Activity")</span></td>
                                         <td data-label="Scheduled">
                                             <strong>@item.DueAt.ToString("MMM dd, yyyy")</strong>
                                             <small>@item.DueAt.ToString("hh:mm tt")</small>
                                         </td>
-                                        <td data-label="Priority"><span class="membership-status-badge crm-followup-priority priority-@item.Priority.ToString().ToLowerInvariant()"><i></i>@item.Priority.GetDisplayName()</span></td>
                                         <td data-label="Status"><span class="membership-status-badge crm-followup-status status-@state"><i></i>@statusText</span></td>
                                         <td data-label="Actions">
                                             <div class="membership-action-menu crm-followup-actions-cell">

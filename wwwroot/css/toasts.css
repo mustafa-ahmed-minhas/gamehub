@@ -62,6 +62,29 @@
     line-height: 1.45;
 }
 
+/* Optional toast call-to-action (for example "View Lead"). */
+.toast-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    padding: 0.4rem 0.75rem;
+    color: #17120a;
+    background: var(--toast-accent, #d6a950);
+    border-radius: 0.6rem;
+    font-size: 0.74rem;
+    font-weight: 950;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    transition: filter 160ms ease, transform 160ms ease;
+}
+
+.toast-action:hover {
+    color: #17120a;
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
 .toast-close {
     width: 1.9rem;
     height: 1.9rem;

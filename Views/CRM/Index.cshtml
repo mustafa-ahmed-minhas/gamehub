@@ -15,19 +15,16 @@
             : "Monitor inquiry demand, follow-up health and active sales pipeline performance.";
     var health = Model.OverdueFollowUps > 5 ? "Needs Attention" : "Healthy";
     var healthClass = Model.OverdueFollowUps > 5 ? "risk" : "healthy";
-    var closingThisMonth = Model.Opportunities.Count(x => x.ExpectedCloseDate.Month == DateTime.UtcNow.Month && x.ExpectedCloseDate.Year == DateTime.UtcNow.Year);
-    var wonOpportunities = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Won);
-    var lostOpportunities = Model.Opportunities.Count(x => x.Stage == OpportunityStage.Lost);
     ViewData["CrmGuidance"] = isLeads ? "leads" : isOpportunities ? "opportunities" : "overview";
     ViewData["CrmGuidanceRail"] = false;
     ViewData["OpenLeads"] = Model.TotalOpenLeads;
     ViewData["OpenOpportunities"] = Model.OpportunityCount;
     ViewData["OverdueFollowUps"] = Model.OverdueFollowUps;
-    ViewData["UnassignedLeads"] = Model.Leads.Count(x => string.IsNullOrWhiteSpace(x.AssignedTo));
-    ViewData["NoFollowUpLeads"] = Model.Leads.Count(x => x.NextFollowUpAt == null);
-    ViewData["UnassignedOpportunities"] = Model.Opportunities.Count(x => string.IsNullOrWhiteSpace(x.AssignedTo));
-    ViewData["OverdueOpportunities"] = Model.Opportunities.Count(x => x.IsOverdue);
-    ViewData["NegotiationValue"] = $"{Model.CurrencySymbol} {Model.Opportunities.Where(x => x.Stage == OpportunityStage.Negotiation).Sum(x => x.ExpectedValue):N0}";
+    ViewData["UnassignedLeads"] = Model.UnassignedLeads;
+    ViewData["NoFollowUpLeads"] = Model.NoFollowUpLeads;
+    ViewData["UnassignedOpportunities"] = Model.UnassignedOpportunities;
+    ViewData["OverdueOpportunities"] = Model.OverdueOpportunities;
+    ViewData["NegotiationValue"] = $"{Model.CurrencySymbol} {Model.NegotiationValue:N0}";
 }
 
 <section class="crm-page crm-page-pro @(isLeads ? "leads-page" : isOpportunities ? "opportunities-page" : "overview-page")">
@@ -37,8 +34,23 @@
             <h1>@headerTitle</h1>
             <p>@headerDescription</p>
             <div class="crm-filter-summary">
+                @if (isLeads)
+                {
+                    <a class="crm-new-inquiries-pill @(Model.WebsiteInquiryCount > 0 ? "has-items" : "is-empty")"
+                       asp-action="Index" asp-route-tab="leads" asp-route-status="@LeadStatus.New" asp-route-source="@LeadSource.WebsiteInquiry"
+                       data-website-inquiry-pill
+                       title="Website inquiries awaiting review"
+                       aria-label="New website inquiries awaiting review">
+                        <i class="bi bi-broadcast" aria-hidden="true"></i>
+                        <span>New Website Inquiries</span>
+                        <strong data-website-inquiry-count>@Model.WebsiteInquiryCount</strong>
+                    </a>
+                }
                 <span class="crm-health-pill @healthClass"><i class="bi bi-activity"></i> Pipeline Health: @health</span>
-                <span><i class="bi bi-database-check"></i> @Model.TotalRecords records in current view</span>
+                @if (isLeads || isOpportunities)
+                {
+                    <span><i class="bi bi-database-check"></i> @Model.TotalRecords records in current view</span>
+                }
                 @if (!string.IsNullOrWhiteSpace(Model.Search))
                 {
                     <a asp-action="Index" asp-route-tab="@Model.ActiveTab" class="crm-filter-chip"><i class="bi bi-x"></i> Search: @Model.Search</a>
@@ -61,10 +73,10 @@
     @if (isLeads)
     {
         <div class="arena-summary-grid">
-            <article><i class="bi bi-inbox"></i><span>Total Leads</span><strong>@Model.TotalOpenLeads</strong></article>
+            <article><i class="bi bi-inbox"></i><span>Open Leads</span><strong>@Model.TotalOpenLeads</strong></article>
             <article><i class="bi bi-stars"></i><span>New Leads</span><strong>@Model.NewLeads</strong></article>
             <article><i class="bi bi-patch-check"></i><span>Qualified</span><strong>@Model.QualifiedLeads</strong></article>
-            <article><i class="bi bi-arrow-repeat"></i><span>Converted</span><strong>@Model.Leads.Count(x => x.IsConverted)</strong></article>
+            <article><i class="bi bi-arrow-repeat"></i><span>Converted</span><strong>@Model.ConvertedLeads</strong></article>
             <article><i class="bi bi-exclamation-triangle"></i><span>Overdue</span><strong>@Model.OverdueFollowUps</strong></article>
             <article><i class="bi bi-percent"></i><span>Conversion Rate</span><strong>@Model.ConversionRate.ToString("N1")%</strong></article>
         </div>
@@ -75,9 +87,9 @@
             <article><i class="bi bi-briefcase"></i><span>Open Opportunities</span><strong>@Model.OpportunityCount</strong></article>
             <article><i class="bi bi-cash-coin"></i><span>Total Pipeline</span><strong>@Model.CurrencySymbol @Model.PipelineValue.ToString("N0")</strong></article>
             <article><i class="bi bi-graph-up"></i><span>Weighted Pipeline</span><strong>@Model.CurrencySymbol @Model.WeightedPipeline.ToString("N0")</strong></article>
-            <article><i class="bi bi-calendar2-check"></i><span>Closing This Month</span><strong>@closingThisMonth</strong></article>
-            <article><i class="bi bi-trophy"></i><span>Won</span><strong>@wonOpportunities</strong></article>
-            <article><i class="bi bi-slash-circle"></i><span>Lost</span><strong>@lostOpportunities</strong></article>
+            <article><i class="bi bi-calendar2-check"></i><span>Closing This Month</span><strong>@Model.ClosingThisMonth</strong></article>
+            <article><i class="bi bi-trophy"></i><span>Won</span><strong>@Model.WonOpportunities</strong></article>
+            <article><i class="bi bi-slash-circle"></i><span>Lost</span><strong>@Model.LostOpportunities</strong></article>
         </div>
     }
 
@@ -92,7 +104,7 @@
         @if (Model.ActiveTab == "overview")
             {
                 <div class="crm-kpi-grid crm-kpi-grid-pro">
-                    <article class="crm-kpi"><i class="bi bi-inbox"></i><span>Total Leads</span><strong>@Model.TotalOpenLeads</strong><small>Active CRM demand</small><em style="width:@Math.Min(100, Model.TotalOpenLeads * 8)%"></em></article>
+                    <article class="crm-kpi"><i class="bi bi-inbox"></i><span>Open Leads</span><strong>@Model.TotalOpenLeads</strong><small>Active CRM demand</small><em style="width:@Math.Min(100, Model.TotalOpenLeads * 8)%"></em></article>
                     <article class="crm-kpi"><i class="bi bi-stars"></i><span>New Leads</span><strong>@Model.NewLeads</strong><small>Fresh inquiries</small><em style="width:@Math.Min(100, Model.NewLeads * 12)%"></em></article>
                     <article class="crm-kpi"><i class="bi bi-check2-circle"></i><span>Qualified</span><strong>@Model.QualifiedLeads</strong><small>Ready to convert</small><em style="width:@Math.Min(100, Model.QualifiedLeads * 14)%"></em></article>
                     <article class="crm-kpi"><i class="bi bi-arrow-up-right-circle"></i><span>Conversion Rate</span><strong>@Model.ConversionRate.ToString("N1")%</strong><small>Lead to opportunity</small><em style="width:@Math.Min(100, (int)Model.ConversionRate)%"></em></article>
@@ -116,10 +128,13 @@
                     <article class="crm-card crm-insight-card">
                         <header><div><h2>Opportunity Value</h2><span>Expected value by stage</span></div><i class="bi bi-bar-chart"></i></header>
                         <div class="crm-funnel">
+                            @{
+                                var stageTotal = Model.PipelineByStage.Values.Sum();
+                            }
                             @foreach (OpportunityStage stage in Enum.GetValues<OpportunityStage>())
                             {
                                 var value = Model.PipelineByStage.TryGetValue(stage, out var amount) ? amount : 0;
-                                <div><span>@stage.GetDisplayName()</span><strong>@Model.CurrencySymbol @value.ToString("N0")</strong><em style="width:@(Model.PipelineValue <= 0 ? 0 : Math.Min(100, (int)(value / Model.PipelineValue * 100)))%"></em></div>
+                                <div><span>@stage.GetDisplayName()</span><strong>@Model.CurrencySymbol @value.ToString("N0")</strong><em style="width:@(stageTotal <= 0 ? 0 : Math.Min(100, (int)(value / stageTotal * 100)))%"></em></div>
                             }
                         </div>
                     </article>

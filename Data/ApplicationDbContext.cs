@@ -602,7 +602,6 @@ namespace GameHub.Data
                 entity.Property(lead => lead.ServiceInterest).HasConversion<string>().HasMaxLength(40);
                 entity.Property(lead => lead.Status).HasConversion<string>().HasMaxLength(30);
                 entity.Property(lead => lead.Priority).HasConversion<string>().HasMaxLength(20);
-                entity.Property(lead => lead.Temperature).HasConversion<string>().HasMaxLength(20);
                 entity.Property(lead => lead.InquirySubject).HasMaxLength(150);
                 entity.Property(lead => lead.InquiryDetails).HasMaxLength(2000);
                 entity.Property(lead => lead.QualificationNotes).HasMaxLength(1500);
@@ -639,9 +638,9 @@ namespace GameHub.Data
                 entity.HasIndex(opportunity => opportunity.Stage);
                 entity.HasIndex(opportunity => opportunity.AssignedToUserId);
                 entity.HasIndex(opportunity => opportunity.ExpectedCloseDate);
+                entity.HasIndex(opportunity => opportunity.NextFollowUpAt);
                 entity.Property(opportunity => opportunity.OpportunityNumber).IsRequired().HasMaxLength(30);
                 entity.Property(opportunity => opportunity.Name).IsRequired().HasMaxLength(150);
-                entity.Property(opportunity => opportunity.Description).HasMaxLength(1000);
                 entity.Property(opportunity => opportunity.Type).HasConversion<string>().HasMaxLength(30);
                 entity.Property(opportunity => opportunity.Stage).HasConversion<string>().HasMaxLength(30);
                 entity.Property(opportunity => opportunity.ExpectedValue).HasPrecision(12, 2);
@@ -649,7 +648,6 @@ namespace GameHub.Data
                 entity.Property(opportunity => opportunity.ProposedSolution).HasMaxLength(1500);
                 entity.Property(opportunity => opportunity.CompetitorInformation).HasMaxLength(1000);
                 entity.Property(opportunity => opportunity.LossReason).HasMaxLength(500);
-                entity.Property(opportunity => opportunity.InternalNotes).HasMaxLength(2000);
                 entity.Property(opportunity => opportunity.Tags).HasMaxLength(500);
                 entity.Property(opportunity => opportunity.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
                 entity.Property(opportunity => opportunity.IsActive).HasDefaultValue(true);

@@ -1,5 +1,6 @@
 using GameHub.Data;
 using GameHub.Helpers;
+using GameHub.Hubs;
 using GameHub.Services.Implementations;
 using GameHub.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,8 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IWebsiteInquiryNotifier, WebsiteInquiryNotifier>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -98,6 +101,8 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.MapHub<CrmNotificationsHub>(CrmNotificationsHub.Route);
 
 if (app.Environment.IsDevelopment())
 {

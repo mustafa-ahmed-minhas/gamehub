@@ -20,7 +20,7 @@
                     <div class="form-floating"><input asp-for="FirstName" class="form-control" placeholder="First name" /><label asp-for="FirstName"></label><span asp-validation-for="FirstName" class="text-danger small"></span></div>
                     <div class="form-floating"><input asp-for="LastName" class="form-control" placeholder="Last name" /><label asp-for="LastName"></label><span asp-validation-for="LastName" class="text-danger small"></span></div>
                     <div class="form-floating"><input asp-for="PreferredName" class="form-control" placeholder="Preferred name" /><label asp-for="PreferredName"></label><span asp-validation-for="PreferredName" class="text-danger small"></span></div>
-                    <div class="form-floating"><input asp-for="DateOfBirth" type="date" class="form-control" placeholder="Date of birth" /><label asp-for="DateOfBirth"></label><span asp-validation-for="DateOfBirth" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="DateOfBirth" type="date" class="form-control" placeholder="Date of birth" data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@DateOfBirthRules.LatestAllowedDate().ToString("yyyy-MM-dd")" /><label asp-for="DateOfBirth"></label><span asp-validation-for="DateOfBirth" class="text-danger small"></span></div>
                     <div class="form-floating"><select asp-for="Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()"></select><label asp-for="Gender"></label></div>
                     <div class="form-floating"><select asp-for="PreferredContactMethod" class="form-select" asp-items="Html.GetEnumSelectList<PreferredContactMethod>()"></select><label asp-for="PreferredContactMethod"></label></div>
                 </div>
@@ -28,8 +28,8 @@
             <div class="form-section">
                 <h2>Contact and Address</h2>
                 <div class="form-grid two">
-                    <div class="form-floating"><input asp-for="PrimaryPhone" class="form-control" placeholder="Phone" /><label asp-for="PrimaryPhone"></label><span asp-validation-for="PrimaryPhone" class="text-danger small"></span></div>
-                    <div class="form-floating"><input asp-for="WhatsAppNumber" class="form-control" placeholder="WhatsApp" /><label asp-for="WhatsAppNumber"></label><span asp-validation-for="WhatsAppNumber" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="PrimaryPhone" class="form-control" placeholder="03001234567" inputmode="numeric" maxlength="11" /><label asp-for="PrimaryPhone"></label><span asp-validation-for="PrimaryPhone" class="text-danger small"></span></div>
+                    <div class="form-floating"><input asp-for="WhatsAppNumber" class="form-control" placeholder="03001234567" inputmode="numeric" maxlength="11" /><label asp-for="WhatsAppNumber"></label><span asp-validation-for="WhatsAppNumber" class="text-danger small"></span></div>
                     <div class="form-floating"><input asp-for="AddressLine1" class="form-control" placeholder="Address line 1" /><label asp-for="AddressLine1"></label></div>
                     <div class="form-floating"><input asp-for="AddressLine2" class="form-control" placeholder="Address line 2" /><label asp-for="AddressLine2"></label></div>
                     <div class="form-floating"><input asp-for="City" class="form-control" placeholder="City" /><label asp-for="City"></label></div>

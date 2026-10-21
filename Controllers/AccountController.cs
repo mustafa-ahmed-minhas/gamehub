@@ -79,11 +79,19 @@ namespace GameHub.Controllers
                     return View(model);
                 }
 
+                if (!string.IsNullOrWhiteSpace(customer.NationalIdNumber)
+                    && !customer.NationalIdNumber.Equals(model.NationalIdNumber, StringComparison.Ordinal))
+                {
+                    ModelState.AddModelError(nameof(model.NationalIdNumber), "This CNIC / National ID does not match the existing GameHub profile. Please contact GameHub support.");
+                    return View(model);
+                }
+
                 customer.FirstName = model.FirstName;
                 customer.LastName = model.LastName;
                 customer.Email ??= model.Email;
                 customer.PrimaryPhone = customer.PrimaryPhone == normalizedPhone ? customer.PrimaryPhone : normalizedPhone;
                 customer.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? customer.WhatsAppNumber : NormalizePhone(model.WhatsAppNumber);
+                customer.NationalIdNumber ??= model.NationalIdNumber;
                 customer.DateOfBirth ??= model.DateOfBirth;
                 customer.Gender = model.Gender;
             }
@@ -105,6 +113,7 @@ namespace GameHub.Controllers
                 customer.Email = model.Email;
                 customer.PrimaryPhone = normalizedPhone;
                 customer.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? null : NormalizePhone(model.WhatsAppNumber);
+                customer.NationalIdNumber = model.NationalIdNumber;
                 customer.DateOfBirth = model.DateOfBirth;
                 customer.Gender = model.Gender;
                 _dbContext.Customers.Add(customer);
@@ -344,9 +353,9 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CheckPhone(string phone)
         {
             var normalized = NormalizePhone(phone);
-            if (string.IsNullOrWhiteSpace(normalized) || normalized.Length < 10)
+            if (!PhonePattern.IsMatch(normalized))
             {
-                return Json(new { available = false, accountExists = false, canLinkExistingCustomer = false, message = "Enter a valid phone number." });
+                return Json(new { available = false, accountExists = false, canLinkExistingCustomer = false, message = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567)." });
             }
 
             var customer = await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(item => item.PrimaryPhone == normalized);
@@ -428,11 +437,6 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.Password), "Password must include uppercase, lowercase, number and special character.");
             }
 
-            if (model.DateOfBirth.HasValue && model.DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
-            {
-                ModelState.AddModelError(nameof(model.DateOfBirth), "Date of birth cannot be in the future.");
-            }
-
             var normalizedPhone = NormalizePhone(model.PrimaryPhone);
             var duplicateOnline = await _dbContext.Customers.AnyAsync(item =>
                 item.HasOnlineAccount &&
@@ -440,6 +444,21 @@ namespace GameHub.Controllers
             if (duplicateOnline)
             {
                 ModelState.AddModelError(string.Empty, "An online account already exists for these details.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.NationalIdNumber))
+            {
+                // A different customer row holding the same CNIC would violate the
+                // unique index on save; the row matched by email / phone is fine
+                // because linking only fills the CNIC when it is still empty.
+                var normalizedPhoneForCnic = NormalizePhone(model.PrimaryPhone);
+                var duplicateNationalId = await _dbContext.Customers.AnyAsync(item =>
+                    item.NationalIdNumber == model.NationalIdNumber &&
+                    !((item.Email != null && item.Email.ToLower() == model.Email) || item.PrimaryPhone == normalizedPhoneForCnic));
+                if (duplicateNationalId)
+                {
+                    ModelState.AddModelError(nameof(model.NationalIdNumber), "This CNIC / National ID is already registered to another GameHub account.");
+                }
             }
         }
 
@@ -457,6 +476,7 @@ namespace GameHub.Controllers
             model.Email = model.Email?.Trim().ToLowerInvariant() ?? string.Empty;
             model.PrimaryPhone = NormalizePhone(model.PrimaryPhone);
             model.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? null : NormalizePhone(model.WhatsAppNumber);
+            model.NationalIdNumber = model.NationalIdNumber?.Trim() ?? string.Empty;
         }
 
         private static string NormalizePhone(string? value)
@@ -466,6 +486,8 @@ namespace GameHub.Controllers
             var prefix = trimmed.StartsWith("+") ? "+" : string.Empty;
             return prefix + new string(trimmed.Where(char.IsDigit).ToArray());
         }
+
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         private string? SafeReturnUrl(string? returnUrl)
         {

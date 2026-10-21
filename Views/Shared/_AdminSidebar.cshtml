@@ -91,7 +91,6 @@
             </section>
         }
 
-        @* TEMPORARILY HIDDEN - Sales section. Remove these comment markers to restore it.
         @if (Can("Sales") || Can("Invoices") || Can("Payments"))
         {
             <section class="@GroupClass(SalesActive)" data-nav-group>
@@ -118,7 +117,6 @@
                 </div>
             </section>
         }
-        *@
 
         @* TEMPORARILY HIDDEN - Operations section. Remove these comment markers to restore it.
         @if (Can("Bookings") || Can("Memberships"))

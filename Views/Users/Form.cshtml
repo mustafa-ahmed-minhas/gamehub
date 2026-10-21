@@ -82,7 +82,7 @@
                 <div class="form-grid-two">
                     <div class="premium-field">
                         <label asp-for="DateOfBirth">Date of Birth <span>*</span></label>
-                        <div><i class="bi bi-calendar-event"></i><input asp-for="DateOfBirth" type="date" max="@DateTime.UtcNow.ToString("yyyy-MM-dd")" /></div>
+                        <div><i class="bi bi-calendar-event"></i><input asp-for="DateOfBirth" type="date" data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@DateOfBirthRules.LatestAllowedDate().ToString("yyyy-MM-dd")" /></div>
                         <small>Date of birth cannot be in the future.</small>
                         <span asp-validation-for="DateOfBirth" class="text-danger"></span>
                     </div>

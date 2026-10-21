@@ -80,7 +80,7 @@
                 const now = new Date();
                 let age = now.getFullYear() - birth.getFullYear();
                 if (birth > new Date(now.getFullYear() - age, now.getMonth(), now.getDate())) age--;
-                ageText.textContent = age < 13 ? `${age} years old - under 13` : `${age} years old`;
+                ageText.textContent = age < 16 ? `${age} years old - under 16` : `${age} years old`;
             } else {
                 ageText.textContent = "Age not available";
             }

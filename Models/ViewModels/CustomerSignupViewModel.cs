@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using GameHub.Helpers;
 using GameHub.Models.Enums;
 
 namespace GameHub.Models.ViewModels
 {
-    public class CustomerSignupViewModel
+    public class CustomerSignupViewModel : IValidatableObject
     {
         [Required, MaxLength(50)]
         [RegularExpression(@"^[A-Za-z\s'-]+$", ErrorMessage = "First name can contain letters, spaces, hyphens and apostrophes only.")]
@@ -17,13 +18,17 @@ namespace GameHub.Models.ViewModels
         [Required, EmailAddress, MaxLength(150)]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MaxLength(20)]
-        [RegularExpression(@"^\+?[0-9][0-9\s-]{8,18}$", ErrorMessage = "Enter a valid phone number.")]
+        [Required, MaxLength(11)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
         public string PrimaryPhone { get; set; } = string.Empty;
 
-        [MaxLength(20)]
-        [RegularExpression(@"^\+?[0-9][0-9\s-]{8,18}$", ErrorMessage = "Enter a valid WhatsApp number.")]
+        [MaxLength(11)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
         public string? WhatsAppNumber { get; set; }
+
+        [Required(ErrorMessage = "CNIC / National ID is required.")]
+        [RegularExpression(@"^\d{13}$", ErrorMessage = "CNIC / National ID must be exactly 13 numeric digits without spaces or hyphens (e.g., 3520212345678).")]
+        public string NationalIdNumber { get; set; } = string.Empty;
 
         public DateOnly? DateOfBirth { get; set; }
 
@@ -42,5 +47,14 @@ namespace GameHub.Models.ViewModels
 
         public bool ReceiveBookingReminders { get; set; } = true;
         public bool ReceiveMarketingMessages { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var dateOfBirthError = DateOfBirthRules.Validate(DateOfBirth);
+            if (dateOfBirthError != null)
+            {
+                yield return new ValidationResult(dateOfBirthError, new[] { nameof(DateOfBirth) });
+            }
+        }
     }
 }

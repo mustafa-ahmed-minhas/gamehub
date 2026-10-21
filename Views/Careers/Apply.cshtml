@@ -104,7 +104,7 @@ else
                                 </div>
                                 <div class="job-field">
                                     <div class="form-floating">
-                                        <input asp-for="Form.DateOfBirth" type="date" class="form-control" max="@maxDob" />
+                                        <input asp-for="Form.DateOfBirth" type="date" class="form-control" data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@maxDob" />
                                         <label asp-for="Form.DateOfBirth">Date of Birth</label>
                                     </div>
                                     <span class="job-field-error" asp-validation-for="Form.DateOfBirth"></span>
@@ -156,18 +156,18 @@ else
                                 </div>
                                 <div class="job-field">
                                     <div class="form-floating">
-                                        <input asp-for="Form.Phone" class="form-control" placeholder="Phone" maxlength="30" required />
+                                        <input asp-for="Form.Phone" class="form-control" placeholder="03001234567" inputmode="numeric" maxlength="11" required />
                                         <label asp-for="Form.Phone">Phone Number *</label>
                                     </div>
-                                    <small class="job-field-hint">Include the country code, e.g. +92 300 1234567.</small>
+                                    <small class="job-field-hint">Enter an 11-digit phone number starting with 0, e.g. 03001234567.</small>
                                     <span class="job-field-error" asp-validation-for="Form.Phone"></span>
                                 </div>
                                 <div class="job-field wide">
                                     <div class="form-floating">
-                                        <input asp-for="Form.NationalIdNumber" class="form-control" placeholder="National ID" maxlength="30" required />
+                                        <input asp-for="Form.NationalIdNumber" class="form-control" placeholder="3520212345678" inputmode="numeric" maxlength="13" required />
                                         <label asp-for="Form.NationalIdNumber">National ID Number *</label>
                                     </div>
-                                    <small class="job-field-hint">For Pakistan, enter the 13-digit CNIC. Hyphens are optional.</small>
+                                    <small class="job-field-hint">Enter the 13-digit CNIC without spaces or hyphens, e.g. 3520212345678.</small>
                                     <span class="job-field-error" asp-validation-for="Form.NationalIdNumber"></span>
                                 </div>
                             </div>

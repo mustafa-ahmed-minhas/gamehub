@@ -90,7 +90,7 @@
             </label>
             <label>
                 <span>Date of Birth *</span>
-                <input asp-for="DateOfBirth" type="date" max="@DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-18).ToString("yyyy-MM-dd")" />
+                <input asp-for="DateOfBirth" type="date" data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@DateOnly.FromDateTime(DateTime.UtcNow).AddYears(-18).ToString("yyyy-MM-dd")" />
                 <span asp-validation-for="DateOfBirth"></span>
             </label>
             <label>
@@ -100,13 +100,13 @@
             </label>
             <label>
                 <span>National ID / CNIC *</span>
-                <input asp-for="NationalIdNumber" placeholder="e.g. 35202-1234567-8" data-check-national-id data-current-id="@Model.Id" />
+                <input asp-for="NationalIdNumber" placeholder="3520212345678" inputmode="numeric" maxlength="13" data-check-national-id data-current-id="@Model.Id" />
                 <span asp-validation-for="NationalIdNumber"></span>
                 <em data-national-id-status></em>
             </label>
             <label>
                 <span>Phone Number *</span>
-                <input asp-for="PhoneNumber" placeholder="e.g. +92 300 1234567" data-check-phone data-current-id="@Model.Id" />
+                <input asp-for="PhoneNumber" placeholder="03001234567" inputmode="numeric" maxlength="11" data-check-phone data-current-id="@Model.Id" />
                 <span asp-validation-for="PhoneNumber"></span>
                 <em data-phone-status></em>
             </label>
@@ -164,7 +164,7 @@
             </label>
             <label>
                 <span>Emergency Contact Number</span>
-                <input asp-for="EmergencyContactNumber" maxlength="30" placeholder="e.g. +92 300 1234567" />
+                <input asp-for="EmergencyContactNumber" maxlength="11" inputmode="numeric" placeholder="03001234567" />
                 <span asp-validation-for="EmergencyContactNumber"></span>
             </label>
         </section>

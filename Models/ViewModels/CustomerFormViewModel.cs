@@ -1,3 +1,4 @@
+using GameHub.Helpers;
 using GameHub.Models.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
@@ -27,8 +28,8 @@ namespace GameHub.Models.ViewModels
         public string? ExistingProfileImageUrl { get; set; }
         public bool RemoveProfileImage { get; set; }
 
-        [MaxLength(30, ErrorMessage = "National ID cannot exceed 30 characters.")]
-        [RegularExpression(@"^[A-Za-z0-9\-]{5,}$", ErrorMessage = "Use letters, numbers and hyphens only.")]
+        [Required(ErrorMessage = "CNIC/National ID is required.")]
+        [RegularExpression(@"^\d{13}$", ErrorMessage = "CNIC/National ID must be exactly 13 numeric digits (e.g., 3520212345678).")]
         public string? NationalIdNumber { get; set; }
 
         public DateOnly? DateOfBirth { get; set; }
@@ -37,13 +38,16 @@ namespace GameHub.Models.ViewModels
         public Gender Gender { get; set; } = Gender.PreferNotToSay;
 
         [Required(ErrorMessage = "Primary phone is required.")]
-        [MaxLength(20)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string PrimaryPhone { get; set; } = string.Empty;
 
-        [MaxLength(20)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? SecondaryPhone { get; set; }
 
-        [MaxLength(20)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? WhatsAppNumber { get; set; }
 
         [EmailAddress(ErrorMessage = "Enter a valid email address.")]
@@ -78,7 +82,8 @@ namespace GameHub.Models.ViewModels
         [RegularExpression(@"^[A-Za-z\s'\-]{2,}$", ErrorMessage = "Use letters, spaces, hyphens and apostrophes only.")]
         public string? EmergencyContactName { get; set; }
 
-        [MaxLength(20)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? EmergencyContactPhone { get; set; }
 
         [MaxLength(50, ErrorMessage = "Relationship cannot exceed 50 characters.")]
@@ -142,9 +147,10 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (DateOfBirth.HasValue && DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
+            var dateOfBirthError = DateOfBirthRules.Validate(DateOfBirth);
+            if (dateOfBirthError != null)
             {
-                yield return new ValidationResult("Date of birth cannot be in the future.", new[] { nameof(DateOfBirth) });
+                yield return new ValidationResult(dateOfBirthError, new[] { nameof(DateOfBirth) });
             }
 
             if (!string.IsNullOrWhiteSpace(SecondaryPhone) && string.Equals(NormalizePhone(SecondaryPhone), NormalizePhone(PrimaryPhone), StringComparison.Ordinal))

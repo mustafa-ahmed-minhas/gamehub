@@ -30,8 +30,8 @@
                 <label><span>Last Name *</span><input asp-for="LastName" data-preview-last data-fv-rule="required,letters" /><span asp-validation-for="LastName" class="text-danger"></span></label>
                 <label><span>Preferred Name</span><input asp-for="PreferredName" data-preview-preferred data-fv-rule="letters" /><span asp-validation-for="PreferredName" class="text-danger"></span></label>
                 <label><span>Gender *</span><select asp-for="Gender" asp-items="Html.GetEnumSelectList<Gender>()"></select></label>
-                <label><span>Date of Birth</span><input asp-for="DateOfBirth" type="date" data-preview-dob data-fv-rule="future" /><span asp-validation-for="DateOfBirth" class="text-danger"></span></label>
-                <label><span>National ID / Passport</span><input asp-for="NationalIdNumber" data-check-national-id data-current-id="@Model.Id" data-fv-rule="code" /><span asp-validation-for="NationalIdNumber" class="text-danger"></span><em data-national-id-status></em></label>
+                <label><span>Date of Birth</span><input asp-for="DateOfBirth" type="date" data-preview-dob data-dob min="@DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd")" max="@DateOfBirthRules.LatestAllowedDate().ToString("yyyy-MM-dd")" /><span asp-validation-for="DateOfBirth" class="text-danger"></span></label>
+                <label><span>CNIC/National ID *</span><input asp-for="NationalIdNumber" data-check-national-id data-current-id="@Model.Id" inputmode="numeric" maxlength="13" data-fv-rule="required,cnic" placeholder="3520212345678" /><span asp-validation-for="NationalIdNumber" class="text-danger"></span><em data-national-id-status></em></label>
                 <label><span>Profile Image</span><input asp-for="ProfileImage" type="file" accept=".jpg,.jpeg,.png,.webp" data-image-input /><span asp-validation-for="ProfileImage" class="text-danger"></span></label>
                 @if (!string.IsNullOrWhiteSpace(Model.ExistingProfileImageUrl))
                 {
@@ -41,9 +41,9 @@
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-telephone"></i> Contact Information</h2>
-                <label><span>Primary Phone *</span><input asp-for="PrimaryPhone" type="tel" inputmode="numeric" data-preview-phone data-check-phone data-current-id="@Model.Id" data-fv-rule="required,phone" /><span asp-validation-for="PrimaryPhone" class="text-danger"></span><em data-phone-status></em></label>
-                <label><span>Secondary Phone</span><input asp-for="SecondaryPhone" type="tel" inputmode="numeric" data-fv-rule="phone" /><span asp-validation-for="SecondaryPhone" class="text-danger"></span></label>
-                <label><span>WhatsApp Number</span><input asp-for="WhatsAppNumber" type="tel" inputmode="numeric" data-preview-whatsapp data-check-whatsapp data-current-id="@Model.Id" data-fv-rule="phone" /><span asp-validation-for="WhatsAppNumber" class="text-danger"></span><em data-whatsapp-status></em></label>
+                <label><span>Primary Phone *</span><input asp-for="PrimaryPhone" type="tel" inputmode="numeric" maxlength="11" data-preview-phone data-check-phone data-current-id="@Model.Id" data-fv-rule="required,phone" placeholder="03001234567" /><span asp-validation-for="PrimaryPhone" class="text-danger"></span><em data-phone-status></em></label>
+                <label><span>Secondary Phone</span><input asp-for="SecondaryPhone" type="tel" inputmode="numeric" maxlength="11" data-fv-rule="phone" placeholder="03001234567" /><span asp-validation-for="SecondaryPhone" class="text-danger"></span></label>
+                <label><span>WhatsApp Number</span><input asp-for="WhatsAppNumber" type="tel" inputmode="numeric" maxlength="11" data-preview-whatsapp data-check-whatsapp data-current-id="@Model.Id" data-fv-rule="phone" placeholder="03001234567" /><span asp-validation-for="WhatsAppNumber" class="text-danger"></span><em data-whatsapp-status></em></label>
                 <label class="customer-toggle"><input type="checkbox" data-same-whatsapp /> Same as primary phone</label>
                 <label><span>Email</span><input asp-for="Email" type="email" data-preview-email data-check-email data-current-id="@Model.Id" data-fv-rule="email" /><span asp-validation-for="Email" class="text-danger"></span><em data-email-status></em></label>
                 <label><span>Preferred Contact</span><select asp-for="PreferredContactMethod" asp-items="Html.GetEnumSelectList<PreferredContactMethod>()"></select></label>
@@ -62,7 +62,7 @@
             <section class="customer-form-card">
                 <h2><i class="bi bi-heart-pulse"></i> Emergency Contact</h2>
                 <label><span>Contact Name</span><input asp-for="EmergencyContactName" data-fv-rule="letters" /><span asp-validation-for="EmergencyContactName" class="text-danger"></span></label>
-                <label><span>Phone</span><input asp-for="EmergencyContactPhone" type="tel" inputmode="numeric" data-fv-rule="phone" /><span asp-validation-for="EmergencyContactPhone" class="text-danger"></span></label>
+                <label><span>Phone</span><input asp-for="EmergencyContactPhone" type="tel" inputmode="numeric" maxlength="11" data-fv-rule="phone" placeholder="03001234567" /><span asp-validation-for="EmergencyContactPhone" class="text-danger"></span></label>
                 <label><span>Relationship</span><input asp-for="EmergencyContactRelation" data-fv-rule="letters" /><span asp-validation-for="EmergencyContactRelation" class="text-danger"></span></label>
             </section>
 

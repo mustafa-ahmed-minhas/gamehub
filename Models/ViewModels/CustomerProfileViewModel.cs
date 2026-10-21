@@ -16,12 +16,12 @@ namespace GameHub.Models.ViewModels
         [MaxLength(50)]
         public string? PreferredName { get; set; }
 
-        [Required, MaxLength(20)]
-        [RegularExpression(@"^\+?[0-9][0-9\s-]{8,18}$", ErrorMessage = "Enter a valid phone number.")]
+        [Required, MaxLength(11)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
         public string PrimaryPhone { get; set; } = string.Empty;
 
-        [MaxLength(20)]
-        [RegularExpression(@"^\+?[0-9][0-9\s-]{8,18}$", ErrorMessage = "Enter a valid WhatsApp number.")]
+        [MaxLength(11)]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
         public string? WhatsAppNumber { get; set; }
 
         public DateOnly? DateOfBirth { get; set; }

@@ -35,11 +35,12 @@ namespace GameHub.Models.ViewModels
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone Number is required.")]
-        [MaxLength(30, ErrorMessage = "Phone Number cannot exceed 30 characters.")]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string Phone { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "National ID Number is required.")]
-        [MaxLength(30, ErrorMessage = "National ID Number cannot exceed 30 characters.")]
+        [RegularExpression(@"^\d{13}$", ErrorMessage = "National ID Number must be exactly 13 numeric digits (e.g., 3520212345678).")]
         public string NationalIdNumber { get; set; } = string.Empty;
 
         [DataType(DataType.Date)]
@@ -125,30 +126,17 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (DateOfBirth.HasValue)
-            {
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
-                if (DateOfBirth.Value > today)
-                {
-                    yield return new ValidationResult(
-                        "Date of Birth cannot be in the future.",
-                        new[] { nameof(DateOfBirth) });
-                }
-                else
-                {
-                    var age = today.Year - DateOfBirth.Value.Year;
-                    if (DateOfBirth.Value.AddYears(age) > today)
-                    {
-                        age--;
-                    }
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-                    if (age < 18)
-                    {
-                        yield return new ValidationResult(
-                            "Applicant must be at least 18 years old.",
-                            new[] { nameof(DateOfBirth) });
-                    }
-                }
+            // Shared 16+ floor first; recruitment keeps its existing, stricter 18+ policy.
+            var dateOfBirthError = DateOfBirthRules.Validate(
+                DateOfBirth,
+                minimumAge: 18,
+                minimumAgeMessage: "Applicant must be at least 18 years old.",
+                today: today);
+            if (dateOfBirthError != null)
+            {
+                yield return new ValidationResult(dateOfBirthError, new[] { nameof(DateOfBirth) });
             }
 
             if (ApplicationDate > DateOnly.FromDateTime(DateTime.UtcNow))
@@ -158,29 +146,7 @@ namespace GameHub.Models.ViewModels
                     new[] { nameof(ApplicationDate) });
             }
 
-            // International phone: optional leading +, digits only afterwards, 7-15 digits.
-            var phoneRaw = (Phone ?? string.Empty).Trim();
-            var phoneDigits = new string(phoneRaw.Where(char.IsDigit).ToArray());
-            var hasPlus = phoneRaw.StartsWith('+');
-            var invalidChars = phoneRaw
-                .Skip(hasPlus ? 1 : 0)
-                .Any(c => !char.IsDigit(c) && c != '-' && c != ' ' && c != '(' && c != ')');
-
-            if (phoneRaw.Length == 0
-                || hasPlus && phoneDigits.Length == phoneRaw.Length
-                || phoneDigits.Length is < 7 or > 15
-                || invalidChars
-                || phoneRaw.Count(c => c == '+') > 1)
-            {
-                yield return new ValidationResult(
-                    "Enter a valid phone number with country code, e.g., +92 300 1234567.",
-                    new[] { nameof(Phone) });
-            }
-
-            if (!NationalIdValidator.TryNormalize(NationalIdNumber, Country, out _, out var nationalIdError))
-            {
-                yield return new ValidationResult(nationalIdError, new[] { nameof(NationalIdNumber) });
-            }
+            // Phone and CNIC validation handled by data annotations
 
             if (SupportingDocuments != null && SupportingDocuments.Count > MaxSupportingDocumentCount)
             {

@@ -16,7 +16,6 @@ namespace GameHub.Models.Entities
         public int? MembershipPlanId { get; set; }
         public int? AssignedToUserId { get; set; }
         [Required, MaxLength(150)] public string Name { get; set; } = string.Empty;
-        [MaxLength(1000)] public string? Description { get; set; }
         public OpportunityType Type { get; set; }
         public OpportunityStage Stage { get; set; }
         public decimal ExpectedValue { get; set; }
@@ -27,7 +26,6 @@ namespace GameHub.Models.Entities
         [MaxLength(1500)] public string? ProposedSolution { get; set; }
         [MaxLength(1000)] public string? CompetitorInformation { get; set; }
         [MaxLength(500)] public string? LossReason { get; set; }
-        [MaxLength(2000)] public string? InternalNotes { get; set; }
         [MaxLength(500)] public string? Tags { get; set; }
         public bool QuotationCreated { get; set; }
         public int? QuotationId { get; set; }
@@ -38,6 +36,7 @@ namespace GameHub.Models.Entities
         public DateTime? UpdatedAt { get; set; }
         public DateTime? WonAt { get; set; }
         public DateTime? LostAt { get; set; }
+        public DateTime? NextFollowUpAt { get; set; }
 
         public Lead Lead { get; set; } = null!;
         public Customer? Customer { get; set; }

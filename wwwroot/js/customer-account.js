@@ -66,6 +66,19 @@
         phoneInput?.addEventListener('input', debounce(() => checkAvailability(phoneInput, phoneResult, phoneUrl, 'phone')));
         phoneInput?.addEventListener('blur', () => checkAvailability(phoneInput, phoneResult, phoneUrl, 'phone'));
 
+        // Frontend input guards: mirror the server-side rules (11-digit phone
+        // starting with 0, 13-digit numeric CNIC) as a first line of defence.
+        const restrictToDigits = (input, maxLength) => {
+            if (!input) return;
+            input.addEventListener('input', () => {
+                const cleaned = input.value.replace(/\D+/g, '').slice(0, maxLength);
+                if (cleaned !== input.value) input.value = cleaned;
+            });
+        };
+        restrictToDigits(qs('input[name="PrimaryPhone"]', form), 11);
+        restrictToDigits(qs('input[name="WhatsAppNumber"]', form), 11);
+        restrictToDigits(qs('input[name="NationalIdNumber"]', form), 13);
+
         let dirty = false;
         qsa('input, select, textarea', form).forEach((field) => field.addEventListener('change', () => dirty = true));
         form.addEventListener('submit', () => {

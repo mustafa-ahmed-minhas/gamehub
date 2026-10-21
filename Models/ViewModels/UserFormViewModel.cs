@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using GameHub.Helpers;
 using GameHub.Models.Enums;
 
 namespace GameHub.Models.ViewModels
@@ -24,13 +25,12 @@ namespace GameHub.Models.ViewModels
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone number is required.")]
-        [MaxLength(20, ErrorMessage = "Phone number cannot exceed 20 characters.")]
-        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must be exactly 11 digits and start with 0 (e.g., 03001234567).")]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? PhoneNumber { get; set; }
 
-        [Required(ErrorMessage = "CNIC is required.")]
-        [MaxLength(20, ErrorMessage = "CNIC cannot exceed 20 characters.")]
-        [RegularExpression(@"^\d{13}$", ErrorMessage = "CNIC must be exactly 13 digits without hyphens (e.g., 3520212345678).")]
+        [Required(ErrorMessage = "CNIC/National ID is required.")]
+        [RegularExpression(@"^\d{13}$", ErrorMessage = "CNIC/National ID must be exactly 13 numeric digits (e.g., 3520212345678).")]
         public string? CnicNumber { get; set; }
 
         [Required(ErrorMessage = "Gender is required.")]
@@ -69,9 +69,10 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (DateOfBirth.HasValue && DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
+            var dateOfBirthError = DateOfBirthRules.Validate(DateOfBirth);
+            if (dateOfBirthError != null)
             {
-                yield return new ValidationResult("Date of birth cannot be in the future.", new[] { nameof(DateOfBirth) });
+                yield return new ValidationResult(dateOfBirthError, new[] { nameof(DateOfBirth) });
             }
 
             if (!IsEditMode && string.IsNullOrWhiteSpace(Password))

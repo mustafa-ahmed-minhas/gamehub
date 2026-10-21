@@ -35,20 +35,26 @@
             </div>
             <div class="form-grid two">
                 <div class="form-floating">
-                    <input asp-for="PrimaryPhone" class="form-control" placeholder="03000000000" data-check-phone />
+                    <input asp-for="PrimaryPhone" class="form-control" placeholder="03001234567" inputmode="numeric" maxlength="11" data-check-phone />
                     <label asp-for="PrimaryPhone">Primary Phone</label>
                     <span class="field-hint" data-phone-result></span>
                     <span asp-validation-for="PrimaryPhone" class="text-danger small"></span>
                 </div>
                 <div class="form-floating">
-                    <input asp-for="WhatsAppNumber" class="form-control" placeholder="03000000000" />
+                    <input asp-for="WhatsAppNumber" class="form-control" placeholder="03001234567" inputmode="numeric" maxlength="11" />
                     <label asp-for="WhatsAppNumber">WhatsApp Number</label>
                     <span asp-validation-for="WhatsAppNumber" class="text-danger small"></span>
                 </div>
             </div>
+            <div class="form-floating">
+                <input asp-for="NationalIdNumber" class="form-control" placeholder="3520212345678" inputmode="numeric" maxlength="13" />
+                <label asp-for="NationalIdNumber">CNIC / National ID</label>
+                <span class="field-hint">Enter the 13-digit CNIC without spaces or hyphens, e.g. 3520212345678.</span>
+                <span asp-validation-for="NationalIdNumber" class="text-danger small"></span>
+            </div>
             <div class="form-grid two">
                 <div class="form-floating">
-                    <input asp-for="DateOfBirth" class="form-control" type="date" />
+                    <input asp-for="DateOfBirth" class="form-control" type="date" data-dob min="@(DateOfBirthRules.EarliestAllowedDate.ToString("yyyy-MM-dd"))" max="@(DateOfBirthRules.LatestAllowedDate().ToString("yyyy-MM-dd"))" />
                     <label asp-for="DateOfBirth">Date of Birth</label>
                     <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                 </div>

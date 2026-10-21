@@ -1,5 +1,6 @@
 @using GameHub.Models.ViewModels
 @using GameHub.Models.Enums
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
     ViewData["Title"] = "Premium Sports Arena";
     Layout = "_PublicLayout";
@@ -516,6 +517,234 @@
     </div>
 </section>
 
+@{
+    var inquirySportOptions = ViewData["InquirySportOptions"] as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+}
+
+<section class="section-block home-inquiry-section" id="inquiry" aria-labelledby="home-inquiry-title">
+    <div class="container">
+        <div class="section-heading reveal">
+            <span>Customer Inquiry</span>
+            <h2 id="home-inquiry-title">Send Us <span>An Inquiry</span></h2>
+            <p class="inquiry-lead">Planning a match, a membership, or a private event? Share a few details and our team will come back to you with availability and the best next step.</p>
+        </div>
+
+        <div class="inquiry-layout">
+            <div class="inquiry-panel reveal">
+                <form method="post" action="@Url.Action("Index", "Inquiry")" class="inquiry-form" aria-label="Customer inquiry form" data-home-inquiry-form data-fv-form>
+                    @Html.AntiForgeryToken()
+                    @* Anti-spam honeypot: hidden from humans, left empty. Bots that auto-fill every field trigger it and the submission is silently dropped. *@
+                    <div class="inquiry-honeypot" aria-hidden="true" style="position:absolute!important;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+                        <label for="inquiry-website-url">Website URL</label>
+                        <input id="inquiry-website-url" name="WebsiteUrl" type="text" tabindex="-1" autocomplete="off" />
+                    </div>
+
+                    <div class="inquiry-alert inquiry-alert--error" data-inquiry-summary role="alert" hidden>
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span data-inquiry-summary-text></span>
+                    </div>
+
+                    <fieldset class="inquiry-fieldset">
+                        <legend><i class="bi bi-person-lines-fill"></i> Contact Information</legend>
+                        <p class="inquiry-fieldset-note">We need at least one way to reach you — an email address, phone number, or WhatsApp number.</p>
+                        <div class="inquiry-fields">
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-full-name" name="FullName" class="form-control" type="text" maxlength="120" placeholder="Full name" autocomplete="name" required aria-required="true" aria-describedby="inquiry-full-name-hint" data-fv-rule="required,letters" />
+                                    <label for="inquiry-full-name">Full Name <span class="inquiry-req" aria-hidden="true">*</span></label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-full-name-hint">Letters only, exactly as it should appear on your booking.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="FullName" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-email" name="Email" class="form-control" type="email" maxlength="150" placeholder="Email address" autocomplete="email" inputmode="email" aria-describedby="inquiry-email-hint" data-fv-rule="email" />
+                                    <label for="inquiry-email">Email Address</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-email-hint">Provide your email or phone below — at least one is required.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="Email" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-phone" name="Phone" class="form-control" type="tel" maxlength="20" placeholder="Phone number" autocomplete="tel" inputmode="tel" aria-describedby="inquiry-phone-hint" data-fv-rule="phone" />
+                                    <label for="inquiry-phone">Phone Number</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-phone-hint">11-digit number starting with 0 (e.g. 03001234567).</small>
+                                <span class="inquiry-field-error" data-valmsg-for="Phone" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-whatsapp" name="WhatsAppNumber" class="form-control" type="tel" maxlength="20" placeholder="WhatsApp number" autocomplete="tel" inputmode="tel" aria-describedby="inquiry-whatsapp-hint" data-fv-rule="phone" />
+                                    <label for="inquiry-whatsapp">WhatsApp Number</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-whatsapp-hint">Optional — leave blank if it is the same as your phone number.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="WhatsAppNumber" role="alert"></span>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="inquiry-fieldset">
+                        <legend><i class="bi bi-chat-square-text"></i> Inquiry Details</legend>
+                        <p class="inquiry-fieldset-note">Tell us what you want to play and when. Fields marked <span class="inquiry-req" aria-hidden="true">*</span> are required.</p>
+                        <div class="inquiry-fields">
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <select id="inquiry-service" name="ServiceInterest" class="form-select" required aria-required="true" aria-describedby="inquiry-service-hint" data-fv-rule="required">
+                                        @foreach (var item in Html.GetEnumSelectList<LeadServiceInterest>())
+                                        {
+                                            if (item.Value == "CourtBooking")
+                                            {
+                                                <option value="@item.Value" selected>@item.Text</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <label for="inquiry-service">I'm Interested In <span class="inquiry-req" aria-hidden="true">*</span></label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-service-hint">Choose what your inquiry is about.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="ServiceInterest" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <select id="inquiry-sport" name="SportId" class="form-select" aria-describedby="inquiry-sport-hint">
+                                        <option value="">Any sport</option>
+                                        @foreach (var sport in inquirySportOptions)
+                                        {
+                                            <option value="@sport.Value">@sport.Text</option>
+                                        }
+                                    </select>
+                                    <label for="inquiry-sport">Preferred Sport</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-sport-hint">Optional — pick a sport or leave it open to any.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="SportId" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-date" name="PreferredDate" class="form-control" type="date" placeholder="Preferred date" aria-describedby="inquiry-date-hint" data-fv-rule="past" />
+                                    <label for="inquiry-date">Preferred Date</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-date-hint">Optional — today or any future date.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="PreferredDate" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-time" name="PreferredTime" class="form-control" type="time" placeholder="Preferred time" aria-describedby="inquiry-time-hint" data-fv-rule="time" />
+                                    <label for="inquiry-time">Preferred Time</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-time-hint">Optional — we will confirm the closest available slot.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="PreferredTime" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field">
+                                <div class="form-floating">
+                                    <input id="inquiry-players" name="PlayerCount" class="form-control" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Number of players" aria-describedby="inquiry-players-hint" data-fv-rule="int" data-fv-min="1" data-fv-max="1000" />
+                                    <label for="inquiry-players">Number of Players</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-players-hint">Between 1 and 1000 players.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="PlayerCount" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field wide">
+                                <div class="form-floating">
+                                    <input id="inquiry-subject" name="InquirySubject" class="form-control" type="text" maxlength="150" placeholder="Subject" required aria-required="true" aria-describedby="inquiry-subject-hint" data-fv-rule="required" />
+                                    <label for="inquiry-subject">Subject <span class="inquiry-req" aria-hidden="true">*</span></label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-subject-hint">A short summary, e.g. &ldquo;Padel court for 4 players on Saturday&rdquo;.</small>
+                                <span class="inquiry-field-error" data-valmsg-for="InquirySubject" role="alert"></span>
+                            </div>
+
+                            <div class="inquiry-field wide">
+                                <div class="form-floating">
+                                    <textarea id="inquiry-details" name="InquiryDetails" class="form-control" maxlength="2000" placeholder="Inquiry details" rows="5" aria-describedby="inquiry-details-hint" data-fv-rule="maxlength"></textarea>
+                                    <label for="inquiry-details">Inquiry Details</label>
+                                </div>
+                                <small class="inquiry-field-hint" id="inquiry-details-hint">
+                                    <span data-inquiry-counter-for="InquiryDetails" aria-live="polite">0 / 2000 characters</span>
+                                    &mdash; Optional, but the more you share the faster we can help.
+                                </small>
+                                <span class="inquiry-field-error" data-valmsg-for="InquiryDetails" role="alert"></span>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="inquiry-consent">
+                        <label class="inquiry-check" for="inquiry-accept-policy">
+                            <input id="inquiry-accept-policy" name="AcceptPrivacyPolicy" type="checkbox" value="true" required aria-required="true" aria-describedby="inquiry-policy-hint" data-fv-rule="required" />
+                            <span class="inquiry-check-box" aria-hidden="true"></span>
+                            <span class="inquiry-check-text">I accept the privacy policy and agree to be contacted by GameHub about this inquiry. <span class="inquiry-req" aria-hidden="true">*</span></span>
+                        </label>
+                        <span class="inquiry-field-error" data-valmsg-for="AcceptPrivacyPolicy" role="alert"></span>
+                        <small class="inquiry-field-hint" id="inquiry-policy-hint">Your details are only used to respond to this inquiry — we never sell your data.</small>
+                    </div>
+
+                    <div class="inquiry-actions">
+                        <button class="btn-premium inquiry-submit" type="submit" data-inquiry-submit>
+                            <i class="bi bi-send"></i> Submit Inquiry
+                        </button>
+                        <p class="inquiry-secure-note"><i class="bi bi-shield-lock"></i> Your information is encrypted and kept confidential.</p>
+                    </div>
+                </form>
+
+                <div class="inquiry-state inquiry-state--success" data-inquiry-success hidden tabindex="-1" role="status">
+                    <span class="inquiry-state-icon"><i class="bi bi-check2"></i></span>
+                    <h3>Inquiry Received</h3>
+                    <p>Thank you for reaching out. Our team will review your inquiry and get back to you on your preferred contact channel shortly.</p>
+                    <div class="inquiry-ref" data-inquiry-ref hidden>
+                        <span>Reference Number</span>
+                        <strong data-inquiry-reference></strong>
+                    </div>
+                    <div class="inquiry-state-actions">
+                        <button class="inquiry-btn-outline" type="button" data-inquiry-reset><i class="bi bi-arrow-counterclockwise"></i> Submit Another Inquiry</button>
+                        <a class="btn-premium btn-compact" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="inquiry-aside reveal" aria-label="What happens next">
+                <span class="inquiry-aside-kicker">Simple &amp; Quick</span>
+                <h3>What Happens Next?</h3>
+                <ol class="inquiry-steps">
+                    <li>
+                        <i class="bi bi-1-circle"></i>
+                        <div>
+                            <strong>Inquiry Received</strong>
+                            <span>Your request lands with our CRM team the moment you submit it.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <i class="bi bi-2-circle"></i>
+                        <div>
+                            <strong>Team Reviews</strong>
+                            <span>We check availability, pricing and the best fit for your requirement.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <i class="bi bi-3-circle"></i>
+                        <div>
+                            <strong>Personal Follow-up</strong>
+                            <span>A GameHub advisor contacts you on your preferred channel.</span>
+                        </div>
+                    </li>
+                </ol>
+                <div class="inquiry-aside-contact">
+                    <span>Prefer to talk now?</span>
+                    <a href="tel:@supportPhone"><i class="bi bi-telephone-fill"></i> @supportPhone</a>
+                    <a href="mailto:@supportEmail"><i class="bi bi-envelope-fill"></i> @supportEmail</a>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+
 <section class="final-cta-section">
     <div class="container">
         <div class="final-cta reveal">
@@ -531,4 +760,10 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/public-courts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/home-inquiry.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/field-validation.js" asp-append-version="true"></script>
+    <script src="~/js/home-inquiry.js" asp-append-version="true"></script>
 }

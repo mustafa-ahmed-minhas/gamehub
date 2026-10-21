@@ -43,11 +43,12 @@ namespace GameHub.Models.ViewModels
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone Number is required.")]
-        [MaxLength(30, ErrorMessage = "Phone Number cannot exceed 30 characters.")]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "National ID / CNIC is required.")]
-        [MaxLength(30, ErrorMessage = "National ID / CNIC cannot exceed 30 characters.")]
+        [RegularExpression(@"^\d{13}$", ErrorMessage = "National ID / CNIC must be exactly 13 numeric digits (e.g., 3520212345678).")]
         public string NationalIdNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Date of Birth is required.")]
@@ -80,7 +81,8 @@ namespace GameHub.Models.ViewModels
         [MaxLength(100, ErrorMessage = "Emergency Contact Name cannot exceed 100 characters.")]
         public string? EmergencyContactName { get; set; }
 
-        [MaxLength(30, ErrorMessage = "Emergency Contact Number cannot exceed 30 characters.")]
+        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? EmergencyContactNumber { get; set; }
 
         [Range(0, 999999999, ErrorMessage = "Basic Salary cannot be negative.")]
@@ -107,23 +109,15 @@ namespace GameHub.Models.ViewModels
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            if (DateOfBirth.HasValue && DateOfBirth.Value > today)
+            // Shared 16+ floor first; HR keeps its existing, stricter 18+ policy.
+            var dateOfBirthError = DateOfBirthRules.Validate(
+                DateOfBirth,
+                minimumAge: 18,
+                minimumAgeMessage: "Employee must be at least 18 years old.",
+                today: today);
+            if (dateOfBirthError != null)
             {
-                yield return new ValidationResult(
-                    "Date of Birth cannot be in the future.",
-                    new[] { nameof(DateOfBirth) });
-            }
-
-            if (DateOfBirth.HasValue)
-            {
-                var age = today.Year - DateOfBirth.Value.Year;
-                if (DateOfBirth.Value > today.AddYears(-age)) age--;
-                if (age < 18)
-                {
-                    yield return new ValidationResult(
-                        "Employee must be at least 18 years old.",
-                        new[] { nameof(DateOfBirth) });
-                }
+                yield return new ValidationResult(dateOfBirthError, new[] { nameof(DateOfBirth) });
             }
 
             if (JoiningDate.HasValue && JoiningDate.Value > today && !IsHireFromOffer)
@@ -133,39 +127,9 @@ namespace GameHub.Models.ViewModels
                     new[] { nameof(JoiningDate) });
             }
 
-            if (!IsValidPhone(PhoneNumber))
-            {
-                yield return new ValidationResult(
-                    "Enter a valid phone number with country code, e.g., +92 300 1234567.",
-                    new[] { nameof(PhoneNumber) });
-            }
-
-            if (!string.IsNullOrWhiteSpace(EmergencyContactNumber) && !IsValidPhone(EmergencyContactNumber))
-            {
-                yield return new ValidationResult(
-                    "Enter a valid emergency contact number with country code, e.g., +92 300 1234567.",
-                    new[] { nameof(EmergencyContactNumber) });
-            }
-
-            if (!NationalIdValidator.TryNormalize(NationalIdNumber, "Pakistan", out _, out var nationalIdError))
-            {
-                yield return new ValidationResult(nationalIdError, new[] { nameof(NationalIdNumber) });
-            }
-        }
-
-        private static bool IsValidPhone(string? value)
-        {
-            var phoneRaw = (value ?? string.Empty).Trim();
-            var phoneDigits = new string(phoneRaw.Where(char.IsDigit).ToArray());
-            var hasPlus = phoneRaw.StartsWith('+');
-            var invalidChars = phoneRaw
-                .Skip(hasPlus ? 1 : 0)
-                .Any(c => !char.IsDigit(c) && c != '-' && c != ' ' && c != '(' && c != ')');
-
-            return phoneRaw.Length > 0
-                && phoneDigits.Length is >= 7 and <= 15
-                && !invalidChars
-                && phoneRaw.Count(c => c == '+') <= 1;
+            // Phone validation handled by data annotations
+            // Emergency contact phone validation handled by data annotations
+            // National ID validation handled by data annotations
         }
     }
 }
