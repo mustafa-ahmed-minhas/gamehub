@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GameHub.Models.Enums
 {
-    public enum DocumentType { SalesQuotation, SalesOrder, SalesInvoice }
+    public enum DocumentType { SalesQuotation, SalesOrder, SalesInvoice, Booking }
     public enum ApprovalStatus { Draft, PendingApproval, Approved, Rejected, Cancelled }
     public enum ApprovalAction
     {
@@ -17,6 +17,11 @@ namespace GameHub.Models.Enums
         Confirmed,
         Fulfilled,
         Cancelled,
-        PaymentRecorded
+        PaymentRecorded,
+        BookingApproved,
+        BookingRejected,
+        RefundInitiated,
+        RefundCompleted,
+        RefundFailed
     }
 }

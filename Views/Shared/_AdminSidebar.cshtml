@@ -118,7 +118,6 @@
             </section>
         }
 
-        @* TEMPORARILY HIDDEN - Operations section. Remove these comment markers to restore it.
         @if (Can("Bookings") || Can("Memberships"))
         {
             <section class="@GroupClass(OperationsActive)" data-nav-group>
@@ -130,7 +129,9 @@
                     <div class="admin-nav-group-inner">
                         @if (Can("Bookings"))
                         {
-                            <a class="admin-nav-link @(On("Bookings") && view != "calendar" ? "active" : "")" asp-controller="Bookings" asp-action="Index" asp-route-view="list"><i class="bi bi-calendar-check"></i><span>Bookings</span></a>
+                            <a class="admin-nav-link @(On("Bookings") && view == "list" ? "active" : "")" asp-controller="Bookings" asp-action="Index" asp-route-view="list"><i class="bi bi-calendar-check"></i><span>Bookings</span></a>
+                            <a class="admin-nav-link @(On("Bookings") && action == "Approvals" ? "active" : "")" asp-controller="Bookings" asp-action="Approvals"><i class="bi bi-hourglass-split"></i><span>Booking Approvals</span></a>
+                            <a class="admin-nav-link @(On("Bookings") && action == "Refunds" ? "active" : "")" asp-controller="Bookings" asp-action="Refunds"><i class="bi bi-cash-coin"></i><span>Refund Management</span></a>
                         }
                         @if (Can("Memberships"))
                         {
@@ -140,7 +141,6 @@
                 </div>
             </section>
         }
-        *@
 
         @* TEMPORARILY HIDDEN - HR section. Remove these comment markers to restore it.
         @if (Can("HR"))

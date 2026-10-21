@@ -206,6 +206,390 @@ namespace GameHub.Services.Implementations
             return invoice;
         }
 
+        public async Task<(SalesOrder SalesOrder, SalesInvoice Invoice, Payment Payment)?> CreateSalesRecordsForApprovedBookingAsync(
+            int bookingId,
+            int approvedByUserId,
+            string? approvalComments = null)
+        {
+            var booking = await _dbContext.Bookings
+                .Include(x => x.Customer)
+                .Include(x => x.Court).ThenInclude(x => x.Facility)
+                .Include(x => x.Court).ThenInclude(x => x.Sport)
+                .Include(x => x.Sport)
+                .Include(x => x.Facility)
+                .Include(x => x.PaymentTransaction)
+                .Include(x => x.CustomerMembership)
+                .FirstOrDefaultAsync(x => x.Id == bookingId && x.IsActive);
+
+            if (booking == null)
+                throw new InvalidOperationException("Booking not found.");
+
+            if (booking.Status != BookingStatus.Confirmed)
+                throw new InvalidOperationException("Booking must be in Confirmed status.");
+
+            if (booking.PaymentTransaction == null || booking.PaymentTransaction.Status != PaymentTransactionStatus.Succeeded)
+                throw new InvalidOperationException("Payment transaction not found or not succeeded.");
+
+            // Check if already linked to a Sales Order
+            if (booking.SalesOrderId.HasValue)
+            {
+                var existingOrder = await _dbContext.SalesOrders
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(x => x.Id == booking.SalesOrderId.Value);
+                if (existingOrder != null)
+                {
+                    var existingInvoice = existingOrder.InvoiceCreated
+                        ? await _dbContext.SalesInvoices.Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == existingOrder.InvoiceId)
+                        : null;
+                    var existingPayment = existingInvoice != null
+                        ? await _dbContext.Payments.Include(x => x.Allocations).FirstOrDefaultAsync(x => x.InvoiceId == existingInvoice.Id)
+                        : null;
+                    return (existingOrder, existingInvoice!, existingPayment!);
+                }
+            }
+
+            var settings = await GetSettingsAsync();
+            var now = DateTime.UtcNow;
+
+            // Create Sales Order
+            var salesOrder = new SalesOrder
+            {
+                SalesOrderNumber = await GenerateSalesOrderNumberAsync(settings),
+                CustomerId = booking.CustomerId,
+                AssignedToUserId = approvedByUserId,
+                OrderDate = DateOnly.FromDateTime(now),
+                ServiceStartDate = booking.BookingDate,
+                ServiceEndDate = booking.BookingDate,
+                Status = SalesOrderStatus.Confirmed,
+                ConfirmedAt = now,
+                Subject = $"Court booking: {booking.Court?.Name} - {booking.Sport?.Name}",
+                CustomerNotes = booking.CustomerNotes,
+                InternalNotes = $"Auto-created from approved website booking {booking.BookingNumber}. {approvalComments ?? string.Empty}".Trim(),
+                Currency = settings.Currency,
+                CurrencySymbol = settings.CurrencySymbol ?? "Rs",
+                SourceType = "WebsiteBooking",
+                CreatedByUserId = approvedByUserId,
+                CreatedAt = now,
+                IsActive = true
+            };
+
+            // Create Sales Order Item from booking
+            var salesOrderItem = new SalesOrderItem
+            {
+                LineNumber = 1,
+                ItemType = SalesItemType.CourtBooking,
+                SportId = booking.SportId,
+                FacilityId = booking.FacilityId,
+                CourtId = booking.CourtId,
+                Description = $"{booking.Court?.Name} ({booking.Facility?.Name}) - {booking.Sport?.Name} on {booking.BookingDate:dd MMM yyyy} {booking.StartTime:HH:mm}-{booking.EndTime:HH:mm}",
+                Quantity = 1,
+                UnitOfMeasure = "Session",
+                UnitPrice = booking.BaseAmount,
+                DiscountPercentage = booking.BaseAmount > 0 ? Math.Round(booking.MembershipDiscountAmount / booking.BaseAmount * 100, 2) : 0,
+                DiscountAmount = booking.MembershipDiscountAmount,
+                TaxPercentage = settings.TaxPercentage,
+                TaxAmount = booking.TaxAmount,
+                LineSubtotal = booking.BaseAmount,
+                LineTotal = booking.TotalAmount,
+                ServiceDate = booking.BookingDate,
+                StartTime = booking.StartTime,
+                EndTime = booking.EndTime,
+                DisplayOrder = 1,
+                CreatedAt = now
+            };
+            salesOrder.Items.Add(salesOrderItem);
+
+            salesOrder.Subtotal = booking.BaseAmount;
+            salesOrder.DiscountTotal = booking.MembershipDiscountAmount;
+            salesOrder.TaxTotal = booking.TaxAmount;
+            salesOrder.GrandTotal = booking.TotalAmount;
+
+            _dbContext.SalesOrders.Add(salesOrder);
+
+            // Persist the sales order first so its generated key is available for related records
+            await _dbContext.SaveChangesAsync();
+
+            // Link booking to sales order
+            booking.SalesOrderId = salesOrder.Id;
+            booking.UpdatedAt = now;
+            booking.UpdatedByUserId = approvedByUserId;
+
+            // Create Sales Invoice from Sales Order
+            var salesInvoice = new SalesInvoice
+            {
+                InvoiceNumber = await GenerateInvoiceNumberAsync(settings),
+                SourceType = InvoiceSourceType.WebsiteBooking,
+                SalesOrderId = salesOrder.Id,
+                CustomerId = booking.CustomerId,
+                InvoiceDate = DateOnly.FromDateTime(now),
+                DueDate = DateOnly.FromDateTime(now),
+                Subject = salesOrder.Subject,
+                CustomerNotes = booking.CustomerNotes,
+                InternalNotes = $"Auto-created from approved website booking {booking.BookingNumber}.",
+                Currency = settings.Currency,
+                CurrencySymbol = settings.CurrencySymbol ?? "Rs",
+                Status = InvoiceStatus.Issued,
+                IssuedAt = now,
+                IsLocked = true,
+                CreatedByUserId = approvedByUserId,
+                CreatedAt = now,
+                IsActive = true
+            };
+
+            var salesInvoiceItem = new SalesInvoiceItem
+            {
+                LineNumber = 1,
+                ItemType = SalesItemType.CourtBooking,
+                SportId = booking.SportId,
+                FacilityId = booking.FacilityId,
+                CourtId = booking.CourtId,
+                Description = salesOrderItem.Description,
+                Quantity = 1,
+                UnitOfMeasure = "Session",
+                UnitPrice = booking.BaseAmount,
+                DiscountPercentage = salesOrderItem.DiscountPercentage,
+                DiscountAmount = booking.MembershipDiscountAmount,
+                TaxPercentage = settings.TaxPercentage,
+                TaxAmount = booking.TaxAmount,
+                LineSubtotal = booking.BaseAmount,
+                LineTotal = booking.TotalAmount,
+                ServiceDate = booking.BookingDate,
+                StartTime = booking.StartTime,
+                EndTime = booking.EndTime,
+                DisplayOrder = 1,
+                CreatedAt = now
+            };
+            salesInvoice.Items.Add(salesInvoiceItem);
+
+            salesInvoice.Subtotal = booking.BaseAmount;
+            salesInvoice.DiscountTotal = booking.MembershipDiscountAmount;
+            salesInvoice.TaxTotal = booking.TaxAmount;
+            salesInvoice.AdjustmentAmount = 0;
+            salesInvoice.GrandTotal = booking.TotalAmount;
+            salesInvoice.PaidAmount = booking.PaidAmount;
+            // OutstandingAmount will be calculated as GrandTotal - PaidAmount
+            salesInvoice.OutstandingAmount = salesInvoice.GrandTotal - salesInvoice.PaidAmount;
+
+            _dbContext.SalesInvoices.Add(salesInvoice);
+
+            // Persist the invoice first so its generated key is available for the sales order link and payment
+            await _dbContext.SaveChangesAsync();
+
+            // Update Sales Order with Invoice link
+            salesOrder.InvoiceCreated = true;
+            salesOrder.InvoiceId = salesInvoice.Id;
+            salesOrder.UpdatedAt = now;
+            salesOrder.UpdatedByUserId = approvedByUserId;
+
+            // Create Payment record linked to the invoice
+            var payment = new Payment
+            {
+                PaymentNumber = await GeneratePaymentNumberAsync(),
+                InvoiceId = salesInvoice.Id,
+                CustomerId = booking.CustomerId,
+                PaymentDate = DateOnly.FromDateTime(booking.PaidAt ?? now),
+                Amount = booking.PaidAmount,
+                PaymentMethod = MapPaymentMethod(booking.PaymentTransaction.PaymentMethod),
+                ReferenceNumber = booking.PaymentTransaction.GatewayReference ?? booking.PaymentTransaction.GatewayTransactionId,
+                Notes = $"Auto-recorded from online payment transaction {booking.PaymentTransaction.TransactionNumber} for booking {booking.BookingNumber}.",
+                ReceivedByUserId = approvedByUserId,
+                CreatedByUserId = approvedByUserId,
+                Currency = settings.Currency,
+                CurrencySymbol = settings.CurrencySymbol ?? "Rs",
+                Status = PaymentRecordStatus.Recorded,
+                CreatedAt = now
+            };
+
+            payment.Allocations.Add(new PaymentAllocation
+            {
+                InvoiceId = salesInvoice.Id,
+                Amount = booking.PaidAmount,
+                CreatedAt = now
+            });
+
+            _dbContext.Payments.Add(payment);
+
+            // Update customer outstanding balance
+            booking.Customer.OutstandingBalance = Math.Max(0, Math.Round(booking.Customer.OutstandingBalance - booking.PaidAmount, 2));
+
+            // Record document approvals and activities
+            await RecordSalesOrderApprovalAsync(salesOrder, approvedByUserId, approvalComments, now);
+            await RecordInvoiceApprovalAsync(salesInvoice, approvedByUserId, now);
+            await RecordPaymentActivityAsync(salesInvoice, payment, approvedByUserId, now);
+
+            // Do NOT call SaveChangesAsync here - let the caller manage the transaction
+            return (salesOrder, salesInvoice, payment);
+        }
+
+        private async Task<string> GenerateSalesOrderNumberAsync(SystemSettings settings)
+        {
+            var prefix = string.IsNullOrWhiteSpace(settings.SalesOrderPrefix) ? "SO" : settings.SalesOrderPrefix.Trim().ToUpperInvariant();
+            var candidates = await _dbContext.SalesOrders
+                .Where(x => x.SalesOrderNumber.StartsWith(prefix + "-"))
+                .Select(x => x.SalesOrderNumber)
+                .ToListAsync();
+            var next = 1;
+            foreach (var candidate in candidates)
+            {
+                var suffix = candidate.Substring(prefix.Length + 1);
+                if (int.TryParse(suffix, out var value) && value >= next)
+                {
+                    next = value + 1;
+                }
+            }
+            return $"{prefix}-{next:000000}";
+        }
+
+        private async Task<string> GenerateInvoiceNumberAsync(SystemSettings settings)
+        {
+            var prefix = string.IsNullOrWhiteSpace(settings.InvoicePrefix) ? "INV" : settings.InvoicePrefix.Trim().ToUpperInvariant();
+            var candidates = await _dbContext.SalesInvoices
+                .Where(x => x.InvoiceNumber.StartsWith(prefix + "-"))
+                .Select(x => x.InvoiceNumber)
+                .ToListAsync();
+            var next = 1;
+            foreach (var candidate in candidates)
+            {
+                var suffix = candidate.Substring(prefix.Length + 1);
+                if (int.TryParse(suffix, out var value) && value >= next)
+                {
+                    next = value + 1;
+                }
+            }
+            return $"{prefix}-{next:000000}";
+        }
+
+        private async Task<string> GeneratePaymentNumberAsync()
+        {
+            var prefix = "PAY";
+            var candidates = await _dbContext.Payments
+                .Where(x => x.PaymentNumber.StartsWith(prefix + "-"))
+                .Select(x => x.PaymentNumber)
+                .ToListAsync();
+            var next = 1;
+            foreach (var candidate in candidates)
+            {
+                var suffix = candidate.Substring(prefix.Length + 1);
+                if (int.TryParse(suffix, out var value) && value >= next)
+                {
+                    next = value + 1;
+                }
+            }
+            return $"{prefix}-{next:000000}";
+        }
+
+        private static InvoicePaymentMethod MapPaymentMethod(OnlinePaymentMethod method) => method switch
+        {
+            OnlinePaymentMethod.Card => InvoicePaymentMethod.OnlinePayment,
+            OnlinePaymentMethod.MobileWallet => InvoicePaymentMethod.OnlinePayment,
+            OnlinePaymentMethod.BankTransfer => InvoicePaymentMethod.BankTransfer,
+            _ => InvoicePaymentMethod.OnlinePayment
+        };
+
+        private async Task RecordSalesOrderApprovalAsync(SalesOrder order, int userId, string? comments, DateTime now)
+        {
+            _dbContext.DocumentApprovals.Add(new DocumentApproval
+            {
+                DocumentType = DocumentType.SalesOrder,
+                DocumentId = order.Id,
+                DocumentNumber = order.SalesOrderNumber,
+                RevisionNumber = order.RevisionNumber,
+                Action = ApprovalAction.Confirmed,
+                PreviousStatus = SalesOrderStatus.Draft.ToString(),
+                NewStatus = SalesOrderStatus.Confirmed.ToString(),
+                SubmittedByUserId = userId,
+                ActionByUserId = userId,
+                SubmittedAt = now,
+                ActionAt = now,
+                Comments = comments,
+                FinancialTotal = order.GrandTotal,
+                Currency = order.Currency,
+                IsFinal = true,
+                IpAddress = string.Empty,
+                CreatedAt = now
+            });
+
+            _dbContext.DocumentActivities.Add(new DocumentActivity
+            {
+                DocumentType = DocumentType.SalesOrder,
+                DocumentId = order.Id,
+                ActivityType = ApprovalAction.Confirmed,
+                Description = $"Sales Order {order.SalesOrderNumber} confirmed from approved website booking.",
+                PerformedByUserId = userId,
+                PerformedAt = now
+            });
+        }
+
+        private async Task RecordInvoiceApprovalAsync(SalesInvoice invoice, int userId, DateTime now)
+        {
+            _dbContext.DocumentApprovals.Add(new DocumentApproval
+            {
+                DocumentType = DocumentType.SalesInvoice,
+                DocumentId = invoice.Id,
+                DocumentNumber = invoice.InvoiceNumber,
+                RevisionNumber = invoice.RevisionNumber,
+                Action = ApprovalAction.Confirmed,
+                PreviousStatus = InvoiceStatus.Draft.ToString(),
+                NewStatus = InvoiceStatus.Issued.ToString(),
+                SubmittedByUserId = userId,
+                ActionByUserId = userId,
+                SubmittedAt = now,
+                ActionAt = now,
+                Comments = $"Auto-issued from approved website booking.",
+                FinancialTotal = invoice.GrandTotal,
+                Currency = invoice.Currency,
+                IsFinal = true,
+                IpAddress = string.Empty,
+                CreatedAt = now
+            });
+
+            _dbContext.DocumentActivities.Add(new DocumentActivity
+            {
+                DocumentType = DocumentType.SalesInvoice,
+                DocumentId = invoice.Id,
+                ActivityType = ApprovalAction.Confirmed,
+                Description = $"Sales Invoice {invoice.InvoiceNumber} issued and paid.",
+                PerformedByUserId = userId,
+                PerformedAt = now
+            });
+        }
+
+        private async Task RecordPaymentActivityAsync(SalesInvoice invoice, Payment payment, int userId, DateTime now)
+        {
+            var previousStatus = invoice.Status;
+            invoice.Status = InvoiceStatus.Paid;
+
+            _dbContext.DocumentApprovals.Add(new DocumentApproval
+            {
+                DocumentType = DocumentType.SalesInvoice,
+                DocumentId = invoice.Id,
+                DocumentNumber = invoice.InvoiceNumber,
+                RevisionNumber = invoice.RevisionNumber,
+                Action = ApprovalAction.PaymentRecorded,
+                PreviousStatus = previousStatus.ToString(),
+                NewStatus = InvoiceStatus.Paid.ToString(),
+                SubmittedByUserId = userId,
+                ActionByUserId = userId,
+                ActionAt = now,
+                Comments = $"Payment {payment.PaymentNumber} recorded.",
+                FinancialTotal = payment.Amount,
+                Currency = invoice.Currency,
+                IsFinal = true,
+                IpAddress = string.Empty,
+                CreatedAt = now
+            });
+
+            _dbContext.DocumentActivities.Add(new DocumentActivity
+            {
+                DocumentType = DocumentType.SalesInvoice,
+                DocumentId = invoice.Id,
+                ActivityType = ApprovalAction.PaymentRecorded,
+                Description = $"Payment {payment.PaymentNumber} recorded for {invoice.CurrencySymbol} {payment.Amount:N2}.",
+                PerformedByUserId = userId,
+                PerformedAt = now
+            });
+        }
+
         private static string BuildCheckoutToken(CustomerMembership membership) => "MEM-" + membership.Id.ToString("D6");
 
         private async Task<SystemSettings> GetSettingsAsync() =>

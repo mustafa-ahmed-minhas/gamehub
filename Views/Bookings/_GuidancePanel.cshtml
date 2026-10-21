@@ -1,0 +1,144 @@
+@using GameHub.Models.Enums
+@{
+    var screen = (ViewData["BookingGuidance"] as string ?? "bookings").ToLowerInvariant();
+    var title = screen switch
+    {
+        "approvals" => "How to Approve Bookings",
+        "refunds" => "Refund Processing Guide",
+        "calendar" => "Calendar View Tips",
+        _ => "Booking Management Guide"
+    };
+    var icon = screen switch
+    {
+        "approvals" => "bi-hourglass-split",
+        "refunds" => "bi-cash-coin",
+        "calendar" => "bi-calendar-week",
+        _ => "bi-calendar-check"
+    };
+    var steps = screen switch
+    {
+        "approvals" => new[] { "Verify payment is confirmed", "Check court availability for the slot", "Approve to confirm reservation", "Reject with clear reason if unavailable", "Sales records auto-create on approval" },
+        "refunds" => new[] { "Review refund reason and amount", "Gateway refunds: retry if failed", "Manual refunds: record external reference", "Completed refunds update booking status", "Membership hours restored on rejection" },
+        "calendar" => new[] { "Drag to reschedule bookings", "Click for quick view", "Color indicates status", "Filter by sport/facility/court", "Double-click to create new booking" },
+        _ => new[] { "Review pending approvals daily", "Confirm payment before approving", "Process refunds promptly", "Keep calendar view for overview", "Use filters to find bookings fast" }
+    };
+    var tip = screen switch
+    {
+        "approvals" => "Only approve bookings with confirmed payment and available slots.",
+        "refunds" => "Gateway refunds auto-retry on failure; manual refunds need external reference.",
+        "calendar" => "Calendar syncs with list view filters; changes reflect immediately.",
+        _ => "A healthy operation has zero pending approvals over 24 hours old."
+    };
+    var fullWidth = ViewData["BookingGuidanceRail"] is false;
+}
+
+@if (!fullWidth)
+{
+    <aside class="crm-guidance-panel" data-crm-guidance>
+        <button class="crm-guidance-toggle" type="button" data-crm-guidance-toggle aria-expanded="true" aria-label="Collapse booking guidance">
+            <i class="bi bi-layout-sidebar-inset-reverse"></i>
+        </button>
+        <div class="crm-guidance-inner">
+            <div class="crm-guidance-icon"><i class="bi @icon"></i></div>
+            <span class="admin-kicker">Booking Guidance</span>
+            <h2>@title</h2>
+            <ol>
+                @foreach (var step in steps)
+                {
+                    <li>@step</li>
+                }
+            </ol>
+            <div class="crm-guidance-tip">
+                <i class="bi bi-lightbulb"></i>
+                <span>@tip</span>
+            </div>
+            <div class="crm-guidance-metrics">
+                @if (screen == "approvals")
+                {
+                    <span><strong>@(ViewData["PendingApprovals"] ?? "0")</strong> Pending</span>
+                    <span><strong>@(ViewData["PendingValue"] ?? "0")</strong> Value</span>
+                }
+                else if (screen == "refunds")
+                {
+                    <span><strong>@(ViewData["PendingRefunds"] ?? "0")</strong> Pending</span>
+                    <span><strong>@(ViewData["FailedRefunds"] ?? "0")</strong> Failed</span>
+                    <span><strong>@(ViewData["TotalRefundAmount"] ?? "0")</strong> Amount</span>
+                }
+                else if (screen == "calendar")
+                {
+                    <span><strong>@(ViewData["TodaysBookings"] ?? "0")</strong> Today</span>
+                    <span><strong>@(ViewData["CourtOccupancy"] ?? "0%")</strong> Occupancy</span>
+                }
+                else
+                {
+                    <span><strong>@(ViewData["TodaysBookings"] ?? "0")</strong> Today</span>
+                    <span><strong>@(ViewData["PendingApprovals"] ?? "0")</strong> Pending Approval</span>
+                    <span><strong>@(ViewData["PendingRefunds"] ?? "0")</strong> Pending Refunds</span>
+                }
+            </div>
+            <button class="crm-guide-link" type="button" data-booking-guide-open>
+                <i class="bi bi-journal-text"></i> Open Booking Guide
+            </button>
+        </div>
+    </aside>
+}
+
+<div class="modal fade crm-guide-modal" id="bookingGuideModal" tabindex="-1" aria-labelledby="bookingGuideTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="admin-kicker">Booking Playbook</span>
+                    <h5 class="modal-title" id="bookingGuideTitle">GameHub Booking Guide</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="crm-guide-section">
+                    <div class="crm-guidance-icon"><i class="bi @icon"></i></div>
+                    <h6>@title</h6>
+                    <ol>
+                        @foreach (var step in steps)
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                    <div class="crm-guidance-tip">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>@tip</span>
+                    </div>
+                    <div class="crm-guidance-metrics">
+                        @if (screen == "approvals")
+                        {
+                            <span><strong>@(ViewData["PendingApprovals"] ?? "0")</strong> Pending</span>
+                            <span><strong>@(ViewData["PendingValue"] ?? "0")</strong> Value</span>
+                        }
+                        else if (screen == "refunds")
+                        {
+                            <span><strong>@(ViewData["PendingRefunds"] ?? "0")</strong> Pending</span>
+                            <span><strong>@(ViewData["FailedRefunds"] ?? "0")</strong> Failed</span>
+                            <span><strong>@(ViewData["TotalRefundAmount"] ?? "0")</strong> Amount</span>
+                        }
+                        else if (screen == "calendar")
+                        {
+                            <span><strong>@(ViewData["TodaysBookings"] ?? "0")</strong> Today</span>
+                            <span><strong>@(ViewData["CourtOccupancy"] ?? "0%")</strong> Occupancy</span>
+                        }
+                        else
+                        {
+                            <span><strong>@(ViewData["TodaysBookings"] ?? "0")</strong> Today</span>
+                            <span><strong>@(ViewData["PendingApprovals"] ?? "0")</strong> Pending Approval</span>
+                            <span><strong>@(ViewData["PendingRefunds"] ?? "0")</strong> Pending Refunds</span>
+                        }
+                    </div>
+                </div>
+                <div class="crm-playbook-grid">
+                    <section><i class="bi bi-check2-circle"></i><strong>Approval rule</strong><span>Payment must be confirmed and slot available before approval.</span></section>
+                    <section><i class="bi bi-arrow-clockwise"></i><strong>Refund flow</strong><span>Gateway refunds auto-process; manual refunds need reference.</span></section>
+                    <section><i class="bi bi-calendar-week"></i><strong>Calendar sync</strong><span>Filters apply across list and calendar views.</span></section>
+                    <section><i class="bi bi-shield-check"></i><strong>Data integrity</strong><span>All actions create audit trail with approvals and activities.</span></section>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

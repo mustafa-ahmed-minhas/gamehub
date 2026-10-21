@@ -163,6 +163,9 @@ namespace GameHub.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<int?>("SalesOrderId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -221,6 +224,8 @@ namespace GameHub.Migrations
                     b.HasIndex("PaymentTransactionId")
                         .IsUnique()
                         .HasFilter("[PaymentTransactionId] IS NOT NULL");
+
+                    b.HasIndex("SalesOrderId");
 
                     b.HasIndex("SportId");
 
@@ -3096,6 +3101,118 @@ namespace GameHub.Migrations
                     b.ToTable("PaymentReceipts");
                 });
 
+            modelBuilder.Entity("GameHub.Models.Entities.PaymentRefund", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FailedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("GatewayRefundId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("GatewayRefundReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("InitiatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("InitiatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("PaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PaymentTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProcessedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ReasonDetails")
+                        .HasMaxLength(1500)
+                        .HasColumnType("nvarchar(1500)");
+
+                    b.Property<string>("RefundNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("InitiatedByUserId");
+
+                    b.HasIndex("PaymentId");
+
+                    b.HasIndex("PaymentTransactionId");
+
+                    b.HasIndex("ProcessedByUserId");
+
+                    b.HasIndex("RefundNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("PaymentRefunds");
+                });
+
             modelBuilder.Entity("GameHub.Models.Entities.PaymentTransaction", b =>
                 {
                     b.Property<int>("Id")
@@ -4900,6 +5017,11 @@ namespace GameHub.Migrations
                         .HasForeignKey("GameHub.Models.Entities.Booking", "PaymentTransactionId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("GameHub.Models.Entities.SalesOrder", "SalesOrder")
+                        .WithMany()
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("GameHub.Models.Entities.Sport", "Sport")
                         .WithMany()
                         .HasForeignKey("SportId")
@@ -4915,6 +5037,8 @@ namespace GameHub.Migrations
                     b.Navigation("Facility");
 
                     b.Navigation("PaymentTransaction");
+
+                    b.Navigation("SalesOrder");
 
                     b.Navigation("Sport");
                 });
@@ -5537,6 +5661,55 @@ namespace GameHub.Migrations
                     b.Navigation("Customer");
 
                     b.Navigation("PaymentTransaction");
+                });
+
+            modelBuilder.Entity("GameHub.Models.Entities.PaymentRefund", b =>
+                {
+                    b.HasOne("GameHub.Models.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GameHub.Models.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GameHub.Models.Entities.User", "InitiatedByUser")
+                        .WithMany()
+                        .HasForeignKey("InitiatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GameHub.Models.Entities.Payment", "Payment")
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("GameHub.Models.Entities.PaymentTransaction", "PaymentTransaction")
+                        .WithMany()
+                        .HasForeignKey("PaymentTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GameHub.Models.Entities.User", "ProcessedByUser")
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("InitiatedByUser");
+
+                    b.Navigation("Payment");
+
+                    b.Navigation("PaymentTransaction");
+
+                    b.Navigation("ProcessedByUser");
                 });
 
             modelBuilder.Entity("GameHub.Models.Entities.PaymentTransaction", b =>

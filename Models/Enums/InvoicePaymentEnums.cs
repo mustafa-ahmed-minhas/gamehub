@@ -15,6 +15,7 @@ namespace GameHub.Models.Enums
 
     public enum PaymentRecordStatus
     {
-        Recorded
+        Recorded,
+        Refunded
     }
 }

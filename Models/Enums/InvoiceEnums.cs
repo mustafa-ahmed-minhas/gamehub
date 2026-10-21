@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GameHub.Models.Enums
 {
-    public enum InvoiceSourceType { Direct, [Display(Name = "Sales Order")] SalesOrder }
+    public enum InvoiceSourceType { Direct, [Display(Name = "Sales Order")] SalesOrder, [Display(Name = "Website Booking")] WebsiteBooking }
     public enum InvoiceStatus
     {
         Draft,

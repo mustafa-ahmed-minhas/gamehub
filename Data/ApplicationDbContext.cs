@@ -41,6 +41,7 @@ namespace GameHub.Data
         public DbSet<SalesInvoiceItem> SalesInvoiceItems => Set<SalesInvoiceItem>();
         public DbSet<Payment> Payments => Set<Payment>();
         public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+        public DbSet<PaymentRefund> PaymentRefunds => Set<PaymentRefund>();
         public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
         public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
         public DbSet<DocumentActivity> DocumentActivities => Set<DocumentActivity>();
@@ -435,6 +436,10 @@ namespace GameHub.Data
                     .WithOne(payment => payment.Booking)
                     .HasForeignKey<Booking>(booking => booking.PaymentTransactionId)
                     .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(booking => booking.SalesOrder)
+                    .WithMany()
+                    .HasForeignKey(booking => booking.SalesOrderId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<PaymentTransaction>(entity =>
@@ -552,6 +557,32 @@ namespace GameHub.Data
                 entity.Property(allocation => allocation.Amount).HasPrecision(12, 2);
                 entity.HasOne(allocation => allocation.Payment).WithMany(payment => payment.Allocations).HasForeignKey(allocation => allocation.PaymentId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(allocation => allocation.Invoice).WithMany(invoice => invoice.PaymentAllocations).HasForeignKey(allocation => allocation.InvoiceId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PaymentRefund>(entity =>
+            {
+                entity.HasIndex(refund => refund.RefundNumber).IsUnique();
+                entity.HasIndex(refund => refund.PaymentTransactionId);
+                entity.HasIndex(refund => refund.PaymentId);
+                entity.HasIndex(refund => refund.BookingId);
+                entity.HasIndex(refund => refund.Status);
+                entity.Property(refund => refund.RefundNumber).IsRequired().HasMaxLength(30);
+                entity.Property(refund => refund.Amount).HasPrecision(12, 2);
+                entity.Property(refund => refund.Reason).HasConversion<string>().HasMaxLength(30);
+                entity.Property(refund => refund.ReasonDetails).HasMaxLength(1500);
+                entity.Property(refund => refund.Method).HasConversion<string>().HasMaxLength(30);
+                entity.Property(refund => refund.Status).HasConversion<string>().HasMaxLength(30);
+                entity.Property(refund => refund.GatewayRefundId).HasMaxLength(100);
+                entity.Property(refund => refund.GatewayRefundReference).HasMaxLength(100);
+                entity.Property(refund => refund.FailureReason).HasMaxLength(500);
+                entity.Property(refund => refund.IpAddress).HasMaxLength(128);
+                entity.Property(refund => refund.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+                entity.HasOne(refund => refund.PaymentTransaction).WithMany().HasForeignKey(refund => refund.PaymentTransactionId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(refund => refund.Payment).WithMany().HasForeignKey(refund => refund.PaymentId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(refund => refund.Booking).WithMany().HasForeignKey(refund => refund.BookingId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(refund => refund.Customer).WithMany().HasForeignKey(refund => refund.CustomerId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(refund => refund.InitiatedByUser).WithMany().HasForeignKey(refund => refund.InitiatedByUserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(refund => refund.ProcessedByUser).WithMany().HasForeignKey(refund => refund.ProcessedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<CustomerNotification>(entity =>

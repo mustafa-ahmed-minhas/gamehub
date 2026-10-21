@@ -1,143 +1,256 @@
 @model BookingIndexViewModel
-@using GameHub.Helpers
 @using GameHub.Models.Enums
 @{
     ViewData["Title"] = "Booking Management";
     Layout = "_AdminLayout";
+    ViewData["BookingGuidance"] = Model.View == "calendar" ? "calendar" : "bookings";
+    ViewData["BookingGuidanceRail"] = false;
+    ViewData["TodaysBookings"] = Model.TodaysBookings;
+    ViewData["PendingApprovals"] = Model.Pending;
+    ViewData["PendingRefunds"] = 0; // Not available in this ViewModel
+    ViewData["CourtOccupancy"] = Model.CourtOccupancy.ToString("N0") + "%";
     var eventsJson = System.Text.Json.JsonSerializer.Serialize(Model.CalendarEvents);
 }
 
-<section class="bookings-page" data-bookings-index>
-    <header class="booking-hero @(Model.View == "calendar" ? "booking-calendar-hero" : "")">
+@section Styles {
+    <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+}
+
+<div class="crm-page crm-page-pro bookings-page">
+    <div class="arena-header">
         <div>
-            <span class="admin-label">@(Model.View == "calendar" ? "BOOKING MANAGEMENT" : "ARENA OPERATIONS")</span>
-            <h1>@(Model.View == "calendar" ? "Calendar View" : "Booking Management")</h1>
-            <p>@(Model.View == "calendar" ? "View and manage all arena bookings using an interactive calendar." : "Manage reservations, court availability, customer schedules, and booking lifecycle.")</p>
+            <span class="admin-label">ARENA OPERATIONS</span>
+            <h1>Booking Management</h1>
+            <p>Manage reservations, court availability, customer schedules, and booking lifecycle.</p>
         </div>
-        <div class="booking-hero-actions">
-            @if (Model.View == "calendar")
-            {
-                <button class="booking-btn booking-btn-secondary" type="button" data-calendar-today><i class="bi bi-calendar-day"></i><span>Today</span></button>
-                <button class="booking-btn booking-btn-secondary" type="button" data-calendar-refresh><i class="bi bi-arrow-clockwise"></i><span>Refresh</span></button>
-            }
-            else
-            {
-                <a class="booking-btn booking-btn-secondary" asp-action="Index" asp-route-view="list"><i class="bi bi-list-ul"></i><span>List View</span></a>
-                <a class="booking-btn booking-btn-secondary" asp-action="Index" asp-route-view="calendar"><i class="bi bi-calendar3"></i><span>Calendar View</span></a>
-                <button class="booking-btn booking-btn-secondary" type="button"><i class="bi bi-download"></i><span>Export</span></button>
-            }
+        <div class="crm-command-actions">
+            <div class="crm-view-toggle" aria-label="Booking view mode">
+                <a class="@(Model.View == "list" ? "active" : "")" asp-action="Index" asp-route-view="list"><i class="bi bi-list-ul"></i> List</a>
+                <a class="@(Model.View == "calendar" ? "active" : "")" asp-action="Index" asp-route-view="calendar"><i class="bi bi-calendar-week"></i> Calendar</a>
+            </div>
             @if (Model.CanManage)
             {
-                <a class="booking-btn booking-btn-primary" asp-action="Create"><i class="bi bi-plus-lg"></i><span>Create Booking</span></a>
+                <a class="crm-premium-button" asp-action="Create"><i class="bi bi-plus-lg"></i> Create Booking</a>
             }
         </div>
-    </header>
-
-    <div class="booking-kpi-grid">
-        <article class="booking-kpi"><span><i class="bi bi-calendar-day"></i></span><strong data-booking-counter>@Model.TodaysBookings</strong><p>Today's Bookings</p><div><i style="width:72%"></i></div><small>Live operational load</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-check2-circle"></i></span><strong data-booking-counter>@Model.Confirmed</strong><p>Confirmed</p><div><i style="width:64%"></i></div><small>Ready for arrival</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-hourglass-split"></i></span><strong data-booking-counter>@Model.Pending</strong><p>Pending</p><div><i style="width:42%"></i></div><small>Needs attention</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-play-circle"></i></span><strong data-booking-counter>@Model.InProgress</strong><p>In Progress</p><div><i style="width:35%"></i></div><small>Currently on court</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-trophy"></i></span><strong data-booking-counter>@Model.CompletedToday</strong><p>Completed Today</p><div><i style="width:58%"></i></div><small>Finished sessions</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-x-circle"></i></span><strong data-booking-counter>@Model.Cancelled</strong><p>Cancelled</p><div><i style="width:24%"></i></div><small>Last 7 days</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-cash-stack"></i></span><strong data-booking-counter>@Model.TodaysRevenue.ToString("N0")</strong><p>Today's Revenue</p><div><i style="width:76%"></i></div><small>@Model.CurrencySymbol collected</small></article>
-        <article class="booking-kpi"><span><i class="bi bi-pie-chart"></i></span><strong data-booking-counter>@Model.CourtOccupancy.ToString("N0")</strong><p>Court Occupancy</p><div><i style="width:@Model.CourtOccupancy%"></i></div><small>Active court usage</small></article>
     </div>
 
-    <section class="booking-workspace-card">
-        <div class="booking-tabs">
-            <a class="@(Model.View == "list" ? "active" : "")" asp-action="Index" asp-route-view="list"><i class="bi bi-table"></i> List View</a>
-            <a class="@(Model.View == "calendar" ? "active" : "")" asp-action="Index" asp-route-view="calendar"><i class="bi bi-calendar-week"></i> Calendar View</a>
-        </div>
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-calendar-day"></i><span>Today's Bookings</span><strong>@Model.TodaysBookings</strong></article>
+        <article><i class="bi bi-check2-circle"></i><span>Confirmed</span><strong>@Model.Confirmed</strong></article>
+        <article><i class="bi bi-hourglass-split"></i><span>Pending</span><strong>@Model.Pending</strong></article>
+        <article><i class="bi bi-play-circle"></i><span>In Progress</span><strong>@Model.InProgress</strong></article>
+        <article><i class="bi bi-trophy"></i><span>Completed Today</span><strong>@Model.CompletedToday</strong></article>
+        <article><i class="bi bi-x-circle"></i><span>Cancelled (7d)</span><strong>@Model.Cancelled</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Today's Revenue</span><strong>@Model.CurrencySymbol @Model.TodaysRevenue.ToString("N0")</strong></article>
+        <article><i class="bi bi-pie-chart"></i><span>Court Occupancy</span><strong>@Model.CourtOccupancy.ToString("N0")%</strong></article>
+    </div>
 
-        <form class="booking-toolbar" method="get" data-booking-filters>
+    <section class="arena-card crm-leads-card">
+        <form class="arena-toolbar" method="get" data-crm-toolbar>
             <input type="hidden" name="view" value="@Model.View" />
-            <label class="booking-search"><i class="bi bi-search"></i><input name="search" value="@Model.Search" placeholder="Search booking, customer, court..." data-booking-filter /></label>
-            <input type="date" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" data-booking-filter />
-            <input type="date" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" data-booking-filter />
-            <select name="sportId" data-booking-filter><option value="">All Sports</option>@foreach (var item in Model.Sports) { <option value="@item.Value" selected="@(Model.SportId?.ToString() == item.Value)">@item.Text</option> }</select>
-            <select name="facilityId" data-booking-filter><option value="">All Facilities</option>@foreach (var item in Model.Facilities) { <option value="@item.Value" selected="@(Model.FacilityId?.ToString() == item.Value)">@item.Text</option> }</select>
-            <select name="courtId" data-booking-filter><option value="">All Courts</option>@foreach (var item in Model.Courts) { <option value="@item.Value" selected="@(Model.CourtId?.ToString() == item.Value)">@item.Text</option> }</select>
-            <select name="status" data-booking-filter><option value="">All Status</option>@foreach (BookingStatus item in Enum.GetValues<BookingStatus>()) { <option value="@item" selected="@(Model.Status == item)">@item.GetDisplayName()</option> }</select>
-            <select name="paymentStatus" data-booking-filter><option value="">All Payments</option>@foreach (PaymentStatus item in Enum.GetValues<PaymentStatus>()) { <option value="@item" selected="@(Model.PaymentStatus == item)">@item.GetDisplayName()</option> }</select>
-            <select name="source" data-booking-filter><option value="">All Sources</option>@foreach (BookingSource item in Enum.GetValues<BookingSource>()) { <option value="@item" selected="@(Model.Source == item)">@item.GetDisplayName()</option> }</select>
-            <select name="sortBy" data-booking-filter><option value="date_desc" selected="@(Model.SortBy == "date_desc")">Date Desc</option><option value="date_asc" selected="@(Model.SortBy == "date_asc")">Date Asc</option><option value="newest" selected="@(Model.SortBy == "newest")">Newest</option><option value="customer" selected="@(Model.SortBy == "customer")">Customer</option><option value="court" selected="@(Model.SortBy == "court")">Court</option><option value="amount" selected="@(Model.SortBy == "amount")">Highest Amount</option><option value="status" selected="@(Model.SortBy == "status")">Status</option></select>
-            <select name="pageSize" data-booking-filter>@foreach (var size in new[] { 10, 25, 50 }) { <option value="@size" selected="@(Model.PageSize == size)">@size</option> }</select>
-            <a class="booking-btn booking-btn-secondary" asp-action="Index" asp-route-view="@Model.View"><i class="bi bi-x-circle"></i><span>Clear</span></a>
+            <div class="arena-search">
+                <i class="bi bi-search"></i>
+                <input name="search" value="@Model.Search" placeholder="Search booking, customer, court..." data-crm-search />
+            </div>
+            <button class="admin-secondary-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#bookingFilters">
+                <i class="bi bi-sliders"></i> Filters <span>@Model.ActiveFilterCount</span>
+            </button>
+            <a class="admin-secondary-button" asp-action="Index" asp-route-view="@Model.View"><i class="bi bi-x-circle"></i> Clear</a>
+            <select name="sortBy" data-crm-filter aria-label="Sort bookings">
+                @foreach (var opt in Model.SortOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.SortBy)">@opt.Text</option>
+                }
+            </select>
+            <select name="pageSize" data-crm-filter aria-label="Page size">
+                @foreach (var opt in Model.PageSizeOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.PageSize.ToString())">@opt.Text</option>
+                }
+            </select>
+
+            <div class="offcanvas offcanvas-end crm-filter-panel" tabindex="-1" id="bookingFilters">
+                <div class="offcanvas-header">
+                    <div><span class="admin-kicker">Booking Filters</span><h5>Refine bookings</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <label>Status<select name="status">@foreach (var opt in Model.StatusOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("status"))">@opt.Text</option> }</select></label>
+                    <label>Payment Status<select name="paymentStatus">@foreach (var opt in Model.PaymentStatusOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("paymentStatus"))">@opt.Text</option> }</select></label>
+                    <label>Source<select name="source">@foreach (var opt in Model.SourceOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("source"))">@opt.Text</option> }</select></label>
+                    <label>Sport<select name="sportId"><option value="">All Sports</option>@foreach (var item in Model.Sports) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("sportId"))">@item.Text</option> }</select></label>
+                    <label>Facility<select name="facilityId"><option value="">All Facilities</option>@foreach (var item in Model.Facilities) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("facilityId"))">@item.Text</option> }</select></label>
+                    <label>Court<select name="courtId"><option value="">All Courts</option>@foreach (var item in Model.Courts) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("courtId"))">@item.Text</option> }</select></label>
+                    <label>Customer<select name="customerId"><option value="">All Customers</option>@foreach (var item in Model.Customers) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("customerId"))">@item.Text</option> }</select></label>
+                    <label>Date From<input type="date" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" /></label>
+                    <label>Date To<input type="date" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" /></label>
+                    <div class="crm-filter-actions">
+                        <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                        <a class="admin-secondary-button" asp-action="Index" asp-route-view="@Model.View">Clear All</a>
+                    </div>
+                </div>
+            </div>
         </form>
+
+        <div class="crm-active-filters">
+            @foreach (var kvp in Model.CurrentQueryValues)
+            {
+                if (kvp.Key != "view")
+                {
+                    <a class="crm-filter-chip" href="@Url.Action("Index")" data-filter-key="@kvp.Key"><i class="bi bi-x"></i> @kvp.Key: @kvp.Value</a>
+                }
+            }
+        </div>
 
         @if (Model.View == "calendar")
         {
-            <div class="booking-calendar-shell" data-calendar-shell>
+            <div class="booking-calendar-shell" data-calendar-shell style="height: 650px;">
                 <div class="booking-calendar-loading" data-calendar-loading><span class="spinner-border spinner-border-sm"></span> Loading calendar...</div>
-                <div id="bookingCalendar" data-events="@eventsJson" data-currency="@Model.CurrencySymbol"></div>
+                <div id="bookingCalendar" data-events="@eventsJson" data-currency="@Model.CurrencySymbol" style="height: 100%;"></div>
             </div>
         }
         else if (!Model.Bookings.Any())
         {
-            <div class="booking-empty"><i class="bi bi-calendar-plus"></i><h2>No bookings found</h2><p>Create a booking or adjust filters to see reservations.</p></div>
+            <div class="arena-empty">
+                <i class="bi bi-calendar-plus"></i>
+                <h2>No bookings found</h2>
+                <p>Create a booking or adjust filters to see reservations.</p>
+            </div>
         }
         else
         {
-            <div class="booking-table-wrap">
-                <table class="booking-table">
-                    <thead><tr><th>Booking</th><th>Customer</th><th>Date & Time</th><th>Court</th><th>Sport</th><th>Duration</th><th>Amount</th><th>Payment</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead>
-                    <tbody>
-                        @foreach (var item in Model.Bookings)
-                        {
+            <div class="crm-leads-table-card membership-workspace-card">
+                <div class="crm-leads-table-wrap membership-table-wrap">
+                    <table class="crm-leads-table crm-data-grid">
+                        <thead>
                             <tr>
-                                <td data-label="Booking"><strong>@item.BookingNumber</strong><small>@item.CreatedAt.ToString("dd MMM yyyy") @(item.IsWalkIn ? "Walk-in" : "")</small></td>
-                                <td data-label="Customer"><div class="booking-person"><span>@item.CustomerInitials</span><div><strong>@item.CustomerName</strong><small>@item.CustomerPhone @(item.IsMemberBooking ? "• Member" : "")</small></div></div></td>
-                                <td data-label="Date & Time"><strong>@item.BookingDate.ToString("dd MMM yyyy")</strong><small>@item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")</small></td>
-                                <td data-label="Court"><strong>@item.CourtName</strong><small>@item.FacilityName</small></td>
-                                <td data-label="Sport">@item.SportName</td>
-                                <td data-label="Duration">@item.DurationMinutes min</td>
-                                <td data-label="Amount"><strong>@Model.CurrencySymbol @item.TotalAmount.ToString("N0")</strong><small>Bal @item.BalanceAmount.ToString("N0")</small></td>
-                                <td data-label="Payment"><span class="booking-badge payment-@item.PaymentStatus.ToString().ToLowerInvariant()">@item.PaymentStatus.GetDisplayName()</span></td>
-                                <td data-label="Status"><span class="booking-badge status-@item.Status.ToString().ToLowerInvariant()">@item.Status.GetDisplayName()</span></td>
-                                <td data-label="Source">@item.Source.GetDisplayName()</td>
-                                <td data-label="Actions"><div class="booking-actions"><a class="booking-icon" asp-action="Details" asp-route-id="@item.Id" title="View"><i class="bi bi-eye"></i></a>@if (Model.CanManage && item.Status is BookingStatus.Draft or BookingStatus.Pending or BookingStatus.Confirmed) { <a class="booking-icon" asp-action="Edit" asp-route-id="@item.Id" title="Edit"><i class="bi bi-pencil"></i></a><a class="booking-icon" asp-action="Reschedule" asp-route-id="@item.Id" title="Reschedule"><i class="bi bi-calendar2-week"></i></a> }@if (Model.CanManage) { <button class="booking-icon" type="button" data-booking-action data-url="@Url.Action("Confirm", new { id = item.Id })" data-message="Confirm this booking?"><i class="bi bi-check2"></i></button><button class="booking-icon danger" type="button" data-booking-action data-url="@Url.Action("Cancel", new { id = item.Id })" data-reason="true" data-message="Cancel this booking?"><i class="bi bi-x-lg"></i></button> }</div></td>
+                                <th style="width: 12%;">Booking</th>
+                                <th style="width: 16%;">Customer</th>
+                                <th style="width: 14%;">Date & Time</th>
+                                <th style="width: 14%;">Court</th>
+                                <th style="width: 10%;">Sport</th>
+                                <th style="width: 8%;">Duration</th>
+                                <th style="width: 10%;">Amount</th>
+                                <th style="width: 8%;">Payment</th>
+                                <th style="width: 10%;">Status</th>
+                                <th style="width: 8%;">Source</th>
+                                <th style="width: 10%;">Actions</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Bookings)
+                            {
+                                <tr>
+                                    <td data-label="Booking">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@item.BookingNumber[0]</span>
+                                            <div>
+                                                <strong>@item.BookingNumber</strong>
+                                                <small>@item.CreatedAt.ToString("dd MMM yyyy") @(item.IsWalkIn ? "Walk-in" : "")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Customer">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@item.CustomerInitials</span>
+                                            <div>
+                                                <strong>@item.CustomerName</strong>
+                                                <small>@item.CustomerPhone @(item.IsMemberBooking ? "• Member" : "")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Date & Time">
+                                        <strong>@item.BookingDate.ToString("dd MMM yyyy")</strong>
+                                        <small>@item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")</small>
+                                    </td>
+                                    <td data-label="Court">
+                                        <strong>@item.CourtName</strong>
+                                        <small>@item.FacilityName</small>
+                                    </td>
+                                    <td data-label="Sport">@item.SportName</td>
+                                    <td data-label="Duration">@item.DurationMinutes min</td>
+                                    <td data-label="Amount">
+                                        <strong>@Model.CurrencySymbol @item.TotalAmount.ToString("N0")</strong>
+                                        <small>Bal @item.BalanceAmount.ToString("N0")</small>
+                                    </td>
+                                    <td data-label="Payment">
+                                        <span class="membership-status-badge crm-lead-badge payment-@item.PaymentStatus.ToString().ToLowerInvariant()"><i></i>@item.PaymentStatus.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge crm-lead-badge status-@item.Status.ToString().ToLowerInvariant()"><i></i>@item.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Source">@item.Source.GetDisplayName()</td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu crm-lead-actions">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.Id" title="View Details" aria-label="View booking @item.BookingNumber"><i class="bi bi-eye"></i></a>
+                                            @if (Model.CanManage && (item.Status == BookingStatus.Draft || item.Status == BookingStatus.Pending || item.Status == BookingStatus.Confirmed))
+                                            {
+                                                <a class="membership-icon-button" asp-action="Edit" asp-route-id="@item.Id" title="Edit" aria-label="Edit booking @item.BookingNumber"><i class="bi bi-pencil"></i></a>
+                                                <a class="membership-icon-button" asp-action="Reschedule" asp-route-id="@item.Id" title="Reschedule" aria-label="Reschedule booking @item.BookingNumber"><i class="bi bi-calendar2-week"></i></a>
+                                            }
+
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="booking-pagination"><span>Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1)-@Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalRecords) of @Model.TotalRecords bookings</span><div><a class="@(Model.CurrentPage <= 1 ? "disabled" : "")" asp-action="Index" asp-route-view="list" asp-route-search="@Model.Search" asp-route-page="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize">Previous</a><strong>@Model.CurrentPage / @Model.TotalPages</strong><a class="@(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")" asp-action="Index" asp-route-view="list" asp-route-search="@Model.Search" asp-route-page="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize">Next</a></div></div>
+            <div class="crm-leads-pagination membership-pagination">
+                <span>Showing @Model.StartRecord-@Model.EndRecord of @Model.TotalRecords bookings</span>
+                <div class="pagination-controls">
+                    @foreach (var link in Model.PaginationLinks)
+                    {
+                        var cssClass = "page-link";
+                        if (link.IsActive) cssClass += " active";
+                        if (link.IsDisabled) cssClass += " disabled";
+                        var icon = "";
+                        if (link.Label == "Previous") icon = "<i class=\"bi bi-chevron-left\"></i> ";
+                        else if (link.Label == "Next") icon = " <i class=\"bi bi-chevron-right\"></i>";
+                        <a class="@cssClass" href="@link.Url" aria-current="@(link.IsActive ? "page" : null)">@Html.Raw(icon + link.Label)</a>
+                    }
+                </div>
+            </div>
         }
     </section>
-</section>
 
-@Html.AntiForgeryToken()
-<div class="booking-modal" data-booking-modal hidden>
-    <div>
-        <button type="button" data-booking-modal-close><i class="bi bi-x-lg"></i></button>
-        <h3>Confirm Action</h3>
-        <p data-booking-modal-message>Are you sure?</p>
-        <textarea data-booking-modal-reason placeholder="Enter reason"></textarea>
-        <button class="booking-btn booking-btn-primary" type="button" data-booking-modal-confirm>Confirm</button>
-    </div>
-</div>
-
-<div class="booking-quick-modal" data-booking-quick-modal hidden>
-    <div class="booking-quick-card">
-        <button type="button" class="booking-quick-close" data-booking-quick-close aria-label="Close quick view"><i class="bi bi-x-lg"></i></button>
-        <span class="admin-label">BOOKING QUICK VIEW</span>
-        <h3 data-quick-number>Booking</h3>
-        <div class="booking-quick-grid">
-            <div><span>Customer</span><strong data-quick-customer>-</strong></div>
-            <div><span>Court</span><strong data-quick-court>-</strong></div>
-            <div><span>Sport</span><strong data-quick-sport>-</strong></div>
-            <div><span>Booking Time</span><strong data-quick-time>-</strong></div>
-            <div><span>Status</span><strong data-quick-status>-</strong></div>
-            <div><span>Payment Status</span><strong data-quick-payment>Open details</strong></div>
-            <div><span>Total Amount</span><strong data-quick-amount>-</strong></div>
-        </div>
-        <div class="booking-quick-actions">
-            <a class="booking-btn booking-btn-primary" data-quick-details href="#"><i class="bi bi-eye"></i><span>View Details</span></a>
-            <a class="booking-btn booking-btn-secondary" data-quick-edit href="#"><i class="bi bi-pencil"></i><span>Edit Booking</span></a>
-            <button class="booking-btn booking-btn-secondary" type="button" data-booking-quick-close><i class="bi bi-x-circle"></i><span>Close</span></button>
+    @Html.AntiForgeryToken()
+    <div class="booking-modal" data-booking-modal hidden>
+        <div>
+            <button type="button" data-booking-modal-close><i class="bi bi-x-lg"></i></button>
+            <h3>Confirm Action</h3>
+            <p data-booking-modal-message>Are you sure?</p>
+            <textarea data-booking-modal-reason placeholder="Enter reason" data-char-count="true"></textarea>
+            <div data-char-counter class="crm-muted" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+            <button class="crm-premium-button" type="button" data-booking-modal-confirm>Confirm</button>
         </div>
     </div>
+
+    <div class="booking-quick-modal" data-booking-quick-modal hidden>
+        <div class="booking-quick-card">
+            <button type="button" class="booking-quick-close" data-booking-quick-close aria-label="Close quick view"><i class="bi bi-x-lg"></i></button>
+            <span class="admin-label">BOOKING QUICK VIEW</span>
+            <h3 data-quick-number>Booking</h3>
+            <div class="booking-quick-grid">
+                <div><span>Customer</span><strong data-quick-customer>-</strong></div>
+                <div><span>Court</span><strong data-quick-court>-</strong></div>
+                <div><span>Sport</span><strong data-quick-sport>-</strong></div>
+                <div><span>Booking Time</span><strong data-quick-time>-</strong></div>
+                <div><span>Status</span><strong data-quick-status>-</strong></div>
+                <div><span>Payment Status</span><strong data-quick-payment>Open details</strong></div>
+                <div><span>Total Amount</span><strong data-quick-amount>-</strong></div>
+            </div>
+            <div class="booking-quick-actions">
+                <a class="crm-premium-button" data-quick-details href="#"><i class="bi bi-eye"></i><span>View Details</span></a>
+                <a class="crm-premium-button secondary" data-quick-edit href="#"><i class="bi bi-pencil"></i><span>Edit Booking</span></a>
+                <button class="crm-premium-button secondary" type="button" data-booking-quick-close><i class="bi bi-x-circle"></i><span>Close</span></button>
+            </div>
+        </div>
+    </div>
+
+    <partial name="_GuidancePanel" />
 </div>
 
 @section Scripts {

@@ -1,0 +1,316 @@
+@model BookingApprovalsViewModel
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Booking Approvals";
+    Layout = "_AdminLayout";
+    ViewData["BookingGuidance"] = "approvals";
+    ViewData["BookingGuidanceRail"] = false;
+    ViewData["PendingApprovals"] = Model.TotalRecords;
+    ViewData["PendingValue"] = Model.CurrencySymbol + " " + Model.Items.Where(x => x.PaymentStatus == PaymentStatus.Paid).Sum(x => x.TotalAmount).ToString("N0");
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+}
+
+<div class="crm-page crm-page-pro approvals-page">
+    <div class="arena-header">
+        <div>
+            <span class="admin-label">BOOKING MANAGEMENT</span>
+            <h1>Booking Approvals</h1>
+            <p>Review and approve pending website bookings. Payment has been received; confirm availability and approve or reject with a reason.</p>
+            <div class="crm-filter-summary">
+                <span class="crm-health-pill healthy"><i class="bi bi-activity"></i> Pipeline Health: Healthy</span>
+                <span><i class="bi bi-database-check"></i> @Model.TotalRecords records in current view</span>
+                @if (!string.IsNullOrWhiteSpace(Model.Search))
+                {
+                    <a asp-action="Approvals" class="crm-filter-chip"><i class="bi bi-x"></i> Search: @Model.Search</a>
+                }
+            </div>
+        </div>
+        <div class="crm-command-actions">
+            <a class="crm-premium-button secondary" asp-action="Index" asp-route-view="list"><i class="bi bi-list-ul"></i> All Bookings</a>
+            <a class="crm-premium-button secondary" asp-action="Index" asp-route-view="calendar"><i class="bi bi-calendar3"></i> Calendar View</a>
+        </div>
+    </div>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-hourglass-split"></i><span>Pending Approval</span><strong>@Model.TotalRecords</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Total Pending Value</span><strong>@Model.CurrencySymbol @Model.Items.Where(x => x.PaymentStatus == PaymentStatus.Paid).Sum(x => x.TotalAmount).ToString("N0")</strong></article>
+    </div>
+
+    <section class="arena-card crm-leads-card">
+        <form class="arena-toolbar" method="get" data-crm-toolbar>
+            <div class="arena-search">
+                <i class="bi bi-search"></i>
+                <input name="search" value="@Model.Search" placeholder="Search booking, customer, court..." aria-label="Search approvals" autocomplete="off" data-crm-search />
+            </div>
+            <button class="admin-secondary-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#approvalFilters">
+                <i class="bi bi-sliders"></i> Filters <span>@Model.ActiveFilterCount</span>
+            </button>
+            <a class="admin-secondary-button" asp-action="Approvals"><i class="bi bi-x-circle"></i> Clear</a>
+            <select name="sortBy" data-crm-filter aria-label="Sort approvals">
+                @foreach (var opt in Model.SortOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.SortBy)">@opt.Text</option>
+                }
+            </select>
+            <select name="pageSize" data-crm-filter aria-label="Page size">
+                @foreach (var opt in Model.PageSizeOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.PageSize.ToString())">@opt.Text</option>
+                }
+            </select>
+
+            <div class="offcanvas offcanvas-end crm-filter-panel" tabindex="-1" id="approvalFilters">
+                <div class="offcanvas-header">
+                    <div><span class="admin-kicker">Approval Filters</span><h5>Refine approvals</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <label>Status<select name="status">@foreach (var opt in Model.StatusOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("status"))">@opt.Text</option> }</select></label>
+                    <label>Sport<select name="sportId"><option value="">All Sports</option>@foreach (var item in Model.Sports) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("sportId"))">@item.Text</option> }</select></label>
+                    <label>Facility<select name="facilityId"><option value="">All Facilities</option>@foreach (var item in Model.Facilities) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("facilityId"))">@item.Text</option> }</select></label>
+                    <label>Court<select name="courtId"><option value="">All Courts</option>@foreach (var item in Model.Courts) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("courtId"))">@item.Text</option> }</select></label>
+                    <label>Customer<select name="customerId"><option value="">All Customers</option>@foreach (var item in Model.Customers) { <option value="@item.Value" selected="@(item.Value == Model.CurrentQueryValues.GetValueOrDefault("customerId"))">@item.Text</option> }</select></label>
+                    <label>Date From<input type="date" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" /></label>
+                    <label>Date To<input type="date" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" /></label>
+                    <div class="crm-filter-actions">
+                        <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                        <a class="admin-secondary-button" asp-action="Approvals">Clear All</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <div class="crm-active-filters">
+            @foreach (var kvp in Model.CurrentQueryValues)
+            {
+                <a class="crm-filter-chip" href="@Url.Action("Approvals")" data-filter-key="@kvp.Key"><i class="bi bi-x"></i> @kvp.Key: @kvp.Value</a>
+            }
+        </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi bi-check2-circle"></i>
+                <h2>No pending approvals</h2>
+                <p>All website bookings have been reviewed.</p>
+            </div>
+        }
+        else
+        {
+            <div class="crm-leads-table-card membership-workspace-card">
+                <div class="crm-leads-table-wrap membership-table-wrap">
+                    <table class="crm-leads-table crm-data-grid">
+                        <thead>
+                            <tr>
+                                <th style="width: 14%;">Booking</th>
+                                <th style="width: 18%;">Customer</th>
+                                <th style="width: 14%;">Date & Time</th>
+                                <th style="width: 16%;">Court / Sport</th>
+                                <th style="width: 8%;">Duration</th>
+                                <th style="width: 10%;">Amount</th>
+                                <th style="width: 8%;">Payment</th>
+                                <th style="width: 12%;">Gateway Ref</th>
+                                <th style="width: 12%;">Created</th>
+                                <th style="width: 10%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr>
+                                    <td data-label="Booking">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@item.BookingNumber[0]</span>
+                                            <div>
+                                                <strong>@item.BookingNumber</strong>
+                                                <small>@item.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Customer">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@(item.CustomerName.Length > 0 ? char.ToUpper(item.CustomerName[0]) : "?")</span>
+                                            <div>
+                                                <strong>@item.CustomerName</strong>
+                                                <small>@item.CustomerCode @(!string.IsNullOrWhiteSpace(item.CustomerPhone) ? "• " + item.CustomerPhone : "")</small>
+                                                @if (!string.IsNullOrWhiteSpace(item.CustomerEmail)) { <small>@item.CustomerEmail</small> }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Date & Time">
+                                        <strong>@item.BookingDate.ToString("dd MMM yyyy")</strong>
+                                        <small>@item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")</small>
+                                    </td>
+                                    <td data-label="Court / Sport">
+                                        <strong>@item.CourtName</strong>
+                                        <small>@item.FacilityName • @item.SportName</small>
+                                    </td>
+                                    <td data-label="Duration">
+                                        <strong>@item.DurationMinutes min</strong>
+                                        <small>@item.PlayerCount player(s)</small>
+                                    </td>
+                                    <td data-label="Amount">
+                                        <strong>@Model.CurrencySymbol @item.TotalAmount.ToString("N0")</strong>
+                                        <small>Paid @Model.CurrencySymbol @item.PaidAmount.ToString("N0")</small>
+                                    </td>
+                                    <td data-label="Payment">
+                                        <span class="membership-status-badge crm-lead-badge payment-@item.PaymentStatus.ToString().ToLowerInvariant()"><i></i>@item.PaymentStatus.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Gateway Ref">
+                                        @if (!string.IsNullOrWhiteSpace(item.GatewayReference))
+                                        {
+                                            <code class="crm-source-code">@item.GatewayReference</code>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(item.GatewayTransactionId))
+                                        {
+                                            <code class="crm-source-code">@item.GatewayTransactionId</code>
+                                        }
+                                        else
+                                        {
+                                            <span class="crm-muted">—</span>
+                                        }
+                                    </td>
+                                    <td data-label="Created"><small class="crm-muted">@item.CreatedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu crm-lead-actions">
+                                            <a class="membership-icon-button" asp-action="Details" asp-route-id="@item.Id" title="View Details" aria-label="View booking @item.BookingNumber"><i class="bi bi-eye"></i></a>
+                                            <form method="post" asp-action="ApproveBooking" asp-route-id="@item.Id" class="d-inline" data-booking-action data-message="Approve this booking? This will confirm the reservation.">
+                                                <button type="submit" class="crm-convert-pill" title="Approve" aria-label="Approve booking @item.BookingNumber"><i class="bi bi-check2-circle"></i> Approve</button>
+                                                <input type="hidden" name="comments" value="" />
+                                            </form>
+                                            <form method="post" asp-action="RejectBooking" asp-route-id="@item.Id" class="d-inline" data-booking-action data-message="Reject this booking? This will cancel the reservation and notify the customer." data-reason="true" data-reason-placeholder="Enter rejection reason (min 10 characters)">
+                                                <button type="submit" class="crm-convert-pill danger" title="Reject" aria-label="Reject booking @item.BookingNumber"><i class="bi bi-x-circle"></i> Reject</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="crm-leads-pagination membership-pagination">
+                <span>Showing @Model.StartRecord-@Model.EndRecord of @Model.TotalRecords bookings</span>
+                <div class="pagination-controls">
+                    @foreach (var link in Model.PaginationLinks)
+                    {
+                        var cssClass = "page-link";
+                        if (link.IsActive) cssClass += " active";
+                        if (link.IsDisabled) cssClass += " disabled";
+                        var icon = "";
+                        if (link.Label == "Previous") icon = "<i class=\"bi bi-chevron-left\"></i> ";
+                        else if (link.Label == "Next") icon = " <i class=\"bi bi-chevron-right\"></i>";
+                        <a class="@cssClass" href="@link.Url" aria-current="@(link.IsActive ? "page" : null)">@Html.Raw(icon + link.Label)</a>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <partial name="_GuidancePanel" />
+</div>
+
+    <div class="booking-modal" data-booking-modal hidden>
+        <div>
+            <button type="button" data-booking-modal-close><i class="bi bi-x-lg"></i></button>
+            <h3>Confirm Action</h3>
+            <p data-booking-modal-message>Are you sure?</p>
+            <textarea data-booking-modal-reason placeholder="Enter reason" data-char-count="true"></textarea>
+            <div data-char-counter class="crm-muted" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+            <button class="crm-premium-button" type="button" data-booking-modal-confirm>Confirm</button>
+        </div>
+    </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.querySelector('[data-booking-modal]');
+            if (!modal) return;
+
+            let currentForm = null;
+            let reasonInput = modal.querySelector('[data-booking-modal-reason]');
+            const messageEl = modal.querySelector('[data-booking-modal-message]');
+            const confirmBtn = modal.querySelector('[data-booking-modal-confirm]');
+            const closeBtn = modal.querySelector('[data-booking-modal-close]');
+            const charCounter = modal.querySelector('[data-char-counter]');
+
+            function showModal(form, message, requiresReason, placeholder) {
+                currentForm = form;
+                messageEl.textContent = message;
+                reasonInput.value = '';
+                reasonInput.placeholder = placeholder || 'Enter reason';
+                reasonInput.style.display = requiresReason ? 'block' : 'none';
+                if (charCounter) {
+                    charCounter.textContent = requiresReason ? '0 / 10 characters minimum' : '';
+                    charCounter.style.color = '';
+                }
+                modal.hidden = false;
+                setTimeout(() => reasonInput.focus(), 50);
+            }
+
+            function hideModal() {
+                modal.hidden = true;
+                currentForm = null;
+                if (charCounter) charCounter.textContent = '';
+            }
+
+            document.querySelectorAll('[data-booking-action]').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const form = this.closest('form');
+                    if (!form) return;
+                    const msg = this.dataset.message || 'Confirm this action?';
+                    const requiresReason = this.dataset.reason === 'true';
+                    const placeholder = this.dataset.reasonPlaceholder || 'Enter reason';
+                    showModal(form, msg, requiresReason, placeholder);
+                });
+            });
+
+            if (reasonInput) {
+                reasonInput.addEventListener('input', function () {
+                    if (charCounter) {
+                        const len = this.value.length;
+                        charCounter.textContent = `${len} / 10 characters minimum`;
+                        charCounter.style.color = len < 10 ? '#9b2828' : '';
+                    }
+                });
+            }
+
+            confirmBtn?.addEventListener('click', function () {
+                if (!currentForm) return;
+                const requiresReason = reasonInput && reasonInput.style.display !== 'none';
+                if (requiresReason) {
+                    const reason = reasonInput.value.trim();
+                    if (reason.length < 10) {
+                        if (charCounter) {
+                            charCounter.textContent = 'Minimum 10 characters required';
+                            charCounter.style.color = '#9b2828';
+                        }
+                        reasonInput.focus();
+                        return;
+                    }
+                    let hidden = currentForm.querySelector('input[name="rejectionReason"]');
+                    if (!hidden) {
+                        hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'rejectionReason';
+                        currentForm.appendChild(hidden);
+                    }
+                    hidden.value = reason;
+                }
+                currentForm.submit();
+            });
+
+            closeBtn?.addEventListener('click', hideModal);
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) hideModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.hidden) hideModal();
+            });
+        });
+    </script>
+}

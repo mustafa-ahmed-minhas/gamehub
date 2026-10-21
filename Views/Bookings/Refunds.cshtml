@@ -1,0 +1,225 @@
+@model RefundsViewModel
+@using GameHub.Models.Enums
+@{
+    ViewData["Title"] = "Refund Management";
+    Layout = "_AdminLayout";
+    ViewData["BookingGuidance"] = "refunds";
+    ViewData["BookingGuidanceRail"] = false;
+    ViewData["PendingRefunds"] = Model.Items.Count(x => x.Status == RefundStatus.Pending);
+    ViewData["FailedRefunds"] = Model.Items.Count(x => x.Status == RefundStatus.Failed);
+    ViewData["TotalRefundAmount"] = Model.CurrencySymbol + " " + Model.Items.Sum(x => x.Amount).ToString("N0");
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+}
+
+<div class="crm-page crm-page-pro refunds-page">
+    <div class="arena-header">
+        <div>
+            <span class="admin-label">FINANCE</span>
+            <h1>Refund Management</h1>
+            <p>Track and process refunds for cancelled bookings, overpayments, and customer disputes. Initiate gateway refunds or record manual refunds.</p>
+            <div class="crm-filter-summary">
+                <span class="crm-health-pill @(Model.Items.Any(x => x.Status == RefundStatus.Pending) ? "risk" : "healthy")"><i class="bi bi-activity"></i> Pipeline: @(Model.Items.Any(x => x.Status == RefundStatus.Pending) ? "Action Required" : "Healthy")</span>
+                <span><i class="bi bi-database-check"></i> @Model.TotalRecords refunds in current view</span>
+                @if (!string.IsNullOrWhiteSpace(Model.Search))
+                {
+                    <a asp-action="Refunds" class="crm-filter-chip"><i class="bi bi-x"></i> Search: @Model.Search</a>
+                }
+            </div>
+        </div>
+        <div class="crm-command-actions">
+            <a class="crm-premium-button secondary" asp-action="Index" asp-route-view="list"><i class="bi bi-list-ul"></i> All Bookings</a>
+        </div>
+    </div>
+
+    <div class="arena-summary-grid">
+        <article><i class="bi bi-clock-history"></i><span>Pending</span><strong>@Model.Items.Count(x => x.Status == RefundStatus.Pending)</strong></article>
+        <article><i class="bi bi-check2-circle"></i><span>Completed</span><strong>@Model.Items.Count(x => x.Status == RefundStatus.Completed)</strong></article>
+        <article><i class="bi bi-x-circle"></i><span>Failed</span><strong>@Model.Items.Count(x => x.Status == RefundStatus.Failed)</strong></article>
+        <article><i class="bi bi-cash-stack"></i><span>Total Amount</span><strong>@Model.CurrencySymbol @Model.Items.Sum(x => x.Amount).ToString("N0")</strong></article>
+    </div>
+
+    <section class="arena-card crm-leads-card">
+        <form class="arena-toolbar" method="get" data-crm-toolbar>
+            <div class="arena-search">
+                <i class="bi bi-search"></i>
+                <input name="search" value="@Model.Search" placeholder="Search refund, booking, customer, transaction..." aria-label="Search refunds" autocomplete="off" data-crm-search />
+            </div>
+            <button class="admin-secondary-button" type="button" data-bs-toggle="offcanvas" data-bs-target="#refundFilters">
+                <i class="bi bi-sliders"></i> Filters <span>@Model.ActiveFilterCount</span>
+            </button>
+            <a class="admin-secondary-button" asp-action="Refunds"><i class="bi bi-x-circle"></i> Clear</a>
+            <select name="sortBy" data-crm-filter aria-label="Sort refunds">
+                @foreach (var opt in Model.SortOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.SortBy)">@opt.Text</option>
+                }
+            </select>
+            <select name="pageSize" data-crm-filter aria-label="Page size">
+                @foreach (var opt in Model.PageSizeOptions)
+                {
+                    <option value="@opt.Value" selected="@(opt.Value == Model.PageSize.ToString())">@opt.Text</option>
+                }
+            </select>
+
+            <div class="offcanvas offcanvas-end crm-filter-panel" tabindex="-1" id="refundFilters">
+                <div class="offcanvas-header">
+                    <div><span class="admin-kicker">Refund Filters</span><h5>Refine refunds</h5></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <label>Status<select name="status">@foreach (var opt in Model.StatusOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("status"))">@opt.Text</option> }</select></label>
+                    <label>Method<select name="method">@foreach (var opt in Model.MethodOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("method"))">@opt.Text</option> }</select></label>
+                    <label>Reason<select name="reason">@foreach (var opt in Model.ReasonOptions) { <option value="@opt.Value" selected="@(opt.Value == Model.CurrentQueryValues.GetValueOrDefault("reason"))">@opt.Text</option> }</select></label>
+                    <label>Date From<input type="date" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" /></label>
+                    <label>Date To<input type="date" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" /></label>
+                    <div class="crm-filter-actions">
+                        <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Apply Filters</button>
+                        <a class="admin-secondary-button" asp-action="Refunds">Clear All</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <div class="crm-active-filters">
+            @foreach (var kvp in Model.CurrentQueryValues)
+            {
+                <a class="crm-filter-chip" href="@Url.Action("Refunds")" data-filter-key="@kvp.Key"><i class="bi bi-x"></i> @kvp.Key: @kvp.Value</a>
+            }
+        </div>
+
+        @if (!Model.Items.Any())
+        {
+            <div class="arena-empty">
+                <i class="bi bi-cash-coin"></i>
+                <h2>No refunds found</h2>
+                <p>@(Model.ActiveFilterCount > 0 ? "Try changing or clearing your filters." : "No refunds have been initiated yet.")</p>
+                @if (Model.ActiveFilterCount > 0)
+                {
+                    <a class="admin-secondary-button" asp-action="Refunds"><i class="bi bi-x-circle"></i> Clear Filters</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="crm-leads-table-card membership-workspace-card">
+                <div class="crm-leads-table-wrap membership-table-wrap">
+                    <table class="crm-leads-table crm-data-grid">
+                        <thead>
+                            <tr>
+                                <th style="width: 14%;">Refund</th>
+                                <th style="width: 14%;">Booking</th>
+                                <th style="width: 16%;">Customer</th>
+                                <th style="width: 12%;">Reason</th>
+                                <th style="width: 10%;">Method</th>
+                                <th style="width: 10%;">Status</th>
+                                <th style="width: 8%;">Amount</th>
+                                <th style="width: 10%;">Initiated</th>
+                                <th style="width: 6%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr>
+                                    <td data-label="Refund">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@item.RefundNumber[0]</span>
+                                            <div>
+                                                <strong>@item.RefundNumber</strong>
+                                                <small>@item.InitiatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Booking">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@item.BookingNumber[0]</span>
+                                            <div>
+                                                <strong>@item.BookingNumber</strong>
+                                                <small>Txn: @item.PaymentTransactionNumber</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Customer">
+                                        <div class="crm-person-cell">
+                                            <span class="crm-mini-avatar">@(item.CustomerName.Length > 0 ? char.ToUpper(item.CustomerName[0]) : "?")</span>
+                                            <div>
+                                                <strong>@item.CustomerName</strong>
+                                                <small>@item.CustomerCode</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Reason">
+                                        <span class="membership-status-badge crm-lead-badge reason-@item.Reason.ToString().ToLowerInvariant()"><i></i>@item.Reason.GetDisplayName()</span>
+                                        @if (!string.IsNullOrWhiteSpace(item.ReasonDetails))
+                                        {
+                                            <small>@item.ReasonDetails</small>
+                                        }
+                                    </td>
+                                    <td data-label="Method">
+                                        <span class="membership-status-badge crm-lead-badge method-@item.Method.ToString().ToLowerInvariant()"><i></i>@item.Method.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="membership-status-badge crm-lead-badge status-@item.Status.ToString().ToLowerInvariant()"><i></i>@item.Status.GetDisplayName()</span>
+                                    </td>
+                                    <td data-label="Amount">
+                                        <strong>@Model.CurrencySymbol @item.Amount.ToString("N0")</strong>
+                                        @if (!string.IsNullOrWhiteSpace(item.GatewayRefundId))
+                                        {
+                                            <small>Gateway: @item.GatewayRefundId[..Math.Min(12, item.GatewayRefundId.Length)]</small>
+                                        }
+                                    </td>
+                                    <td data-label="Initiated">
+                                        <small class="crm-muted">@item.InitiatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                        @if (item.ProcessedAt.HasValue)
+                                        {
+                                            <small class="crm-muted">Processed: @item.ProcessedAt.Value.ToString("dd MMM HH:mm")</small>
+                                        }
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="membership-action-menu crm-lead-actions">
+                                            <a class="membership-icon-button" asp-action="RefundDetails" asp-route-id="@item.Id" title="View Details" aria-label="View refund @item.RefundNumber"><i class="bi bi-eye"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="crm-leads-pagination membership-pagination">
+                <span>Showing @Model.StartRecord-@Model.EndRecord of @Model.TotalRecords refunds</span>
+                <div class="pagination-controls">
+                    @foreach (var link in Model.PaginationLinks)
+                    {
+                        var cssClass = "page-link";
+                        if (link.IsActive) cssClass += " active";
+                        if (link.IsDisabled) cssClass += " disabled";
+                        var icon = "";
+                        if (link.Label == "Previous") icon = "<i class=\"bi bi-chevron-left\"></i> ";
+                        else if (link.Label == "Next") icon = " <i class=\"bi bi-chevron-right\"></i>";
+                        <a class="@cssClass" href="@link.Url" aria-current="@(link.IsActive ? "page" : null)">@Html.Raw(icon + link.Label)</a>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <partial name="_GuidancePanel" />
+</div>
+
+    <div class="booking-modal" data-booking-modal hidden>
+        <div>
+            <button type="button" data-booking-modal-close><i class="bi bi-x-lg"></i></button>
+            <h3>Confirm Action</h3>
+            <p data-booking-modal-message>Are you sure?</p>
+            <textarea data-booking-modal-reason placeholder="Enter reason" data-char-count="true"></textarea>
+            <div data-char-counter class="crm-muted" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+            <button class="crm-premium-button" type="button" data-booking-modal-confirm>Confirm</button>
+        </div>
+    </div>
+
+@section Scripts {
+}

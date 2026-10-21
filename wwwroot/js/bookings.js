@@ -141,27 +141,57 @@
     });
 
     const modal = document.querySelector('[data-booking-modal]');
-    let pendingButton = null;
-    document.querySelectorAll('[data-booking-action]').forEach((button) => {
-        button.addEventListener('click', () => {
-            pendingButton = button;
+    let pendingForm = null;
+    document.querySelectorAll('[data-booking-action]').forEach((element) => {
+        element.addEventListener('click', (e) => {
+            e.preventDefault();
+            const form = element.closest('form');
+            if (!form) return;
+            pendingForm = form;
             if (!modal) return;
             modal.hidden = false;
-            modal.querySelector('[data-booking-modal-message]').textContent = button.dataset.message || 'Are you sure?';
+            modal.querySelector('[data-booking-modal-message]').textContent = element.dataset.message || 'Are you sure?';
             const reason = modal.querySelector('[data-booking-modal-reason]');
             reason.value = '';
-            reason.style.display = button.dataset.reason === 'true' ? 'block' : 'none';
+            reason.style.display = element.dataset.reason === 'true' ? 'block' : 'none';
+            const charCount = reason.dataset.charCount;
+            if (charCount) {
+                const counter = modal.querySelector('[data-char-counter]');
+                if (counter) counter.textContent = `${reason.value.length} / 10 characters minimum`;
+            }
         });
     });
-    document.querySelector('[data-booking-modal-close]')?.addEventListener('click', () => { if (modal) modal.hidden = true; });
+    document.querySelector('[data-booking-modal-close]')?.addEventListener('click', () => { if (modal) modal.hidden = true; pendingForm = null; });
+    
+    const reasonInput = modal?.querySelector('[data-booking-modal-reason]');
+    if (reasonInput) {
+        reasonInput.addEventListener('input', () => {
+            const counter = modal?.querySelector('[data-char-counter]');
+            if (counter) counter.textContent = `${reasonInput.value.length} / 10 characters minimum`;
+        });
+    }
+    
     document.querySelector('[data-booking-modal-confirm]')?.addEventListener('click', async () => {
-        if (!pendingButton) return;
+        if (!pendingForm) return;
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
         const reason = modal?.querySelector('[data-booking-modal-reason]')?.value || '';
-        const body = new URLSearchParams();
-        if (pendingButton.dataset.reason === 'true') body.set('reason', reason);
+        const requiresReason = pendingForm.dataset.reason === 'true';
+        
+        if (requiresReason && reason.trim().length < 10) {
+            const counter = modal?.querySelector('[data-char-counter]');
+            if (counter) {
+                counter.textContent = 'Minimum 10 characters required';
+                counter.style.color = '#9b2828';
+            }
+            reasonInput?.focus();
+            return;
+        }
+        
+        const formData = new FormData(pendingForm);
+        if (requiresReason) formData.set('reason', reason.trim());
+        
         try {
-            const response = await fetch(pendingButton.dataset.url, { method: 'POST', headers: { 'RequestVerificationToken': token, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+            const response = await fetch(pendingForm.action, { method: 'POST', headers: { 'RequestVerificationToken': token }, body: new URLSearchParams(formData) });
             const result = await response.json();
             window.GameHubToast?.show?.({ type: result.success ? 'success' : 'error', title: result.success ? 'Success' : 'Attention Required', message: result.message });
             if (result.success) setTimeout(() => location.reload(), 650);
@@ -169,6 +199,7 @@
             window.GameHubToast?.show?.({ type: 'error', title: 'Something Went Wrong', message: 'Action failed.' });
         } finally {
             if (modal) modal.hidden = true;
+            pendingForm = null;
         }
     });
 

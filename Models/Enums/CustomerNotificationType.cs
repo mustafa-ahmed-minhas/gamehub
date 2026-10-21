@@ -11,6 +11,9 @@ namespace GameHub.Models.Enums
         PaymentSuccessful,
         PaymentFailed,
         MembershipExpiring,
+        RefundInitiated,
+        RefundCompleted,
+        RefundFailed,
         General
     }
 }

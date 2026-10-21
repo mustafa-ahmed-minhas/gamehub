@@ -76,6 +76,21 @@ namespace GameHub.Helpers
             _ => Pending
         };
 
+        public static string Modifier(this BookingStatus status) => status switch
+        {
+            BookingStatus.Draft => Pending,
+            BookingStatus.Pending => Pending,
+            BookingStatus.PendingApproval => Pending,
+            BookingStatus.Confirmed => Confirmed,
+            BookingStatus.CheckedIn => Active,
+            BookingStatus.InProgress => Active,
+            BookingStatus.Completed => Confirmed,
+            BookingStatus.Cancelled => Cancelled,
+            BookingStatus.NoShow => Cancelled,
+            BookingStatus.Rescheduled => Frozen,
+            _ => Pending
+        };
+
         /// <summary>Full badge class list, e.g. "membership-status-badge active".</summary>
         public static string Badge(this SalesQuotationStatus status) => $"{BadgeClass} {status.Modifier()}";
 
@@ -84,6 +99,8 @@ namespace GameHub.Helpers
         public static string Badge(this InvoiceStatus status) => $"{BadgeClass} {status.Modifier()}";
 
         public static string Badge(this PaymentStatus status) => $"{BadgeClass} {status.Modifier()}";
+
+        public static string Badge(this BookingStatus status) => $"{BadgeClass} {status.Modifier()}";
 
         /// <summary>Maps a workflow state name to a badge modifier, for string based states.</summary>
         public static string Modifier(string? state) => state?.Trim().ToLowerInvariant() switch

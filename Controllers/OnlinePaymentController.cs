@@ -636,7 +636,7 @@ namespace GameHub.Controllers
                 DurationMinutes = checkout.DurationMinutes,
                 PlayerCount = checkout.PlayerCount,
                 Source = BookingSource.Website,
-                Status = BookingStatus.Confirmed,
+                Status = BookingStatus.PendingApproval,
                 PaymentStatus = PaymentStatus.Paid,
                 BaseAmount = checkout.BaseAmount,
                 MembershipDiscountAmount = checkout.MembershipDiscountAmount,
@@ -652,7 +652,6 @@ namespace GameHub.Controllers
                 MembershipHoursApplied = false,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                ConfirmedAt = DateTime.UtcNow,
                 PaidAt = DateTime.UtcNow,
                 PaymentReference = transaction.GatewayReference,
                 WebsiteCheckoutToken = checkout.CheckoutToken,
@@ -728,7 +727,7 @@ namespace GameHub.Controllers
             _dbContext.PaymentReceipts.Add(receipt);
 
             _dbContext.CustomerNotifications.AddRange(
-                Notification(customer.Id, booking.Id, CustomerNotificationType.BookingConfirmed, "Booking Confirmed", $"Your booking {booking.BookingNumber} is confirmed.", $"/MyBookings/Details/{booking.Id}"),
+                Notification(customer.Id, booking.Id, CustomerNotificationType.BookingConfirmed, "Booking Pending Approval", $"Your booking {booking.BookingNumber} is pending approval. You will be notified once it is confirmed.", $"/MyBookings/Details/{booking.Id}"),
                 Notification(customer.Id, booking.Id, CustomerNotificationType.PaymentSuccessful, "Payment Successful", $"Payment of {booking.TotalAmount:N0} was received.", $"/MyBookings/Receipt/{booking.Id}"));
 
             if (settings.EnableCustomerBookingReminders)

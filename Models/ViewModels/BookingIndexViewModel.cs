@@ -38,5 +38,20 @@ namespace GameHub.Models.ViewModels
         public List<SelectListItem> Sports { get; set; } = new();
         public List<SelectListItem> Facilities { get; set; } = new();
         public List<SelectListItem> Courts { get; set; } = new();
+        public List<SelectListItem> Customers { get; set; } = new();
+
+        // Pre-computed properties for simplified view
+        public int ActiveFilterCount { get; set; }
+        public int StartRecord { get; set; }
+        public int EndRecord { get; set; }
+        public int PageStart { get; set; }
+        public int PageEnd { get; set; }
+        public List<SelectListItem> StatusOptions { get; set; } = new();
+        public List<SelectListItem> PaymentStatusOptions { get; set; } = new();
+        public List<SelectListItem> SourceOptions { get; set; } = new();
+        public List<SelectListItem> SortOptions { get; set; } = new();
+        public List<SelectListItem> PageSizeOptions { get; set; } = new();
+        public List<PageLink> PaginationLinks { get; set; } = new();
+        public Dictionary<string, string> CurrentQueryValues { get; set; } = new();
     }
 }

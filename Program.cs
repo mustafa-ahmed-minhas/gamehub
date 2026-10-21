@@ -70,6 +70,7 @@ builder.Services.AddScoped<ICustomerMembershipService, CustomerMembershipService
 builder.Services.AddScoped<IMembershipOperationService, MembershipOperationService>();
 builder.Services.AddScoped<IBookingLifecycleService, BookingLifecycleService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IJobPostingNumberService, JobPostingNumberService>();
 builder.Services.AddScoped<IJobApplicationNumberService, JobApplicationNumberService>();
 builder.Services.AddScoped<IJobApplicationFileService, JobApplicationFileService>();

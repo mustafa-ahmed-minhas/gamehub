@@ -36,6 +36,7 @@ namespace GameHub.Models.Entities
         public decimal BalanceAmount { get; set; }
 
         public int? PaymentTransactionId { get; set; }
+        public int? SalesOrderId { get; set; }
 
         [MaxLength(80)]
         public string? WebsiteCheckoutToken { get; set; }
@@ -91,6 +92,7 @@ namespace GameHub.Models.Entities
         public Court Court { get; set; } = null!;
         public CustomerMembership? CustomerMembership { get; set; }
         public PaymentTransaction? PaymentTransaction { get; set; }
+        public SalesOrder? SalesOrder { get; set; }
 
         [NotMapped]
         public string BookingTimeRange => $"{StartTime:HH\\:mm} - {EndTime:HH\\:mm}";

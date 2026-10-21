@@ -6,6 +6,8 @@ namespace GameHub.Models.Enums
     {
         Draft,
         Pending,
+        [Display(Name = "Pending Approval")]
+        PendingApproval,
         Confirmed,
         [Display(Name = "Checked In")]
         CheckedIn,

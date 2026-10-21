@@ -1,3 +1,4 @@
+using GameHub.Models.Entities;
 using GameHub.Models.Enums;
 using GameHub.Models.ViewModels;
 using GameHub.Services.Interfaces;
@@ -40,6 +41,37 @@ namespace GameHub.Services.Implementations
             return model.SimulateBankTransferSuccess
                 ? Task.FromResult(Success(gatewayId, "Bank", null))
                 : Task.FromResult(Cancelled(gatewayId));
+        }
+
+        public Task<PaymentGatewayRefundResult> RefundAsync(string gatewayTransactionId, decimal amount, string currency, string reason)
+        {
+            if (!_environment.IsDevelopment())
+            {
+                return Task.FromResult(new PaymentGatewayRefundResult
+                {
+                    Succeeded = false,
+                    FailureReason = "Production payment provider is not configured."
+                });
+            }
+
+            // In demo mode, simulate refund success for valid gateway transaction IDs
+            if (string.IsNullOrWhiteSpace(gatewayTransactionId) || !gatewayTransactionId.StartsWith("DEMO-"))
+            {
+                return Task.FromResult(new PaymentGatewayRefundResult
+                {
+                    Succeeded = false,
+                    FailureReason = "Invalid gateway transaction ID for demo refund."
+                });
+            }
+
+            var refundId = "DEMO-REFUND-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+            return Task.FromResult(new PaymentGatewayRefundResult
+            {
+                Succeeded = true,
+                GatewayRefundId = refundId,
+                GatewayRefundReference = "REF-" + refundId,
+                CustomerMessage = "Refund processed successfully."
+            });
         }
 
         private static PaymentGatewayResult Success(string id, string? brand, string? lastFour) => new()
