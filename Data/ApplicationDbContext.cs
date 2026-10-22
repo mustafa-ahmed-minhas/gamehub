@@ -45,6 +45,7 @@ namespace GameHub.Data
         public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
         public DbSet<DocumentRevision> DocumentRevisions => Set<DocumentRevision>();
         public DbSet<DocumentActivity> DocumentActivities => Set<DocumentActivity>();
+        public DbSet<DocumentEditHistory> DocumentEditHistories => Set<DocumentEditHistory>();
         public DbSet<JobPosting> JobPostings => Set<JobPosting>();
         public DbSet<JobPostingSkill> JobPostingSkills => Set<JobPostingSkill>();
         public DbSet<JobPostingScreeningQuestion> JobPostingScreeningQuestions => Set<JobPostingScreeningQuestion>();
@@ -401,6 +402,12 @@ namespace GameHub.Data
                 entity.HasIndex(booking => booking.PaymentTransactionId)
                     .IsUnique()
                     .HasFilter("[PaymentTransactionId] IS NOT NULL");
+                // One manual booking maps to exactly one Sales Order (and one Sales Order back to
+                // one booking). The live database already enforces this filtered unique index; the
+                // EF model now declares the same shape so future migrations cannot weaken it.
+                entity.HasIndex(booking => booking.SalesOrderId)
+                    .IsUnique()
+                    .HasFilter("[SalesOrderId] IS NOT NULL");
                 entity.Property(booking => booking.WebsiteCheckoutToken).HasMaxLength(80);
                 entity.Property(booking => booking.PaymentReference).HasMaxLength(100);
                 entity.Property(booking => booking.CustomerNotes).HasMaxLength(1000);
@@ -831,6 +838,16 @@ namespace GameHub.Data
                 entity.Property(x => x.ActivityType).HasConversion<string>().HasMaxLength(30);
                 entity.Property(x => x.Description).IsRequired().HasMaxLength(1000);
                 entity.HasOne(x => x.PerformedByUser).WithMany().HasForeignKey(x => x.PerformedByUserId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<DocumentEditHistory>(entity =>
+            {
+                entity.HasIndex(x => new { x.DocumentType, x.DocumentId, x.ChangedAt });
+                entity.Property(x => x.DocumentType).HasConversion<string>().HasMaxLength(30);
+                entity.Property(x => x.DocumentNumber).IsRequired().HasMaxLength(30);
+                entity.Property(x => x.FieldName).IsRequired().HasMaxLength(80);
+                entity.Property(x => x.PreviousValue).HasMaxLength(500);
+                entity.Property(x => x.UpdatedValue).HasMaxLength(500);
+                entity.HasOne(x => x.ChangedByUser).WithMany().HasForeignKey(x => x.ChangedByUserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<SalesOrderItem>(entity =>

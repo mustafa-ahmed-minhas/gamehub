@@ -131,6 +131,7 @@ namespace GameHub.Models.ViewModels
         public bool IsReadOnly { get; set; }
         public IReadOnlyList<DocumentApproval> ApprovalHistory { get; set; } = Array.Empty<DocumentApproval>();
         public IReadOnlyList<DocumentRevision> RevisionHistory { get; set; } = Array.Empty<DocumentRevision>();
+        public IReadOnlyList<DocumentEditHistory> EditHistory { get; set; } = Array.Empty<DocumentEditHistory>();
     }
 
     public class SalesOrderPreviewViewModel

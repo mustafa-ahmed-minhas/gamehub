@@ -225,7 +225,9 @@ namespace GameHub.Migrations
                         .IsUnique()
                         .HasFilter("[PaymentTransactionId] IS NOT NULL");
 
-                    b.HasIndex("SalesOrderId");
+                    b.HasIndex("SalesOrderId")
+                        .IsUnique()
+                        .HasFilter("[SalesOrderId] IS NOT NULL");
 
                     b.HasIndex("SportId");
 
@@ -1265,6 +1267,55 @@ namespace GameHub.Migrations
                     b.HasIndex("DocumentType", "DocumentId", "RevisionNumber");
 
                     b.ToTable("DocumentApprovals");
+                });
+
+            modelBuilder.Entity("GameHub.Models.Entities.DocumentEditHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ChangedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("PreviousValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("UpdatedValue")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("DocumentType", "DocumentId", "ChangedAt");
+
+                    b.ToTable("DocumentEditHistories");
                 });
 
             modelBuilder.Entity("GameHub.Models.Entities.DocumentRevision", b =>
@@ -5236,6 +5287,17 @@ namespace GameHub.Migrations
                     b.Navigation("ActionByUser");
 
                     b.Navigation("SubmittedByUser");
+                });
+
+            modelBuilder.Entity("GameHub.Models.Entities.DocumentEditHistory", b =>
+                {
+                    b.HasOne("GameHub.Models.Entities.User", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
                 });
 
             modelBuilder.Entity("GameHub.Models.Entities.DocumentRevision", b =>

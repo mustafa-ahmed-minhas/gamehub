@@ -265,7 +265,8 @@ namespace GameHub.Controllers
                 CanCancel = CanCancelOrder() && order.Status is SalesOrderStatus.Draft or SalesOrderStatus.Confirmed,
                 IsReadOnly = IsReadOnly(),
                 ApprovalHistory = await _dbContext.DocumentApprovals.AsNoTracking().Include(x => x.ActionByUser).Where(x => x.DocumentType == DocumentType.SalesOrder && x.DocumentId == id).OrderBy(x => x.ActionAt).ToListAsync(),
-                RevisionHistory = await _dbContext.DocumentRevisions.AsNoTracking().Include(x => x.CreatedByUser).Where(x => x.DocumentType == DocumentType.SalesOrder && x.DocumentId == id).OrderBy(x => x.RevisionNumber).ToListAsync()
+                RevisionHistory = await _dbContext.DocumentRevisions.AsNoTracking().Include(x => x.CreatedByUser).Where(x => x.DocumentType == DocumentType.SalesOrder && x.DocumentId == id).OrderBy(x => x.RevisionNumber).ToListAsync(),
+                EditHistory = await _dbContext.DocumentEditHistories.AsNoTracking().Include(x => x.ChangedByUser).Where(x => x.DocumentType == DocumentType.SalesOrder && x.DocumentId == id).OrderBy(x => x.ChangedAt).ThenBy(x => x.Id).ToListAsync()
             });
         }
 

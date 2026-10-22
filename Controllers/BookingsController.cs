@@ -18,6 +18,14 @@ namespace GameHub.Controllers
     public class BookingsController : Controller
     {
         private static readonly BookingStatus[] BlockingStatuses = { BookingStatus.Pending, BookingStatus.PendingApproval, BookingStatus.Confirmed, BookingStatus.CheckedIn, BookingStatus.InProgress };
+
+        /// <summary>
+        /// Statuses an authorised staff member may assign while creating a manual booking.
+        /// Manual bookings never enter the approval queue, so approval-only and terminal
+        /// states are rejected server side even if a client posts them.
+        /// </summary>
+        private static readonly BookingStatus[] CreatableStatuses = { BookingStatus.Pending, BookingStatus.Confirmed };
+
         private static readonly int[] PageSizes = { 10, 25, 50 };
         private readonly ApplicationDbContext _dbContext;
         private readonly IBookingNumberService _bookingNumberService;
@@ -191,6 +199,66 @@ namespace GameHub.Controllers
             return View(model);
         }
 
+        /// <summary>
+        /// Type-ahead customer lookup used by the manual booking form. Only the customers
+        /// matching the typed term are returned - the full customer list is never shipped.
+        /// Names, codes and e-mails are matched case-insensitively through the SQL Server
+        /// collation, phones are matched on digits so "03001234567" and "+923001234567"
+        /// both resolve to the same customer.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> SearchCustomers(string? query)
+        {
+            if (!CanManage()) return Json(new { success = false, message = "You do not have permission to search customers." });
+
+            var term = (query ?? string.Empty).Trim();
+            if (term.Length < 2) return Json(new { success = true, customers = Array.Empty<object>() });
+
+            var like = $"%{EscapeLikePattern(term)}%";
+            var digits = new string(term.Where(char.IsDigit).ToArray());
+            var phonePattern = digits.Length >= 2 ? $"%{digits}%" : null;
+            var phoneAltPattern = BuildAlternatePhonePattern(digits);
+
+            var matches = await _dbContext.Customers.AsNoTracking()
+                .Where(x => x.IsActive &&
+                    (EF.Functions.Like(x.FirstName, like, "\\") ||
+                     EF.Functions.Like(x.LastName, like, "\\") ||
+                     EF.Functions.Like(x.CustomerCode, like, "\\") ||
+                     (x.Email != null && EF.Functions.Like(x.Email, like, "\\")) ||
+                     (phonePattern != null && EF.Functions.Like(x.PrimaryPhone.Replace("-", "").Replace(" ", ""), phonePattern, "\\")) ||
+                     (phoneAltPattern != null && EF.Functions.Like(x.PrimaryPhone.Replace("-", "").Replace(" ", ""), phoneAltPattern, "\\"))))
+                .OrderBy(x => x.FirstName).ThenBy(x => x.LastName)
+                .Take(15)
+                .Select(x => new { x.Id, x.FirstName, x.LastName, x.PrimaryPhone, x.CustomerCode })
+                .ToListAsync();
+
+            var customers = matches
+                .Select(x => new { id = x.Id, name = $"{x.FirstName} {x.LastName}".Trim(), phone = x.PrimaryPhone, code = x.CustomerCode })
+                .ToList();
+
+            return Json(new { success = true, customers });
+        }
+
+        /// <summary>
+        /// Builds the alternative digit pattern of a typed phone number so the same customer
+        /// is found no matter which of the supported formats was used: "03001234567",
+        /// "3001234567", "+923001234567" or "+9203001234567".
+        /// </summary>
+        private static string? BuildAlternatePhonePattern(string digits)
+        {
+            if (digits.Length == 11 && digits[0] == '0') return $"%{digits[1..]}%";
+            if (digits.Length == 10 && digits[0] != '0') return $"%0{digits}%";
+            if (digits.StartsWith("92", StringComparison.Ordinal) && digits.Length == 13) return $"%{digits[2..]}%";
+            if (digits.StartsWith("92", StringComparison.Ordinal) && digits.Length == 12) return $"%0{digits[2..]}%";
+            return null;
+        }
+
+        /// <summary>
+        /// Escapes the LIKE wildcards so a typed "%" or "_" is matched literally.
+        /// </summary>
+        private static string EscapeLikePattern(string value) =>
+            value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_").Replace("[", "\\[");
+
         [HttpGet]
         public async Task<IActionResult> Create()
         {
@@ -228,25 +296,38 @@ namespace GameHub.Controllers
                 if (!recheck.IsAvailable)
                 {
                     await dbTransaction.RollbackAsync();
-                    ModelState.AddModelError(string.Empty, recheck.Message);
+                    ModelState.AddModelError(nameof(model.StartTime), recheck.Message);
+                    TempData.SetToast("warning", "Slot No Longer Available", recheck.Message);
                     return View("Form", await AddFormOptionsAsync(model));
                 }
                 await MapBookingAsync(model, booking);
                 _dbContext.Bookings.Add(booking);
                 await _dbContext.SaveChangesAsync();
+                await _invoiceService.EnsureManualBookingSalesRecordsAsync(booking.Id, CurrentUserId());
                 await ApplyMembershipHoursIfNeededAsync(booking);
                 await dbTransaction.CommitAsync();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException)
             {
                 await dbTransaction.RollbackAsync();
-                ModelState.AddModelError(string.Empty, "A conflicting booking was created at the same time. Please select another slot.");
+                ModelState.AddModelError(nameof(model.StartTime), "A conflicting booking was created at the same time. Please select another slot.");
+                TempData.SetToast("error", "Booking Not Saved", "A conflicting booking was created at the same time. Please select another slot.");
                 return View("Form", await AddFormOptionsAsync(model));
             }
-            catch (Exception)
+            catch (InvalidOperationException ex)
             {
                 await dbTransaction.RollbackAsync();
+                _logger.LogWarning(ex, "Financial records could not be created for manual booking {BookingId}.", booking.Id);
+                ModelState.AddModelError(string.Empty, ex.Message);
+                TempData.SetToast("error", "Booking Not Saved", ex.Message);
+                return View("Form", await AddFormOptionsAsync(model));
+            }
+            catch (Exception ex)
+            {
+                await dbTransaction.RollbackAsync();
+                _logger.LogError(ex, "Failed to create manual booking for court {CourtId}.", model.CourtId);
                 ModelState.AddModelError(string.Empty, "The booking could not be created. Please try again.");
+                TempData.SetToast("error", "Booking Not Saved", "The booking could not be created. Please try again.");
                 return View("Form", await AddFormOptionsAsync(model));
             }
             TempData.SetToast("success", "Success", "Booking created successfully.");
@@ -272,11 +353,12 @@ namespace GameHub.Controllers
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
             if (model.Id != id) return NotFound();
-            NormalizeForm(model);
-            await ValidateBookingAsync(model, id);
             var booking = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == id);
             if (booking == null) return NotFound();
             if (!CanEdit(booking.Status)) return RedirectToAction(nameof(Details), new { id });
+
+            NormalizeForm(model);
+            await ValidateBookingAsync(model, id, booking.Status);
             if (!ModelState.IsValid) return View("Form", await AddFormOptionsAsync(model));
 
             await using var dbTransaction = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
@@ -286,7 +368,8 @@ namespace GameHub.Controllers
                 if (!recheck.IsAvailable)
                 {
                     await dbTransaction.RollbackAsync();
-                    ModelState.AddModelError(string.Empty, recheck.Message);
+                    ModelState.AddModelError(nameof(model.StartTime), recheck.Message);
+                    TempData.SetToast("warning", "Slot No Longer Available", recheck.Message);
                     return View("Form", await AddFormOptionsAsync(model));
                 }
                 var previousApplied = booking.MembershipHoursApplied;
@@ -295,19 +378,31 @@ namespace GameHub.Controllers
                 booking.UpdatedAt = DateTime.UtcNow;
                 booking.UpdatedByUserId = CurrentUserId();
                 await _dbContext.SaveChangesAsync();
+                await _invoiceService.EnsureManualBookingSalesRecordsAsync(booking.Id, CurrentUserId());
                 await ApplyMembershipHoursIfNeededAsync(booking);
                 await dbTransaction.CommitAsync();
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException)
             {
                 await dbTransaction.RollbackAsync();
-                ModelState.AddModelError(string.Empty, "A conflicting booking was created at the same time. Please select another slot.");
+                ModelState.AddModelError(nameof(model.StartTime), "A conflicting booking was created at the same time. Please select another slot.");
+                TempData.SetToast("error", "Booking Not Updated", "A conflicting booking was created at the same time. Please select another slot.");
                 return View("Form", await AddFormOptionsAsync(model));
             }
-            catch (Exception)
+            catch (InvalidOperationException ex)
             {
                 await dbTransaction.RollbackAsync();
+                _logger.LogWarning(ex, "Financial records could not be updated for manual booking {BookingId}.", id);
+                ModelState.AddModelError(string.Empty, ex.Message);
+                TempData.SetToast("error", "Booking Not Updated", ex.Message);
+                return View("Form", await AddFormOptionsAsync(model));
+            }
+            catch (Exception ex)
+            {
+                await dbTransaction.RollbackAsync();
+                _logger.LogError(ex, "Failed to update booking {BookingId}.", id);
                 ModelState.AddModelError(string.Empty, "The booking could not be updated. Please try again.");
+                TempData.SetToast("error", "Booking Not Updated", "The booking could not be updated. Please try again.");
                 return View("Form", await AddFormOptionsAsync(model));
             }
             TempData.SetToast("success", "Success", "Booking updated successfully.");
@@ -1314,9 +1409,10 @@ namespace GameHub.Controllers
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
             if (string.IsNullOrWhiteSpace(rescheduleReason) || rescheduleReason.Trim().Length < 10) ModelState.AddModelError(nameof(rescheduleReason), "Reschedule reason must be at least 10 characters.");
             model.Id = id;
-            await ValidateBookingAsync(model, id);
             var booking = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == id);
             if (booking == null) return NotFound();
+            NormalizeForm(model);
+            await ValidateBookingAsync(model, id, booking.Status);
             if (!ModelState.IsValid) return View(await AddFormOptionsAsync(model));
             if (!CanEdit(booking.Status)) return RedirectToAction(nameof(Details), new { id });
 
@@ -1423,6 +1519,7 @@ namespace GameHub.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCustomerSummary(int customerId)
         {
+            if (!CanManage()) return JsonFail("You do not have permission to view customer details.");
             var customer = await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == customerId);
             if (customer == null) return Json(new { success = false, message = "Customer not found." });
             var membership = await ActiveMembershipQuery(customerId, DateOnly.FromDateTime(DateTime.UtcNow)).FirstOrDefaultAsync();
@@ -1432,6 +1529,7 @@ namespace GameHub.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMembershipSummary(int customerId, int sportId, bool isPeakRate = false)
         {
+            if (!CanManage()) return JsonFail("You do not have permission to view membership details.");
             var membership = await ActiveMembershipQuery(customerId, DateOnly.FromDateTime(DateTime.UtcNow)).FirstOrDefaultAsync();
             if (membership == null) return Json(new { success = true, applies = false, message = "No active membership benefits available." });
             var sport = await _dbContext.Sports.AsNoTracking().FirstOrDefaultAsync(x => x.Id == sportId);
@@ -1442,6 +1540,7 @@ namespace GameHub.Controllers
         [HttpGet]
         public async Task<IActionResult> GetFacilitiesBySport(int sportId)
         {
+            if (!CanManage()) return JsonFail("You do not have permission to view arena setup.");
             var facilities = await _dbContext.Courts.AsNoTracking().Where(x => x.SportId == sportId && x.IsActive && x.Facility.IsActive).Select(x => new { x.Facility.Id, x.Facility.Name }).Distinct().OrderBy(x => x.Name).ToListAsync();
             return Json(new { success = true, facilities });
         }
@@ -1449,23 +1548,38 @@ namespace GameHub.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCourts(int sportId, int facilityId)
         {
+            if (!CanManage()) return JsonFail("You do not have permission to view arena setup.");
             var courts = await _dbContext.Courts.AsNoTracking().Where(x => x.SportId == sportId && x.FacilityId == facilityId && x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new { x.Id, x.Name, x.Capacity, status = x.Status.ToString() }).ToListAsync();
             return Json(new { success = true, courts });
         }
 
+        /// <summary>
+        /// Returns the bookable slots for a court on a date. The slot length is derived from the
+        /// court's own schedule (master data) - the client can never dictate the duration.
+        /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetAvailableSlots(int courtId, DateOnly bookingDate, int durationMinutes, int? bookingId = null)
+        public async Task<IActionResult> GetAvailableSlots(int courtId, DateOnly bookingDate, int? durationMinutes = null, int? bookingId = null)
         {
+            if (!CanManage()) return JsonFail("You do not have permission to view availability.");
             var slots = await GenerateSlotsAsync(courtId, bookingDate, durationMinutes, bookingId);
-            return Json(new { success = true, slots });
+            return Json(new { success = true, slots, durationMinutes = slots.Count > 0 ? slots[0].DurationMinutes : durationMinutes ?? 0 });
         }
 
+        /// <summary>
+        /// Live pricing preview. The amount is always recalculated from master data on the server;
+        /// any total sent by the browser is ignored.
+        /// </summary>
         [HttpGet]
-        public async Task<IActionResult> CalculatePrice(int customerId, int sportId, int courtId, DateOnly bookingDate, TimeOnly startTime, int durationMinutes, decimal manualDiscountAmount = 0, decimal paidAmount = 0, int? bookingId = null)
+        public async Task<IActionResult> CalculatePrice(int customerId, int sportId, int courtId, DateOnly bookingDate, TimeOnly startTime, int? durationMinutes = null, decimal manualDiscountAmount = 0, decimal paidAmount = 0, int? bookingId = null)
         {
-            var endTime = startTime.AddMinutes(durationMinutes);
-            var summary = await CalculatePriceAsync(customerId, sportId, courtId, bookingDate, startTime, endTime, durationMinutes, manualDiscountAmount, paidAmount, bookingId);
-            return Json(new { success = string.IsNullOrWhiteSpace(summary.Message), summary });
+            if (!CanManage()) return JsonFail("You do not have permission to view pricing.");
+            var duration = await ResolveSlotDurationAsync(courtId, bookingDate, durationMinutes);
+            if (duration <= 0) return Json(new { success = false, message = "No bookable slot length is configured for the selected court and date.", summary = new BookingPriceSummaryViewModel { PricingError = "No bookable slot length is configured for the selected court and date." } });
+
+            var endTime = startTime.AddMinutes(duration);
+            var summary = await CalculatePriceAsync(customerId, sportId, courtId, bookingDate, startTime, endTime, duration, manualDiscountAmount, paidAmount, bookingId);
+            var failed = !string.IsNullOrWhiteSpace(summary.PricingError);
+            return Json(new { success = !failed, message = summary.PricingError ?? summary.Message, summary });
         }
 
         private IQueryable<Booking> BuildBookingQuery(BookingIndexViewModel model)
@@ -1544,13 +1658,30 @@ namespace GameHub.Controllers
             booking.InternalNotes = Clean(model.InternalNotes); booking.SpecialRequest = Clean(model.SpecialRequest); booking.ReferenceNumber = Clean(model.ReferenceNumber);
             booking.BaseAmount = price.BaseAmount; booking.MembershipDiscountAmount = price.MembershipDiscountAmount; booking.ManualDiscountAmount = price.ManualDiscountAmount; booking.TaxAmount = price.TaxAmount;
             booking.TotalAmount = price.TotalAmount; booking.PaidAmount = price.PaidAmount; booking.BalanceAmount = price.BalanceAmount; booking.PaymentStatus = booking.PaidAmount <= 0 ? PaymentStatus.Unpaid : booking.PaidAmount >= booking.TotalAmount ? PaymentStatus.Paid : PaymentStatus.PartiallyPaid;
+            if (booking.PaidAmount > 0 && booking.PaidAt == null) booking.PaidAt = DateTime.UtcNow;
             booking.IsPeakRate = price.IsPeakRate; booking.IsMemberBooking = booking.CustomerMembershipId.HasValue && booking.MembershipDiscountAmount > 0; booking.IsActive = booking.Status is not (BookingStatus.Cancelled or BookingStatus.NoShow);
+            if (booking.Status == BookingStatus.Confirmed && booking.ConfirmedAt == null) booking.ConfirmedAt = DateTime.UtcNow;
         }
 
-        private async Task ValidateBookingAsync(BookingFormViewModel model, int? existingId = null)
+        private async Task ValidateBookingAsync(BookingFormViewModel model, int? existingId = null, BookingStatus? currentStatus = null)
         {
             if (model.ManualDiscountAmount > 0 && !CanManualDiscount())
                 ModelState.AddModelError(nameof(model.ManualDiscountAmount), "Only Super Admin and Admin can apply manual discounts.");
+
+            var existingBooking = existingId.HasValue
+                ? await _dbContext.Bookings.AsNoTracking()
+                    .Where(x => x.Id == existingId.Value)
+                    .Select(x => new { x.CustomerId, x.PaidAmount, x.ManualDiscountAmount, x.TotalAmount, x.SalesOrderId })
+                    .FirstOrDefaultAsync()
+                : null;
+
+            // Manual bookings never enter the approval queue, so only the statuses staff may set
+            // directly are accepted. While editing, the current status of the booking is also allowed.
+            var allowedStatuses = currentStatus.HasValue
+                ? CreatableStatuses.Concat(new[] { currentStatus.Value }).Distinct().ToArray()
+                : CreatableStatuses;
+            if (!allowedStatuses.Contains(model.Status))
+                ModelState.AddModelError(nameof(model.Status), $"'{model.Status.GetDisplayName()}' cannot be used for a manual booking.");
 
             var result = await _validationService.ValidateBookingAsync(
                 model.CustomerId, model.SportId, model.FacilityId, model.CourtId,
@@ -1558,20 +1689,76 @@ namespace GameHub.Controllers
                 model.DurationMinutes, model.PlayerCount, model.ManualDiscountAmount,
                 model.Source, model.IsWalkIn, existingId);
 
+            // Errors that belong to a field are rendered beneath that field, the rest in the summary.
+            var fieldMessages = new HashSet<string>(result.FieldErrors.Values, StringComparer.Ordinal);
             foreach (var error in result.Errors)
+            {
+                if (fieldMessages.Contains(error)) continue;
                 ModelState.AddModelError(string.Empty, error);
+            }
+            foreach (var fieldError in result.FieldErrors)
+            {
+                if (ModelState[fieldError.Key] == null)
+                    ModelState.AddModelError(fieldError.Key, fieldError.Value);
+            }
+
+            // The duration is derived from the selected slot, but it still has to be a length the
+            // court actually supports - otherwise a tampered hidden field could buy a slot cheaply.
+            var allowedDurations = await GetAllowedDurationsAsync(model.CourtId, existingId);
+            if (model.DurationMinutes <= 0)
+            {
+                ModelState.AddModelError(nameof(model.DurationMinutes), "Select an available slot to set the booking duration.");
+            }
+            else if (allowedDurations.Count > 0 && !allowedDurations.Contains(model.DurationMinutes))
+            {
+                ModelState.AddModelError(nameof(model.DurationMinutes), $"A {model.DurationMinutes} minute booking is not available for this court.");
+            }
 
             var price = await CalculatePriceAsync(model.CustomerId, model.SportId, model.CourtId, model.BookingDate, model.StartTime, model.EndTime, model.DurationMinutes, model.ManualDiscountAmount, model.PaidAmount, existingId);
-            if (!string.IsNullOrWhiteSpace(price.Message)) ModelState.AddModelError(string.Empty, price.Message);
+            if (!string.IsNullOrWhiteSpace(price.PricingError))
+                ModelState.AddModelError(nameof(model.StartTime), price.PricingError);
+            if (!string.IsNullOrWhiteSpace(price.ManualDiscountMessage))
+                ModelState.AddModelError(nameof(model.ManualDiscountAmount), price.ManualDiscountMessage);
+            if (!string.IsNullOrWhiteSpace(price.PaidAmountMessage))
+                ModelState.AddModelError(nameof(model.PaidAmount), price.PaidAmountMessage);
+
+            // Full payment only. A manual booking is either unpaid or paid in full; a partial
+            // amount must never reach the financial document generator.
+            if (model.PaidAmount > 0 && Math.Round(model.PaidAmount, 2) < Math.Round(price.TotalAmount, 2))
+                ModelState.AddModelError(nameof(model.PaidAmount), $"Partial payments are not supported. Enter either 0 or the full booking total of {price.CurrencySymbol} {price.TotalAmount:N2}.");
+
+            // Once the financial documents exist the booking may not drift away from them.
+            // Descriptive changes and price-neutral reschedules remain allowed; the linked
+            // documents are refreshed by InvoiceService after the booking is saved.
+            if (existingBooking?.SalesOrderId != null)
+            {
+                if (Math.Round(model.PaidAmount, 2) != Math.Round(existingBooking.PaidAmount, 2))
+                    ModelState.AddModelError(nameof(model.PaidAmount), "The paid amount cannot be changed once the sales order, invoice and payment exist.");
+                if (Math.Round(model.ManualDiscountAmount, 2) != Math.Round(existingBooking.ManualDiscountAmount, 2))
+                    ModelState.AddModelError(nameof(model.ManualDiscountAmount), "The manual discount cannot be changed once the sales order, invoice and payment exist.");
+                if (Math.Round(price.TotalAmount, 2) != Math.Round(existingBooking.TotalAmount, 2))
+                    ModelState.AddModelError(string.Empty, "The booking total cannot be changed once the sales order, invoice and payment exist.");
+                if (model.CustomerId != existingBooking.CustomerId)
+                    ModelState.AddModelError(nameof(model.CustomerId), "The customer cannot be changed once the sales order, invoice and payment exist.");
+            }
+
             model.PriceSummary = price;
             model.CustomerMembershipId = await GetApplicableMembershipIdAsync(model.CustomerId, model.SportId, model.BookingDate, price.IsPeakRate);
         }
 
+        /// <summary>
+        /// Calculates the authoritative price of a booking. Every amount is derived from master data
+        /// (court pricing, membership plan, arena settings); nothing sent by the browser is trusted.
+        /// </summary>
         private async Task<BookingPriceSummaryViewModel> CalculatePriceAsync(int customerId, int sportId, int courtId, DateOnly bookingDate, TimeOnly startTime, TimeOnly endTime, int durationMinutes, decimal manualDiscount, decimal paidAmount, int? bookingId = null)
         {
             var settings = await GetSettingsAsync();
-            var rule = await FindPricingRuleAsync(courtId, bookingDate.DayOfWeek, startTime, endTime, durationMinutes);
-            if (rule == null) return new BookingPriceSummaryViewModel { CurrencySymbol = settings.CurrencySymbol ?? "Rs", Message = "No active pricing rule is configured for the selected court and time." };
+            var currency = settings.CurrencySymbol ?? "Rs";
+            var rules = await GetActivePricingRulesAsync(courtId);
+            var rule = SelectPricingRule(rules, bookingDate.DayOfWeek, startTime, endTime);
+            if (rule == null)
+                return new BookingPriceSummaryViewModel { CurrencySymbol = currency, PricingError = "No active pricing rule is configured for the selected court and time." };
+
             var baseAmount = Math.Round(rule.Price * Math.Max(1, durationMinutes) / Math.Max(1, rule.DurationMinutes), 2);
             var membershipDiscount = 0m;
             var membership = await ActiveMembershipQuery(customerId, bookingDate).FirstOrDefaultAsync();
@@ -1581,22 +1768,173 @@ namespace GameHub.Controllers
                 var check = ValidateMembershipBenefit(membership, sportCode, rule.IsPeakRate);
                 if (check.Valid) membershipDiscount = Math.Min(baseAmount, Math.Round(baseAmount * membership.DiscountPercentage / 100, 2));
             }
+
             var subtotal = Math.Max(0, baseAmount - membershipDiscount);
-            manualDiscount = CanManualDiscount() ? Math.Min(Math.Max(0, manualDiscount), subtotal) : 0;
+            var manualDiscountMessage = string.Empty;
+            if (manualDiscount > 0 && !CanManualDiscount())
+            {
+                manualDiscountMessage = "Manual discount is not allowed for your role.";
+                manualDiscount = 0;
+            }
+            else if (manualDiscount > subtotal)
+            {
+                manualDiscountMessage = "Manual discount cannot exceed the subtotal.";
+                manualDiscount = subtotal;
+            }
+            else
+            {
+                manualDiscount = Math.Max(0, manualDiscount);
+            }
+
             var taxable = Math.Max(0, subtotal - manualDiscount);
             var tax = Math.Round(taxable * settings.TaxPercentage / 100, 2);
             var total = Math.Max(0, taxable + tax);
-            paidAmount = Math.Min(Math.Max(0, paidAmount), total);
-            return new BookingPriceSummaryViewModel { BaseAmount = baseAmount, MembershipDiscountAmount = membershipDiscount, ManualDiscountAmount = manualDiscount, TaxAmount = tax, TotalAmount = total, PaidAmount = paidAmount, BalanceAmount = total - paidAmount, IsPeakRate = rule.IsPeakRate, CurrencySymbol = settings.CurrencySymbol ?? "Rs" };
+
+            var paidAmountMessage = string.Empty;
+            if (paidAmount > total)
+            {
+                paidAmountMessage = "Paid amount cannot exceed the total amount.";
+                paidAmount = total;
+            }
+            else
+            {
+                paidAmount = Math.Max(0, paidAmount);
+            }
+
+            var messages = new[] { manualDiscountMessage, paidAmountMessage }
+                .Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
+            return new BookingPriceSummaryViewModel
+            {
+                BaseAmount = baseAmount,
+                MembershipDiscountAmount = membershipDiscount,
+                ManualDiscountAmount = manualDiscount,
+                TaxAmount = tax,
+                TotalAmount = total,
+                PaidAmount = paidAmount,
+                BalanceAmount = total - paidAmount,
+                IsPeakRate = rule.IsPeakRate,
+                CurrencySymbol = currency,
+                Message = string.Join(" ", messages),
+                ManualDiscountMessage = string.IsNullOrWhiteSpace(manualDiscountMessage) ? null : manualDiscountMessage,
+                PaidAmountMessage = string.IsNullOrWhiteSpace(paidAmountMessage) ? null : paidAmountMessage
+            };
         }
 
-        private async Task<CourtPricing?> FindPricingRuleAsync(int courtId, DayOfWeek day, TimeOnly start, TimeOnly end, int duration)
+        private async Task<List<CourtPricing>> GetActivePricingRulesAsync(int courtId)
         {
-            var rules = await _dbContext.CourtPricings.AsNoTracking().Where(x => x.CourtId == courtId && x.IsActive && x.StartTime <= start && x.EndTime >= end && x.DurationMinutes > 0).ToListAsync();
-            return rules.Where(x => x.DayOfWeek == day).OrderByDescending(x => x.IsPeakRate).ThenBy(x => x.Price).FirstOrDefault()
-                ?? rules.Where(x => x.DayOfWeek == null && x.IsPeakRate).OrderBy(x => x.Price).FirstOrDefault()
-                ?? rules.Where(x => x.DayOfWeek == null).OrderBy(x => x.Price).FirstOrDefault()
-                ?? rules.OrderBy(x => x.Price).FirstOrDefault();
+            if (courtId <= 0) return new List<CourtPricing>();
+            return await _dbContext.CourtPricings.AsNoTracking()
+                .Where(x => x.CourtId == courtId && x.IsActive && x.DurationMinutes > 0)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Resolves the pricing rule that applies to a slot. A rule that fully contains the slot always
+        /// wins (day specific first, then generic peak, then generic). Otherwise the pricing window the
+        /// booking spends the most time in is used, so slots that straddle a pricing boundary - for
+        /// example 17:20 - 18:20 against a 06:00 - 18:00 and 18:00 - 23:00 rule - are still priced.
+        /// </summary>
+        private static CourtPricing? SelectPricingRule(IReadOnlyList<CourtPricing> rules, DayOfWeek day, TimeOnly start, TimeOnly end)
+        {
+            if (rules.Count == 0) return null;
+
+            var covering = rules.Where(x => x.StartTime <= start && x.EndTime >= end).ToList();
+            var match = covering.Where(x => x.DayOfWeek == day)
+                    .OrderByDescending(x => x.IsPeakRate).ThenBy(x => x.Price).FirstOrDefault()
+                ?? covering.Where(x => x.DayOfWeek == null && x.IsPeakRate)
+                    .OrderBy(x => x.Price).FirstOrDefault()
+                ?? covering.Where(x => x.DayOfWeek == null)
+                    .OrderBy(x => x.Price).FirstOrDefault()
+                ?? covering.OrderBy(x => x.Price).FirstOrDefault();
+            if (match != null) return match;
+
+            var overlapping = rules
+                .Select(x => new { Rule = x, Minutes = OverlapMinutes(x, start, end) })
+                .Where(x => x.Minutes > 0)
+                .OrderByDescending(x => x.Minutes)
+                .ThenByDescending(x => x.Rule.DayOfWeek == day)
+                .ThenByDescending(x => x.Rule.IsPeakRate)
+                .ThenBy(x => x.Rule.Price)
+                .Select(x => x.Rule)
+                .FirstOrDefault();
+            if (overlapping != null) return overlapping;
+
+            // Last resort: keep the configured floor price so a court with pricing never prices at zero.
+            return rules.OrderBy(x => x.Price).FirstOrDefault();
+        }
+
+        private static int OverlapMinutes(CourtPricing rule, TimeOnly start, TimeOnly end)
+        {
+            var ruleStart = rule.StartTime.ToTimeSpan().TotalMinutes;
+            var ruleEnd = rule.EndTime.ToTimeSpan().TotalMinutes;
+            var startMinutes = start.ToTimeSpan().TotalMinutes;
+            var endMinutes = end.ToTimeSpan().TotalMinutes;
+            return (int)Math.Max(0, Math.Min(ruleEnd, endMinutes) - Math.Max(ruleStart, startMinutes));
+        }
+
+        /// <summary>
+        /// Slot lengths a court accepts. A booking may only use a duration backed by master data
+        /// (pricing blocks, court schedule, sport default or arena settings) so a tampered hidden
+        /// field cannot buy a court for a fraction of the price.
+        /// </summary>
+        private async Task<HashSet<int>> GetAllowedDurationsAsync(int courtId, int? existingBookingId = null)
+        {
+            var durations = new HashSet<int>();
+            if (courtId <= 0) return durations;
+
+            var pricingDurations = await _dbContext.CourtPricings.AsNoTracking()
+                .Where(x => x.CourtId == courtId && x.IsActive && x.DurationMinutes > 0)
+                .Select(x => x.DurationMinutes).Distinct().ToListAsync();
+            durations.UnionWith(pricingDurations);
+
+            var scheduleDurations = await _dbContext.CourtSchedules.AsNoTracking()
+                .Where(x => x.CourtId == courtId && x.IsActive && x.SlotDurationMinutes > 0)
+                .Select(x => x.SlotDurationMinutes).Distinct().ToListAsync();
+            durations.UnionWith(scheduleDurations);
+
+            var settings = await GetSettingsAsync();
+            if (settings.SlotDurationMinutes > 0) durations.Add(settings.SlotDurationMinutes);
+
+            var sportDefault = await _dbContext.Courts.AsNoTracking()
+                .Where(x => x.Id == courtId)
+                .Select(x => x.Sport.DefaultDurationMinutes)
+                .FirstOrDefaultAsync();
+            if (sportDefault > 0) durations.Add(sportDefault);
+
+            if (existingBookingId.HasValue)
+            {
+                var existing = await _dbContext.Bookings.AsNoTracking()
+                    .Where(x => x.Id == existingBookingId)
+                    .Select(x => x.DurationMinutes)
+                    .FirstOrDefaultAsync();
+                if (existing > 0) durations.Add(existing);
+            }
+
+            return durations;
+        }
+
+        /// <summary>
+        /// Resolves the slot length for a court on a date. A requested duration is only honoured when
+        /// it is backed by master data, otherwise the court's own schedule decides.
+        /// </summary>
+        private async Task<int> ResolveSlotDurationAsync(int courtId, DateOnly date, int? requestedMinutes)
+        {
+            var scheduleDuration = await GetScheduleSlotDurationAsync(courtId, date);
+            if (requestedMinutes is null or <= 0) return scheduleDuration;
+
+            var allowed = await GetAllowedDurationsAsync(courtId);
+            return allowed.Contains(requestedMinutes.Value) ? requestedMinutes.Value : scheduleDuration;
+        }
+
+        private async Task<int> GetScheduleSlotDurationAsync(int courtId, DateOnly date)
+        {
+            var schedule = await _dbContext.CourtSchedules.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.CourtId == courtId && x.DayOfWeek == date.DayOfWeek && x.IsActive);
+            if (schedule != null && schedule.SlotDurationMinutes > 0) return schedule.SlotDurationMinutes;
+
+            var settings = await GetSettingsAsync();
+            return settings.SlotDurationMinutes > 0 ? settings.SlotDurationMinutes : 60;
         }
 
         private async Task<(bool Available, string Message)> IsAvailableAsync(int courtId, DateOnly date, TimeOnly start, TimeOnly end, int? durationMinutes, int? bookingId = null)
@@ -1605,21 +1943,40 @@ namespace GameHub.Controllers
             return (result.IsAvailable, result.Message);
         }
 
-        private async Task<List<AvailableSlotViewModel>> GenerateSlotsAsync(int courtId, DateOnly date, int durationMinutes, int? bookingId)
+        private async Task<List<AvailableSlotViewModel>> GenerateSlotsAsync(int courtId, DateOnly date, int? requestedMinutes, int? bookingId)
         {
             var slots = new List<AvailableSlotViewModel>();
             var schedule = await _dbContext.CourtSchedules.AsNoTracking().FirstOrDefaultAsync(x => x.CourtId == courtId && x.DayOfWeek == date.DayOfWeek && x.IsActive);
             if (schedule == null || schedule.IsClosed) return slots;
-            var step = schedule.SlotDurationMinutes > 0 ? schedule.SlotDurationMinutes : Math.Max(durationMinutes, 30);
+
+            var duration = await ResolveSlotDurationAsync(courtId, date, requestedMinutes);
+            if (duration <= 0) return slots;
+
+            var rules = await GetActivePricingRulesAsync(courtId);
             var openMinutes = schedule.OpeningTime.Hour * 60 + schedule.OpeningTime.Minute;
             var closeMinutes = schedule.ClosingTime.Hour * 60 + schedule.ClosingTime.Minute;
-            for (var minute = openMinutes; minute + durationMinutes <= closeMinutes; minute += step + schedule.BufferMinutes)
+            var step = Math.Max(1, duration);
+            var buffer = Math.Max(0, schedule.BufferMinutes);
+
+            for (var minute = openMinutes; minute + duration <= closeMinutes; minute += step + buffer)
             {
                 var start = new TimeOnly(minute / 60, minute % 60);
-                var end = start.AddMinutes(durationMinutes);
-                var rule = await FindPricingRuleAsync(courtId, date.DayOfWeek, start, end, durationMinutes);
-                var available = await IsAvailableAsync(courtId, date, start, end, durationMinutes, bookingId);
-                slots.Add(new AvailableSlotViewModel { StartTime = start.ToString("HH:mm"), EndTime = end.ToString("HH:mm"), DisplayText = $"{start:HH\\:mm} - {end:HH\\:mm}", IsAvailable = available.Available && rule != null, PricingRuleId = rule?.Id, BasePrice = rule?.Price ?? 0, IsPeakRate = rule?.IsPeakRate ?? false, Message = rule == null ? "No pricing configured" : available.Message });
+                var end = start.AddMinutes(duration);
+                var rule = SelectPricingRule(rules, date.DayOfWeek, start, end);
+                var basePrice = rule == null ? 0m : Math.Round(rule.Price * duration / Math.Max(1, rule.DurationMinutes), 2);
+                var available = await IsAvailableAsync(courtId, date, start, end, duration, bookingId);
+                slots.Add(new AvailableSlotViewModel
+                {
+                    StartTime = start.ToString("HH:mm"),
+                    EndTime = end.ToString("HH:mm"),
+                    DisplayText = $"{start:HH\\:mm} - {end:HH\\:mm}",
+                    DurationMinutes = duration,
+                    IsAvailable = available.Available && rule != null,
+                    PricingRuleId = rule?.Id,
+                    BasePrice = basePrice,
+                    IsPeakRate = rule?.IsPeakRate ?? false,
+                    Message = rule == null ? "No pricing configured for this court" : available.Message
+                });
             }
             return slots;
         }
@@ -1692,18 +2049,63 @@ namespace GameHub.Controllers
         private async Task<BookingFormViewModel> AddFormOptionsAsync(BookingFormViewModel model)
         {
             var settings = await GetSettingsAsync();
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
             model.CurrencySymbol = settings.CurrencySymbol ?? "Rs";
             model.ArenaName = settings.ArenaName;
             model.CanManualDiscount = CanManualDiscount();
+            model.MinBookingDate = today;
+            model.MaxBookingDate = today.AddDays(Math.Max(0, settings.AdvanceBookingDays));
+
+            // Only the statuses a staff member may assign directly are offered. While editing, the
+            // current status of the booking stays selectable so an existing booking is never forced
+            // into a different state by the form.
+            var statuses = CreatableStatuses.ToList();
+            if (model.Id.HasValue)
+            {
+                var currentBooking = await _dbContext.Bookings.AsNoTracking()
+                    .Where(x => x.Id == model.Id.Value)
+                    .Select(x => new { x.Status, x.SalesOrderId })
+                    .FirstOrDefaultAsync();
+                if (currentBooking != null)
+                {
+                    if (!statuses.Contains(currentBooking.Status))
+                        statuses.Add(currentBooking.Status);
+                    model.HasFinancialRecords = currentBooking.SalesOrderId.HasValue;
+                }
+            }
+            model.StatusOptions = statuses
+                .Select(x => new SelectListItem(x.GetDisplayName(), x.ToString(), x == model.Status))
+                .ToList();
+
+            model.SourceOptions = Enum.GetValues<BookingSource>()
+                .Select(x => new SelectListItem(x.GetDisplayName(), x.ToString()))
+                .ToList();
+
             model.Customers = await _dbContext.Customers.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.FirstName).Select(x => new SelectListItem(x.FirstName + " " + x.LastName + " - " + x.PrimaryPhone, x.Id.ToString(), x.Id == model.CustomerId)).ToListAsync();
             model.Sports = await _dbContext.Sports.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.SportId)).ToListAsync();
             model.Facilities = await _dbContext.Facilities.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.FacilityId)).ToListAsync();
             model.Courts = await _dbContext.Courts.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.CourtId)).ToListAsync();
+
+            // The customer name is resolved on the server so the form can show it after a validation
+            // round trip without trusting anything the browser sends back.
+            if (model.CustomerId > 0)
+            {
+                model.CustomerDisplayName = await _dbContext.Customers.AsNoTracking()
+                    .Where(x => x.Id == model.CustomerId)
+                    .Select(x => x.FirstName + " " + x.LastName + " (" + x.CustomerCode + ")")
+                    .FirstOrDefaultAsync();
+            }
+
+            // Slot length is derived from the court's own schedule for the selected day.
+            model.SlotDurationMinutes = model.CourtId > 0
+                ? await GetScheduleSlotDurationAsync(model.CourtId, model.BookingDate)
+                : (settings.SlotDurationMinutes > 0 ? settings.SlotDurationMinutes : 60);
+            if (model.DurationMinutes <= 0) model.DurationMinutes = model.SlotDurationMinutes;
             return model;
         }
 
         private async Task<SystemSettings> GetSettingsAsync() => await _dbContext.SystemSettings.AsNoTracking().FirstOrDefaultAsync() ?? new SystemSettings { ArenaName = "GameHub Arena", CurrencySymbol = "Rs", TaxPercentage = 0, OpeningTime = new TimeOnly(6, 0), ClosingTime = new TimeOnly(23, 0), SlotDurationMinutes = 60, BufferMinutes = 10, AdvanceBookingDays = 14, AllowWalkIn = true, AllowOnlineBooking = true, BookingPrefix = "BKG", Currency = "PKR", Phone = "", Email = "", InvoicePrefix = "INV", ReceiptPrefix = "RCPT" };
-        private void NormalizeForm(BookingFormViewModel model) { model.EndTime = model.StartTime.AddMinutes(model.DurationMinutes); model.CustomerNotes = Clean(model.CustomerNotes); model.InternalNotes = Clean(model.InternalNotes); model.SpecialRequest = Clean(model.SpecialRequest); model.ReferenceNumber = Clean(model.ReferenceNumber); }
+        private void NormalizeForm(BookingFormViewModel model) { model.EndTime = model.StartTime.AddMinutes(model.DurationMinutes); model.CustomerNotes = Clean(model.CustomerNotes); model.InternalNotes = Clean(model.InternalNotes); model.SpecialRequest = Clean(model.SpecialRequest); model.ReferenceNumber = Clean(model.ReferenceNumber); model.IsWalkIn = model.IsWalkIn || model.Source == BookingSource.WalkIn; }
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private static bool CanEdit(BookingStatus status) => status is BookingStatus.Draft or BookingStatus.Pending or BookingStatus.Confirmed;
         private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;

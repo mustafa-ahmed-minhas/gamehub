@@ -33,5 +33,15 @@ namespace GameHub.Services.Interfaces
             int bookingId,
             int approvedByUserId,
             string? approvalComments = null);
+
+        /// <summary>
+        /// Manual booking integration. Creates exactly one Sales Order, Sales Invoice, Payment and
+        /// Payment Allocation once a manual booking is fully paid, and refreshes the linked
+        /// documents when a permitted edit is saved. Unpaid bookings return <c>(null, null, null)</c>.
+        /// This is intentionally separate from the website approval pipeline.
+        /// </summary>
+        Task<(SalesOrder? SalesOrder, SalesInvoice? Invoice, Payment? Payment)> EnsureManualBookingSalesRecordsAsync(
+            int bookingId,
+            int userId);
     }
 }
