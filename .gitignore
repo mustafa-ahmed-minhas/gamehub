@@ -547,3 +547,6 @@ Storage/hr/**
 # Ad-hoc local debugging / smoke-test scripts (never part of the deliverable)
 /smoke-*.ps1
 /cleanup-*.sql
+
+# Test user credentials report (contains sensitive credentials)
+GameHub-Test-Users-Report.md

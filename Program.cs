@@ -106,9 +106,11 @@ app.MapControllerRoute(
 
 app.MapHub<CrmNotificationsHub>(CrmNotificationsHub.Route);
 
-if (app.Environment.IsDevelopment())
-{
-    await DatabaseSeeder.SeedAsync(app.Services);
-}
+// Database seeding disabled to maintain empty database state after reset.
+// To re-enable automatic seeding in Development, uncomment the block below.
+// if (app.Environment.IsDevelopment())
+// {
+//     await DatabaseSeeder.SeedAsync(app.Services);
+// }
 
 app.Run();
