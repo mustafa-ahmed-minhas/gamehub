@@ -1,11 +1,13 @@
-@model OnlineBookingCheckoutViewModel
+﻿@model OnlineBookingCheckoutViewModel
 @{
     ViewData["Title"] = "Checkout";
     Layout = "_CustomerLayout";
 }
 
 <section class="checkout-page">
-    <div class="container checkout-grid">
+    <div class="container">
+        @await Html.PartialAsync("_BookingProgress")
+        <div class="checkout-grid">
         @if (Model.IsExpired)
         {
             <main class="checkout-card expired">
@@ -52,6 +54,7 @@
                 <p><i class="bi bi-lock"></i> Secure checkout simulation is ready.</p>
             </aside>
         }
+    </div>
     </div>
 </section>
 

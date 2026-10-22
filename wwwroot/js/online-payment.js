@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const form = document.querySelector('[data-payment-form]');
     if (!form) return;
 

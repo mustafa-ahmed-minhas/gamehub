@@ -160,6 +160,14 @@
         setCount(payload && payload.count);
     });
 
+    connection.on("bookingApprovalCountChanged", (payload) => {
+        const count = payload && typeof payload.count === "number" ? payload.count : 0;
+        document.querySelectorAll("[data-booking-approval-count]").forEach((element) => {
+            element.textContent = count > 0 ? String(count) : "";
+            element.style.display = count > 0 ? "inline-flex" : "none";
+        });
+    });
+
     connection.onreconnecting(() => {
         // Connection lost: keep the counter alive with polling until it returns.
         startPolling();

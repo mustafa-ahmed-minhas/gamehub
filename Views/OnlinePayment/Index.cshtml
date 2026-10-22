@@ -1,4 +1,4 @@
-@model OnlinePaymentViewModel
+﻿@model OnlinePaymentViewModel
 @{
     ViewData["Title"] = "Secure Payment";
     Layout = "_CustomerLayout";
@@ -6,7 +6,9 @@
 }
 
 <section class="payment-page">
-    <div class="container payment-grid">
+    <div class="container">
+        @await Html.PartialAsync("_BookingProgress")
+        <div class="payment-grid">
         <form asp-action="Process" method="post" class="payment-card payment-shell" data-payment-form novalidate>
             @Html.AntiForgeryToken()
             <input asp-for="CheckoutToken" type="hidden" />
@@ -240,9 +242,12 @@
             </div>
         </aside>
     </div>
+    </div>
 </section>
 
-@section Styles { <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/online-payment.css" asp-append-version="true" />
+}
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/online-payment.js" asp-append-version="true"></script>

@@ -14,6 +14,53 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+    <style>
+        .bookings-page .admin-action-button,
+        .bookings-page .admin-secondary-button,
+        .bookings-page .membership-icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(214, 166, 82, .2);
+            background: #fff;
+            color: #171614;
+            font-weight: 800;
+            font-size: .82rem;
+            text-decoration: none;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .bookings-page .admin-action-button {
+            background: linear-gradient(135deg, #f7d989, #d6a652);
+            color: #11100e;
+            border: 0;
+            box-shadow: 0 10px 22px rgba(154, 108, 32, .18);
+        }
+        .bookings-page .admin-secondary-button:hover,
+        .bookings-page .membership-icon-button:hover {
+            transform: translateY(-1px);
+            border-color: #d6a652;
+            box-shadow: 0 10px 22px rgba(154, 108, 32, .12);
+        }
+        .bookings-page .admin-action-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px rgba(154, 108, 32, .24);
+        }
+        .bookings-page .membership-icon-button {
+            min-height: 36px;
+            width: 36px;
+            padding: 0;
+            border-radius: 10px;
+        }
+        .bookings-page .membership-icon-button.danger {
+            color: #9b2828;
+            border-color: #f2caca;
+            background: #fff6f6;
+        }
+    </style>
 }
 
 <div class="crm-page crm-page-pro bookings-page">
@@ -30,7 +77,7 @@
             </div>
             @if (Model.CanManage)
             {
-                <a class="crm-premium-button" asp-action="Create"><i class="bi bi-plus-lg"></i> Create Booking</a>
+                <a class="admin-action-button" asp-action="Create"><i class="bi bi-plus-lg"></i> Create Booking</a>
             }
         </div>
     </div>

@@ -43,6 +43,7 @@ builder.Services
 builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IWebsiteInquiryNotifier, WebsiteInquiryNotifier>();
+builder.Services.AddScoped<IBookingApprovalNotifier, BookingApprovalNotifier>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {

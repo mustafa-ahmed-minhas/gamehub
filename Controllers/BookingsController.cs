@@ -24,15 +24,17 @@ namespace GameHub.Controllers
         private readonly IBookingValidationService _validationService;
         private readonly IInvoiceService _invoiceService;
         private readonly IRefundService _refundService;
+        private readonly IBookingApprovalNotifier _bookingApprovalNotifier;
         private readonly ILogger<BookingsController> _logger;
 
-        public BookingsController(ApplicationDbContext dbContext, IBookingNumberService bookingNumberService, IBookingValidationService validationService, IInvoiceService invoiceService, IRefundService refundService, ILogger<BookingsController> logger)
+        public BookingsController(ApplicationDbContext dbContext, IBookingNumberService bookingNumberService, IBookingValidationService validationService, IInvoiceService invoiceService, IRefundService refundService, IBookingApprovalNotifier bookingApprovalNotifier, ILogger<BookingsController> logger)
         {
             _dbContext = dbContext;
             _bookingNumberService = bookingNumberService;
             _validationService = validationService;
             _invoiceService = invoiceService;
             _refundService = refundService;
+            _bookingApprovalNotifier = bookingApprovalNotifier;
             _logger = logger;
         }
 
@@ -1036,6 +1038,8 @@ namespace GameHub.Controllers
                     await _dbContext.SaveChangesAsync();
                     await dbTransaction.CommitAsync();
 
+                    await _bookingApprovalNotifier.BroadcastCountAsync();
+
                     if (salesRecords.HasValue)
                     {
                         TempData.SetToast("success", "Booking Approved & Sales Records Created", 
@@ -1272,6 +1276,8 @@ namespace GameHub.Controllers
             }
 
             await _dbContext.SaveChangesAsync();
+
+            await _bookingApprovalNotifier.BroadcastCountAsync();
 
             var message = $"Booking {booking.BookingNumber} has been rejected and cancelled.";
             if (refund != null)

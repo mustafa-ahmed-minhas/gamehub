@@ -28,6 +28,7 @@ namespace GameHub.Controllers
         private readonly IInvoiceService _invoiceService;
         private readonly IMembershipNumberService _membershipNumberService;
         private readonly IMembershipOperationService _operationService;
+        private readonly IBookingApprovalNotifier _bookingApprovalNotifier;
 
         public OnlinePaymentController(
             ApplicationDbContext dbContext,
@@ -37,7 +38,8 @@ namespace GameHub.Controllers
             ICustomerMembershipService membershipService,
             IInvoiceService invoiceService,
             IMembershipNumberService membershipNumberService,
-            IMembershipOperationService operationService)
+            IMembershipOperationService operationService,
+            IBookingApprovalNotifier bookingApprovalNotifier)
         {
             _dbContext = dbContext;
             _paymentGateway = paymentGateway;
@@ -47,6 +49,7 @@ namespace GameHub.Controllers
             _invoiceService = invoiceService;
             _membershipNumberService = membershipNumberService;
             _operationService = operationService;
+            _bookingApprovalNotifier = bookingApprovalNotifier;
         }
 
         [HttpGet("")]
@@ -660,6 +663,8 @@ namespace GameHub.Controllers
             };
             _dbContext.Bookings.Add(booking);
             await _dbContext.SaveChangesAsync();
+
+            await _bookingApprovalNotifier.BroadcastNewPendingAsync(booking);
 
             transaction.BookingId = booking.Id;
             transaction.UpdatedAt = DateTime.UtcNow;

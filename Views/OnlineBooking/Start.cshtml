@@ -1,4 +1,4 @@
-@model OnlineBookingStartViewModel
+﻿@model OnlineBookingStartViewModel
 @{
     ViewData["Title"] = "Book a Court";
     Layout = "_CustomerLayout";
@@ -14,16 +14,18 @@
         <article class="selected-court-card">
             <div class="selected-court-image" style="background-image:url('@(Model.CourtImageUrl ?? "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=1200")')"></div>
             <div>
-                <span>@Model.SportName · @Model.FacilityName</span>
+                <span>@Model.SportName Â· @Model.FacilityName</span>
                 <h2>@Model.CourtName</h2>
-                <p>@Model.Capacity players · @(Model.StartingPrice.HasValue ? $"From {Model.CurrencySymbol} {Model.StartingPrice:N0}" : "Pricing varies by time")</p>
+                <p>@Model.Capacity players Â· @(Model.StartingPrice.HasValue ? $"From {Model.CurrencySymbol} {Model.StartingPrice:N0}" : "Pricing varies by time")</p>
             </div>
         </article>
     </div>
 </section>
 
 <section class="booking-workspace" data-online-booking data-court-id="@Model.CourtId" data-sport-id="@Model.SportId" data-availability-url="@Url.Action("Availability", "OnlineBooking")" data-calculate-url="@Url.Action("Calculate", "OnlineBooking")" data-customer-url="@Url.Action("CustomerSummary", "OnlineBooking")" data-membership-url="@Url.Action("MembershipSummary", "OnlineBooking")">
-    <div class="container booking-grid">
+    <div class="container">
+        @await Html.PartialAsync("_BookingProgress")
+        <div class="booking-grid">
         <form asp-action="Review" method="post" class="booking-flow-card" data-booking-form>
             @Html.AntiForgeryToken()
             <input type="hidden" name="CourtId" value="@Model.CourtId" />
@@ -134,27 +136,79 @@
             </button>
         </form>
 
-        <aside class="live-summary-card" data-live-summary>
-            <span class="eyebrow-pill">@Model.ArenaName</span>
-            <h2>Booking Summary</h2>
-            <dl>
-                <dt>Court</dt><dd>@Model.CourtName</dd>
-                <dt>Sport</dt><dd>@Model.SportName</dd>
-                <dt>Facility</dt><dd>@Model.FacilityName</dd>
-                <dt>Date</dt><dd data-summary-date>Not selected</dd>
-                <dt>Time</dt><dd data-summary-time>Choose a slot</dd>
-                <dt>Players</dt><dd data-summary-players>1</dd>
-                <dt>Pricing</dt><dd data-summary-pricing>Awaiting slot</dd>
-                <dt>Base</dt><dd data-summary-base>-</dd>
-                <dt>Membership</dt><dd data-summary-discount>-</dd>
-                <dt>Tax</dt><dd data-summary-tax>-</dd>
-                <dt>Total payable</dt><dd class="summary-total" data-summary-total>-</dd>
-            </dl>
-            <div class="race-notice">
-                <i class="bi bi-info-circle"></i>
+        <aside class="live-summary-card premium-summary-card" data-live-summary>
+            <div class="summary-header">
+                <span class="eyebrow-pill"><i class="bi bi-receipt-cutoff"></i> @Model.ArenaName</span>
+                <h2>Booking Summary</h2>
+                <span class="summary-status-badge" data-summary-status>Awaiting slot</span>
+            </div>
+
+            <div class="summary-section">
+                <h3><i class="bi bi-geo-alt"></i> Court Details</h3>
+                <div class="summary-row">
+                    <span><i class="bi bi-trophy"></i> Court</span>
+                    <strong>@Model.CourtName</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-dribbble"></i> Sport</span>
+                    <strong>@Model.SportName</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-building"></i> Facility</span>
+                    <strong>@Model.FacilityName</strong>
+                </div>
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-section">
+                <h3><i class="bi bi-calendar3"></i> Selected Slot</h3>
+                <div class="summary-row">
+                    <span><i class="bi bi-calendar-event"></i> Date</span>
+                    <strong data-summary-date>Not selected</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-clock"></i> Time</span>
+                    <strong data-summary-time>Choose a slot</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-hourglass-split"></i> Duration</span>
+                    <strong data-summary-pricing>Awaiting slot</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-people"></i> Players</span>
+                    <strong data-summary-players>1</strong>
+                </div>
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-section pricing-section">
+                <h3><i class="bi bi-cash-stack"></i> Pricing Breakdown</h3>
+                <div class="summary-row">
+                    <span><i class="bi bi-receipt"></i> Base</span>
+                    <strong data-summary-base>-</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-percent"></i> Membership</span>
+                    <strong data-summary-discount>-</strong>
+                </div>
+                <div class="summary-row">
+                    <span><i class="bi bi-calculator"></i> Tax</span>
+                    <strong data-summary-tax>-</strong>
+                </div>
+                <div class="summary-total-row">
+                    <span><i class="bi bi-wallet2"></i> Total Payable</span>
+                    <strong class="summary-total" data-summary-total>-</strong>
+                </div>
+            </div>
+
+            <div class="race-notice premium-notice">
+                <i class="bi bi-shield-check"></i>
                 <p>100% payment is required to confirm this booking. Availability is rechecked before payment is completed.</p>
             </div>
         </aside>
+    </div>
     </div>
 </section>
 
@@ -164,6 +218,187 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/online-booking.css" asp-append-version="true" />
+    <style>
+        .booking-section {
+            border: 1px solid rgba(214, 166, 82, .12);
+            box-shadow: 0 18px 42px rgba(17, 16, 14, .08);
+        }
+        .booking-section h2 {
+            letter-spacing: -.01em;
+            margin-bottom: 6px;
+        }
+        .booking-section p {
+            color: #6d6458;
+            font-weight: 600;
+        }
+        .quick-date-row button {
+            min-width: 118px;
+            justify-content: center;
+        }
+        .duration-card {
+            min-width: 112px;
+            text-align: center;
+        }
+        .duration-card strong {
+            letter-spacing: -.02em;
+        }
+        .booking-date-input {
+            box-shadow: 0 10px 24px rgba(17, 16, 14, .05);
+        }
+        .live-summary-card {
+            border: 1px solid rgba(214, 166, 82, .18);
+            box-shadow: 0 24px 56px rgba(17, 16, 14, .12);
+        }
+        .guest-account-panel,
+        .customer-summary-panel {
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+        }
+        .selected-court-card {
+            box-shadow: 0 24px 56px rgba(17, 16, 14, .16);
+        }
+
+        .premium-summary-card {
+            display: grid;
+            gap: 18px;
+            padding: 24px;
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,248,238,.96));
+            border: 1px solid rgba(214, 166, 82, .22);
+        }
+
+        .summary-header {
+            display: grid;
+            gap: 10px;
+        }
+
+        .summary-header h2 {
+            margin: 0;
+            font-size: 1.55rem;
+            letter-spacing: -.02em;
+        }
+
+        .summary-status-badge {
+            width: fit-content;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: #fff3d9;
+            color: #7a5517;
+            font-size: .74rem;
+            font-weight: 900;
+            border: 1px solid rgba(214, 166, 82, .24);
+        }
+
+        .summary-section {
+            display: grid;
+            gap: 10px;
+        }
+
+        .summary-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 4px;
+            font-size: .95rem;
+            font-weight: 900;
+            color: #171614;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .summary-section h3 i {
+            color: #b8892f;
+        }
+
+        .summary-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 11px 12px;
+            border-radius: 14px;
+            background: rgba(255, 250, 242, .88);
+            border: 1px solid rgba(214, 166, 82, .1);
+        }
+
+        .summary-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6d6458;
+            font-weight: 800;
+            font-size: .84rem;
+        }
+
+        .summary-row span i {
+            color: #b8892f;
+        }
+
+        .summary-row strong {
+            color: #171614;
+            font-weight: 900;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .summary-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(214, 166, 82, .35), transparent);
+        }
+
+        .pricing-section .summary-row {
+            background: #fff;
+        }
+
+        .summary-total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 16px 14px;
+            border-radius: 18px;
+            background: #11100e;
+            color: #fff;
+            box-shadow: 0 16px 34px rgba(0, 0, 0, .18);
+        }
+
+        .summary-total-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, .78);
+            font-weight: 900;
+        }
+
+        .summary-total-row .summary-total {
+            color: #d6a652;
+            font-size: 1.8rem;
+            line-height: 1;
+        }
+
+        .premium-notice {
+            margin-top: 2px;
+            border: 1px solid rgba(214, 166, 82, .18);
+        }
+
+        @@media (max-width: 720px) {
+            .summary-row,
+            .summary-total-row {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .summary-row strong,
+            .summary-total-row .summary-total {
+                text-align: left;
+            }
+        }
+        @@media (max-width: 720px) {
+            .quick-date-row button,
+            .duration-card {
+                width: 100%;
+            }
+        }
+    </style>
 }
 @section Scripts {
     <script src="~/js/online-booking.js" asp-append-version="true"></script>

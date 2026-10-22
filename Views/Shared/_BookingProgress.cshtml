@@ -1,0 +1,160 @@
+@{
+    var controller = (ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty);
+    var action = (ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty);
+    var step = action switch
+    {
+        "Start" => 1,
+        "Review" => 2,
+        "Checkout" => 3,
+        _ when controller.Equals("OnlinePayment", StringComparison.OrdinalIgnoreCase) => 4,
+        _ => 1
+    };
+    var ballTarget = step switch { 1 => "12.5%", 2 => "37.5%", 3 => "62.5%", _ => "87.5%" };
+    var fillTarget = ballTarget;
+    var steps = new[]
+    {
+        new { Number = 1, Label = "Select Court & Slot", Icon = "bi-calendar2-check" },
+        new { Number = 2, Label = "Review Booking", Icon = "bi-clipboard-check" },
+        new { Number = 3, Label = "Checkout", Icon = "bi-bag-check" },
+        new { Number = 4, Label = "Payment", Icon = "bi-credit-card-2-front" }
+    };
+}
+
+<nav class="booking-progress" aria-label="Booking progress" style="--ball-target:@ballTarget; --fill-target:@fillTarget;">
+    <div class="booking-progress-track" aria-hidden="true">
+        <span class="booking-progress-fill"></span>
+        <span class="booking-progress-ball"></span>
+    </div>
+    <ol class="booking-progress-steps">
+        @foreach (var item in steps)
+        {
+            var state = item.Number < step ? "completed" : item.Number == step ? "current" : "upcoming";
+            <li class="@state">
+                <span class="booking-step-icon"><i class="bi @item.Icon"></i></span>
+                <span class="booking-step-label">@item.Label</span>
+            </li>
+        }
+    </ol>
+</nav>
+
+<style>
+    .booking-progress {
+        position: relative;
+        margin: 0 0 8px;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .booking-progress-track {
+        position: relative;
+        height: 2px;
+        margin: 0 0 6px;
+        border-radius: 999px;
+        background: rgba(214, 166, 82, .2);
+        overflow: visible;
+    }
+
+    .booking-progress-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #d6a652, #f1d695, #b78029);
+        animation: bookingProgressFill 1s ease-out forwards;
+    }
+
+    .booking-progress-ball {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 8px;
+        height: 8px;
+        transform: translate(-50%, -50%);
+        background: #d6a652;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px rgba(214, 166, 82, .18);
+        animation: bookingProgressBall 1s ease-out forwards;
+    }
+
+    @@keyframes bookingProgressFill {
+        to { width: var(--fill-target); }
+    }
+
+    @@keyframes bookingProgressBall {
+        to { left: var(--ball-target); }
+    }
+
+    .booking-progress-steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .booking-progress-steps li {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+        color: #6d6458;
+        opacity: .62;
+        transition: opacity .2s ease, color .2s ease;
+    }
+
+    .booking-step-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        color: inherit;
+        font-size: .72rem;
+    }
+
+    .booking-step-label {
+        font-size: .68rem;
+        font-weight: 700;
+        line-height: 1.1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .booking-progress-steps li.completed {
+        opacity: .85;
+        color: #17613a;
+    }
+
+    .booking-progress-steps li.current {
+        opacity: 1;
+        color: #171614;
+        font-weight: 900;
+    }
+
+    .booking-progress-steps li.current .booking-step-icon {
+        color: #b8892f;
+    }
+
+    .booking-progress-steps li.upcoming {
+        opacity: .45;
+    }
+
+    @@media (max-width: 560px) {
+        .booking-step-label {
+            display: none;
+        }
+
+        .booking-progress-steps {
+            justify-content: space-between;
+        }
+    }
+</style>

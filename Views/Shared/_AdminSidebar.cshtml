@@ -1,8 +1,10 @@
 @using System.Security.Claims
+@inject GameHub.Services.Interfaces.IBookingApprovalNotifier BookingApprovalNotifier
 @{
     var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     var tab = Context.Request.Query["tab"].ToString().ToLowerInvariant();
+    var pendingApprovalCount = await BookingApprovalNotifier.GetPendingCountAsync();
     var view = Context.Request.Query["view"].ToString().ToLowerInvariant();
     var name = User.FindFirstValue(ClaimTypes.Name) ?? "GameHub User";
     var initials = string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
@@ -130,7 +132,7 @@
                         @if (Can("Bookings"))
                         {
                             <a class="admin-nav-link @(On("Bookings") && view == "list" ? "active" : "")" asp-controller="Bookings" asp-action="Index" asp-route-view="list"><i class="bi bi-calendar-check"></i><span>Bookings</span></a>
-                            <a class="admin-nav-link @(On("Bookings") && action == "Approvals" ? "active" : "")" asp-controller="Bookings" asp-action="Approvals"><i class="bi bi-hourglass-split"></i><span>Booking Approvals</span></a>
+                            <a class="admin-nav-link @(On("Bookings") && action == "Approvals" ? "active" : "")" asp-controller="Bookings" asp-action="Approvals"><i class="bi bi-hourglass-split"></i><span>Booking Approvals</span><span class="sidebar-count" data-booking-approval-count style="display:@(pendingApprovalCount > 0 ? "inline-flex" : "none");min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#d6a652;color:#11100e;font-size:.68rem;font-weight:900;align-items:center;justify-content:center;margin-left:auto;">@(pendingApprovalCount > 0 ? pendingApprovalCount.ToString() : "")</span></a>
                             <a class="admin-nav-link @(On("Bookings") && action == "Refunds" ? "active" : "")" asp-controller="Bookings" asp-action="Refunds"><i class="bi bi-cash-coin"></i><span>Refund Management</span></a>
                         }
                         @if (Can("Memberships"))

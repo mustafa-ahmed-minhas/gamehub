@@ -35,12 +35,14 @@ namespace GameHub.Hubs
 
         private readonly ApplicationDbContext _dbContext;
         private readonly IWebsiteInquiryNotifier _notifier;
+        private readonly IBookingApprovalNotifier _bookingApprovalNotifier;
         private readonly ILogger<CrmNotificationsHub> _logger;
 
-        public CrmNotificationsHub(ApplicationDbContext dbContext, IWebsiteInquiryNotifier notifier, ILogger<CrmNotificationsHub> logger)
+        public CrmNotificationsHub(ApplicationDbContext dbContext, IWebsiteInquiryNotifier notifier, IBookingApprovalNotifier bookingApprovalNotifier, ILogger<CrmNotificationsHub> logger)
         {
             _dbContext = dbContext;
             _notifier = notifier;
+            _bookingApprovalNotifier = bookingApprovalNotifier;
             _logger = logger;
         }
 
@@ -55,8 +57,9 @@ namespace GameHub.Hubs
                 return;
             }
 
-            // Sync the freshly connected tab with the authoritative database count.
+            // Sync the freshly connected tab with the authoritative database counts.
             await _notifier.SendCountToConnectionAsync(Context.ConnectionId);
+            await _bookingApprovalNotifier.SendCountToConnectionAsync(Context.ConnectionId);
         }
 
         private async Task<bool> IsPermittedAsync()
