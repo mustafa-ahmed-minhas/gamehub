@@ -204,86 +204,527 @@
     });
 
     document.querySelectorAll('[data-booking-form]').forEach((form) => {
-        let dirty = false;
-        form.addEventListener('input', () => { dirty = true; updateEndTime(form); updateLiveSummary(form); });
-        form.addEventListener('change', () => { dirty = true; updateEndTime(form); updateLiveSummary(form); loadSlots(form); loadCustomer(form); loadFacilitiesOrCourts(form); calculatePrice(form); });
-        form.addEventListener('submit', () => { dirty = false; form.querySelector('[type="submit"]')?.classList.add('is-loading'); });
-        window.addEventListener('beforeunload', (event) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
-        updateEndTime(form); updateLiveSummary(form); loadSlots(form);
+        setupBookingForm(form);
     });
 
-    function field(form, selector) { return form.querySelector(selector); }
+    /* ---------------------------------------------------------------------
+       Manual booking form: customer autocomplete, court cascade, dynamic
+       slots and live server priced totals.
+       --------------------------------------------------------------------- */
+    function setupBookingForm(form) {
+        const state = { priceToken: 0, slotToken: 0, searchToken: 0, customerLabel: '', currency: form.dataset.currency || 'Rs' };
+        const q = (selector) => form.querySelector(selector);
+        const value = (selector) => q(selector)?.value?.trim() || '';
+
+        const customerSearch = q('[data-customer-search]');
+        const customerId = q('[data-customer-id]');
+        const customerResults = q('[data-customer-results]');
+        const customerClear = q('[data-customer-clear]');
+        const customerSummary = q('[data-customer-summary]');
+        const sportSelect = q('[data-sport-select]');
+        const facilitySelect = q('[data-facility-select]');
+        const courtSelect = q('[data-court-select]');
+        const dateInput = q('[data-booking-date]');
+        const slotGrid = q('[data-slot-grid]');
+        const slotStatus = q('[data-slot-status]');
+        const slotHint = q('[data-slot-hint]');
+        const startInput = q('[data-start-time]');
+        const endInput = q('[data-end-time]');
+        const durationInput = q('[data-duration]');
+        const discountInput = q('[data-manual-discount]');
+        const paidInput = q('[data-paid-amount]');
+        const statusSelect = q('[data-status-select]');
+        const priceNote = q('[data-price-note]');
+
+        const courtValue = () => courtSelect?.value?.trim() || q('[name="CourtId"]')?.value?.trim() || '';
+        const bookingId = () => q('[name="Id"]')?.value?.trim() || '';
+        const slotDurationVisible = durationInput && durationInput.type !== 'hidden';
+
+        /* ---------------- customer autocomplete ---------------- */
+        if (customerSearch && customerId && customerResults) {
+            let timer = null;
+            let items = [];
+            let activeIndex = -1;
+
+            const closeResults = () => {
+                customerResults.classList.remove('open');
+                customerResults.innerHTML = '';
+                items = [];
+                activeIndex = -1;
+                customerSearch.setAttribute('aria-expanded', 'false');
+            };
+
+            const highlight = () => {
+                customerResults.querySelectorAll('.customer-result').forEach((button, index) => {
+                    button.classList.toggle('active', index === activeIndex);
+                    if (index === activeIndex) button.scrollIntoView({ block: 'nearest' });
+                });
+            };
+
+            const selectCustomer = (customer) => {
+                customerId.value = customer.id;
+                state.customerLabel = `${customer.name} (${customer.code})`;
+                customerSearch.value = `${customer.name} — ${customer.phone}`;
+                closeResults();
+                clearFieldError(form, 'CustomerId');
+                if (customerClear) customerClear.hidden = false;
+                loadCustomerSummary(form, customerSummary, customer.id, state);
+                updateLiveSummary(form, state);
+                refreshPrice(form, state);
+            };
+
+            const renderResults = (list) => {
+                items = list;
+                activeIndex = -1;
+                customerResults.classList.add('open');
+                customerSearch.setAttribute('aria-expanded', 'true');
+                if (!list.length) {
+                    customerResults.innerHTML = '<div class="customer-empty">No matching customers found.</div>';
+                    return;
+                }
+                customerResults.innerHTML = list.map((customer, index) => `
+                    <button type="button" class="customer-result" role="option" data-index="${index}" data-id="${escapeHtml(customer.id)}" data-name="${escapeHtml(customer.name)}" data-phone="${escapeHtml(customer.phone)}" data-code="${escapeHtml(customer.code)}">
+                        <strong>${escapeHtml(customer.name)}</strong>
+                        <span>${escapeHtml(customer.code)} &bull; ${escapeHtml(customer.phone)}</span>
+                    </button>`).join('');
+                customerResults.querySelectorAll('.customer-result').forEach((button) => {
+                    button.addEventListener('mousedown', (event) => event.preventDefault());
+                    button.addEventListener('click', () => selectCustomer({
+                        id: button.dataset.id,
+                        name: button.dataset.name,
+                        phone: button.dataset.phone,
+                        code: button.dataset.code
+                    }));
+                });
+            };
+
+            customerSearch.addEventListener('input', () => {
+                clearTimeout(timer);
+                const term = customerSearch.value.trim();
+                if (term.length < 2) {
+                    state.searchToken++;
+                    closeResults();
+                    return;
+                }
+                customerResults.innerHTML = '<div class="customer-loading">Searching...</div>';
+                customerResults.classList.add('open');
+                const token = ++state.searchToken;
+                timer = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/Bookings/SearchCustomers?query=${encodeURIComponent(term)}`);
+                        if (!response.ok) throw new Error('Search failed');
+                        const json = await response.json();
+                        if (token !== state.searchToken) return;
+                        if (!json.success) throw new Error(json.message || 'Search failed');
+                        renderResults(json.customers || []);
+                    } catch {
+                        if (token !== state.searchToken) return;
+                        customerResults.innerHTML = '<div class="customer-error">Search failed. Please try again.</div>';
+                    }
+                }, 250);
+            });
+
+            customerSearch.addEventListener('keydown', (event) => {
+                if (!items.length) return;
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    activeIndex = (activeIndex + 1) % items.length;
+                    highlight();
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    activeIndex = activeIndex <= 0 ? items.length - 1 : activeIndex - 1;
+                    highlight();
+                } else if (event.key === 'Enter' && activeIndex >= 0) {
+                    event.preventDefault();
+                    const customer = items[activeIndex];
+                    selectCustomer({ id: customer.id, name: customer.name, phone: customer.phone, code: customer.code });
+                } else if (event.key === 'Escape') {
+                    closeResults();
+                }
+            });
+
+            customerSearch.addEventListener('focus', () => {
+                if (items.length) customerResults.classList.add('open');
+            });
+
+            customerClear?.addEventListener('click', () => {
+                customerId.value = '';
+                customerSearch.value = '';
+                state.customerLabel = '';
+                closeResults();
+                customerClear.hidden = true;
+                setFieldError(form, 'CustomerId', 'Select a customer for this booking.');
+                if (customerSummary) {
+                    customerSummary.innerHTML = '<i class="bi bi-person-badge"></i><p>Select a customer to preview profile, membership status, loyalty points and blacklist warnings.</p>';
+                }
+                updateLiveSummary(form, state);
+                refreshPrice(form, state);
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!customerResults.contains(event.target) && event.target !== customerSearch) closeResults();
+            });
+        }
+
+        /* ---------------- court cascade ---------------- */
+        const clearSlotSelection = () => {
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            if (slotGrid) slotGrid.querySelectorAll('.booking-slot.selected').forEach((node) => node.classList.remove('selected'));
+            clearFieldError(form, 'StartTime');
+        };
+
+        const resetSelect = (select, placeholder) => {
+            if (!select) return;
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+        };
+
+        sportSelect?.addEventListener('change', async () => {
+            const sportId = sportSelect.value;
+            resetSelect(facilitySelect, 'Select facility');
+            resetSelect(courtSelect, 'Select court');
+            if (facilitySelect) facilitySelect.value = '';
+            if (courtSelect) courtSelect.value = '';
+            clearSlotSelection();
+            clearFieldError(form, 'FacilityId');
+            clearFieldError(form, 'CourtId');
+            if (!sportId) {
+                updateLiveSummary(form, state);
+                return;
+            }
+            try {
+                const response = await fetch(`/Bookings/GetFacilitiesBySport?sportId=${encodeURIComponent(sportId)}`);
+                const json = await response.json();
+                if (!json.success) throw new Error(json.message || 'Failed');
+                if (!facilitySelect) return;
+                facilitySelect.innerHTML = '<option value="">Select facility</option>' + (json.facilities || [])
+                    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+            } catch {
+                showToast('error', 'Something Went Wrong', 'Facilities could not be loaded. Please try again.');
+            }
+            updateLiveSummary(form, state);
+        });
+
+        facilitySelect?.addEventListener('change', async () => {
+            const facilityId = facilitySelect.value;
+            resetSelect(courtSelect, 'Select court');
+            if (courtSelect) courtSelect.value = '';
+            clearSlotSelection();
+            clearFieldError(form, 'CourtId');
+            updateLiveSummary(form, state);
+            if (!facilityId || !sportSelect?.value) return;
+            try {
+                const response = await fetch(`/Bookings/GetCourts?sportId=${encodeURIComponent(sportSelect.value)}&facilityId=${encodeURIComponent(facilityId)}`);
+                const json = await response.json();
+                if (!json.success) throw new Error(json.message || 'Failed');
+                if (!courtSelect) return;
+                courtSelect.innerHTML = '<option value="">Select court</option>' + (json.courts || [])
+                    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.status)})</option>`).join('');
+            } catch {
+                showToast('error', 'Something Went Wrong', 'Courts could not be loaded. Please try again.');
+            }
+        });
+
+        courtSelect?.addEventListener('change', () => {
+            clearSlotSelection();
+            clearFieldError(form, 'CourtId');
+            loadSlots(form, state);
+            updateLiveSummary(form, state);
+        });
+
+        dateInput?.addEventListener('change', () => {
+            clearSlotSelection();
+            clearFieldError(form, 'BookingDate');
+            loadSlots(form, state);
+            updateLiveSummary(form, state);
+        });
+
+        durationInput?.addEventListener('change', () => {
+            if (!slotDurationVisible) return;
+            clearSlotSelection();
+            loadSlots(form, state);
+        });
+
+        startInput?.addEventListener('change', () => {
+            updateEndTime(form);
+            updateLiveSummary(form, state);
+            refreshPrice(form, state);
+        });
+
+        discountInput?.addEventListener('input', () => refreshPrice(form, state));
+        paidInput?.addEventListener('input', () => refreshPrice(form, state));
+        statusSelect?.addEventListener('change', () => updateLiveSummary(form, state));
+
+        /* ---------------- slots ---------------- */
+        async function loadSlots(form, state) {
+            if (!slotGrid) return;
+            const courtId = courtValue();
+            const date = dateInput?.value?.trim();
+            if (!courtId || !date) {
+                slotGrid.innerHTML = '<div class="booking-slot-empty">Choose a court and date to load available slots.</div>';
+                if (slotStatus) slotStatus.textContent = '';
+                return;
+            }
+            const token = ++state.slotToken;
+            slotGrid.innerHTML = '<div class="booking-slot-empty">Loading available slots...</div>';
+            const params = new URLSearchParams({ courtId, bookingDate: date });
+            if (slotDurationVisible && durationInput?.value) params.set('durationMinutes', durationInput.value);
+            if (bookingId()) params.set('bookingId', bookingId());
+            try {
+                const response = await fetch(`/Bookings/GetAvailableSlots?${params}`);
+                const json = await response.json();
+                if (token !== state.slotToken) return;
+                if (!json.success) throw new Error(json.message || 'Failed');
+                const slots = json.slots || [];
+                if (json.durationMinutes > 0 && durationInput && !slotDurationVisible) durationInput.value = json.durationMinutes;
+                if (slotHint && json.durationMinutes > 0) slotHint.textContent = `Slots are ${json.durationMinutes} minutes long and follow the court schedule.`;
+                if (!slots.length) {
+                    slotGrid.innerHTML = '<div class="booking-slot-empty">This court has no bookable slots on the selected date.</div>';
+                    if (slotStatus) slotStatus.textContent = 'No schedule or pricing is configured for this court on the selected date.';
+                    return;
+                }
+                slotGrid.innerHTML = slots.map((slot) => `
+                    <button type="button" class="booking-slot ${slot.isAvailable ? '' : 'unavailable'}" data-slot="${escapeHtml(slot.startTime)}" data-slot-end="${escapeHtml(slot.endTime)}" data-slot-duration="${escapeHtml(slot.durationMinutes)}" ${slot.isAvailable ? '' : 'disabled'} title="${escapeHtml(slot.message || '')}">
+                        <strong>${escapeHtml(slot.displayText)}</strong>
+                        <small>${slot.isPeakRate ? 'Peak' : 'Standard'} &bull; ${escapeHtml(state.currency)} ${Number(slot.basePrice || 0).toLocaleString()}</small>
+                    </button>`).join('');
+                const available = slots.filter((slot) => slot.isAvailable).length;
+                if (slotStatus) slotStatus.textContent = `${available} of ${slots.length} slots available. Unavailable slots are already booked or have no pricing.`;
+                slotGrid.querySelectorAll('.booking-slot:not(.unavailable)').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        if (startInput) startInput.value = button.dataset.slot;
+                        if (durationInput && button.dataset.slotDuration) durationInput.value = button.dataset.slotDuration;
+                        updateEndTime(form);
+                        slotGrid.querySelectorAll('.booking-slot.selected').forEach((node) => node.classList.remove('selected'));
+                        button.classList.add('selected');
+                        clearFieldError(form, 'StartTime');
+                        updateLiveSummary(form, state);
+                        refreshPrice(form, state);
+                    });
+                });
+            } catch (error) {
+                if (token !== state.slotToken) return;
+                slotGrid.innerHTML = '<div class="booking-slot-empty">Available slots could not be loaded. Please try again.</div>';
+                if (slotStatus) slotStatus.textContent = error?.message || 'Available slots could not be loaded.';
+            }
+        }
+
+        /* ---------------- pricing ---------------- */
+        async function refreshPrice(form, state) {
+            const customer = value('[data-customer-id]');
+            const sport = sportSelect?.value?.trim() || q('[name="SportId"]')?.value?.trim() || '';
+            const court = courtValue();
+            const date = dateInput?.value?.trim();
+            const start = startInput?.value?.trim();
+            if (!customer || !sport || !court || !date || !start) {
+                renderPrice(form, state, null, 'Select a customer, court, date and slot to see the price.');
+                return;
+            }
+            const params = new URLSearchParams({
+                customerId: customer,
+                sportId: sport,
+                courtId: court,
+                bookingDate: date,
+                startTime: start,
+                manualDiscountAmount: discountInput?.value || '0',
+                paidAmount: paidInput?.value || '0'
+            });
+            if (durationInput?.value) params.set('durationMinutes', durationInput.value);
+            if (bookingId()) params.set('bookingId', bookingId());
+
+            const token = ++state.priceToken;
+            try {
+                const response = await fetch(`/Bookings/CalculatePrice?${params}`);
+                const json = await response.json();
+                if (token !== state.priceToken) return;
+                renderPrice(form, state, json.summary, json.message);
+            } catch {
+                if (token !== state.priceToken) return;
+                renderPrice(form, state, null, 'The price could not be calculated. Please try again.');
+            }
+        }
+
+        function renderPrice(form, state, summary, message) {
+            const set = (selector, text) => {
+                const element = form.querySelector(selector);
+                if (element) element.textContent = text;
+            };
+            const format = (amount) => `${state.currency} ${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            if (!summary) {
+                set('[data-price-base]', '—');
+                set('[data-price-membership]', '—');
+                set('[data-price-manual]', '—');
+                set('[data-price-tax]', '—');
+                set('[data-price-total]', '—');
+                set('[data-price-paid]', '—');
+                set('[data-price-balance]', '—');
+                set('[data-summary-total]', '—');
+                set('[data-summary-balance]', '—');
+                if (priceNote) {
+                    priceNote.textContent = message || '';
+                    priceNote.hidden = !message;
+                    priceNote.classList.toggle('is-error', Boolean(message));
+                }
+                return;
+            }
+
+            state.currency = summary.currencySymbol || state.currency;
+            set('[data-price-base]', format(summary.baseAmount));
+            set('[data-price-membership]', format(summary.membershipDiscountAmount));
+            set('[data-price-manual]', format(summary.manualDiscountAmount));
+            set('[data-price-tax]', format(summary.taxAmount));
+            set('[data-price-total]', format(summary.totalAmount));
+            set('[data-price-paid]', format(summary.paidAmount));
+            set('[data-price-balance]', format(summary.balanceAmount));
+            set('[data-summary-total]', format(summary.totalAmount));
+            set('[data-summary-balance]', format(summary.balanceAmount));
+
+            const notes = [summary.pricingError, summary.manualDiscountMessage, summary.paidAmountMessage, message].filter(Boolean);
+            if (priceNote) {
+                priceNote.textContent = notes.join(' ');
+                priceNote.hidden = notes.length === 0;
+                priceNote.classList.toggle('is-error', Boolean(summary.pricingError));
+            }
+            if (summary.pricingError) setFieldError(form, 'StartTime', summary.pricingError);
+            else clearFieldError(form, 'StartTime');
+            if (summary.manualDiscountMessage) setFieldError(form, 'ManualDiscountAmount', summary.manualDiscountMessage);
+            if (summary.paidAmountMessage) setFieldError(form, 'PaidAmount', summary.paidAmountMessage);
+        }
+
+        /* ---------------- submit guard ---------------- */
+        form.addEventListener('submit', (event) => {
+            const problems = [];
+            if (customerSearch && !value('[data-customer-id]')) {
+                setFieldError(form, 'CustomerId', 'Select a customer for this booking.');
+                problems.push('customer');
+            }
+            if (sportSelect && !sportSelect.value) {
+                setFieldError(form, 'SportId', 'Select a sport.');
+                problems.push('sport');
+            }
+            if (facilitySelect && !facilitySelect.value) {
+                setFieldError(form, 'FacilityId', 'Select a facility.');
+                problems.push('facility');
+            }
+            if (courtSelect && !courtSelect.value) {
+                setFieldError(form, 'CourtId', 'Select a court.');
+                problems.push('court');
+            }
+            if (dateInput && !dateInput.value) {
+                setFieldError(form, 'BookingDate', 'Select a booking date.');
+                problems.push('date');
+            }
+            if (startInput && startInput.type === 'hidden' && !startInput.value) {
+                setFieldError(form, 'StartTime', 'Select an available slot.');
+                problems.push('slot');
+            }
+            if (!problems.length) return;
+
+            event.preventDefault();
+            showToast('warning', 'Attention Required', 'Complete the highlighted fields before saving the booking.');
+            const firstKey = { customer: 'CustomerId', sport: 'SportId', facility: 'FacilityId', court: 'CourtId', date: 'BookingDate', slot: 'StartTime' }[problems[0]];
+            const anchor = form.querySelector(`[data-field-error="${firstKey}"]`);
+            anchor?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        /* ---------------- initial state ---------------- */
+        if (customerId?.value && customerSearch) {
+            state.customerLabel = customerSearch.value || 'Selected customer';
+            if (customerClear) customerClear.hidden = false;
+            loadCustomerSummary(form, customerSummary, customerId.value, state);
+        }
+        updateEndTime(form);
+        updateLiveSummary(form, state);
+        loadSlots(form, state);
+        refreshPrice(form, state);
+    }
+
+    async function loadCustomerSummary(form, panel, customerId, state) {
+        if (!panel) return;
+        try {
+            const response = await fetch(`/Bookings/GetCustomerSummary?customerId=${encodeURIComponent(customerId)}`);
+            const json = await response.json();
+            if (!json.success || !json.customer) {
+                panel.innerHTML = '<i class="bi bi-person-badge"></i><p>Customer details could not be loaded.</p>';
+                return;
+            }
+            const customer = json.customer;
+            const money = (amount) => `${state.currency} ${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const customerTypes = ['Individual', 'Corporate', 'Student', 'Family', 'Walk In', 'VIP'];
+            const customerType = typeof customer.customerType === 'number'
+                ? (customerTypes[customer.customerType] || 'Customer')
+                : (customer.customerType || 'Customer');
+            const membership = customer.membership
+                ? `${customer.membership.plan} &bull; ${customer.membership.discountPercentage}% off`
+                : 'No active membership';
+            panel.classList.toggle('is-warning', Boolean(customer.isBlacklisted));
+            panel.innerHTML = `
+                <div class="booking-summary-head"><strong>${escapeHtml(customer.fullName)}</strong><span>${escapeHtml(customer.customerCode)} &bull; ${escapeHtml(customer.primaryPhone)}</span></div>
+                <div class="booking-summary-grid">
+                    <div><span>Type</span><strong>${escapeHtml(customerType)}</strong></div>
+                    <div><span>Loyalty Points</span><strong>${escapeHtml(customer.loyaltyPoints)}</strong></div>
+                    <div><span>Outstanding</span><strong>${escapeHtml(money(customer.outstandingBalance))}</strong></div>
+                    <div><span>Membership</span><strong>${membership}</strong></div>
+                </div>
+                ${customer.isBlacklisted ? `<p class="booking-summary-alert"><i class="bi bi-exclamation-triangle"></i> Blacklisted customer${customer.blacklistReason ? `: ${escapeHtml(customer.blacklistReason)}` : ''}.</p>` : ''}`;
+        } catch {
+            panel.innerHTML = '<i class="bi bi-person-badge"></i><p>Customer details could not be loaded.</p>';
+        }
+    }
+
+    function setFieldError(form, key, message) {
+        const target = form.querySelector(`[data-field-error="${key}"]`);
+        if (!target) return;
+        target.textContent = message;
+        target.hidden = false;
+    }
+
+    function clearFieldError(form, key) {
+        const target = form.querySelector(`[data-field-error="${key}"]`);
+        if (!target) return;
+        target.textContent = '';
+        target.hidden = true;
+    }
+
+    function showToast(type, title, message) {
+        window.GameHubToast?.show?.({ type, title, message });
+    }
+
     function updateEndTime(form) {
-        const start = field(form, '[data-start-time]')?.value;
-        const duration = Number(field(form, '[data-duration]')?.value || 0);
-        const end = field(form, '[data-end-time]');
+        const start = form.querySelector('[data-start-time]')?.value;
+        const duration = Number(form.querySelector('[data-duration]')?.value || 0);
+        const end = form.querySelector('[data-end-time]');
         if (!start || !duration || !end) return;
         const [h, m] = start.split(':').map(Number);
         const date = new Date(2000, 0, 1, h, m + duration);
         end.value = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
-    function updateLiveSummary(form) {
-        const selected = sel => field(form, sel)?.selectedOptions?.[0]?.text || 'Not selected';
-        const text = (sel, val) => { const target = document.querySelector(sel); if (target) target.textContent = val; };
-        text('[data-summary-customer]', selected('[data-customer-select]'));
-        text('[data-summary-sport]', selected('[data-sport-select]'));
-        text('[data-summary-court]', selected('[data-court-select]'));
-        text('[data-summary-date]', field(form, '[data-booking-date]')?.value || 'Not selected');
-        text('[data-summary-time]', `${field(form, '[data-start-time]')?.value || '--:--'} - ${field(form, '[data-end-time]')?.value || '--:--'}`);
+
+    function updateLiveSummary(form, state) {
+        const set = (selector, text) => {
+            const element = form.querySelector(selector);
+            if (element) element.textContent = text;
+        };
+        const selectedText = (select) => select && select.selectedOptions.length ? select.selectedOptions[0].text : 'Not selected';
+        const start = form.querySelector('[data-start-time]')?.value || '--:--';
+        const end = form.querySelector('[data-end-time]')?.value || '--:--';
+        const duration = Number(form.querySelector('[data-duration]')?.value || 0);
+
+        set('[data-summary-customer]', state.customerLabel || 'Not selected');
+        set('[data-summary-sport]', selectedText(form.querySelector('[data-sport-select]')));
+        set('[data-summary-facility]', selectedText(form.querySelector('[data-facility-select]')));
+        set('[data-summary-court]', selectedText(form.querySelector('[data-court-select]')));
+        set('[data-summary-date]', formatBookingDate(form.querySelector('[data-booking-date]')?.value));
+        set('[data-summary-time]', `${start} - ${end}`);
+        set('[data-summary-duration]', duration > 0 ? `${duration} min` : 'Not selected');
+        set('[data-summary-status]', selectedText(form.querySelector('[data-status-select]')));
     }
-    async function loadCustomer(form) {
-        const id = field(form, '[data-customer-select]')?.value;
-        const panel = document.querySelector('[data-customer-summary]');
-        if (!id || !panel) return;
-        const res = await fetch(`/Bookings/GetCustomerSummary?customerId=${encodeURIComponent(id)}`);
-        const json = await res.json();
-        if (!json.success) return;
-        const c = json.customer;
-        panel.innerHTML = `<strong>${escapeHtml(c.fullName)}</strong><span>${escapeHtml(c.customerCode)} • ${escapeHtml(c.primaryPhone)}</span><small>${c.membership ? `Member: ${escapeHtml(c.membership.plan)}` : 'No active membership'} ${c.isBlacklisted ? '• Blacklisted' : ''}</small>`;
-    }
-    async function loadFacilitiesOrCourts(form) {
-        const sportId = field(form, '[data-sport-select]')?.value;
-        const facilityId = field(form, '[data-facility-select]')?.value;
-        const facility = field(form, '[data-facility-select]');
-        const court = field(form, '[data-court-select]');
-        if (sportId && facility && !facilityId) {
-            const json = await (await fetch(`/Bookings/GetFacilitiesBySport?sportId=${sportId}`)).json();
-            facility.innerHTML = '<option value="">Select facility</option>' + json.facilities.map(x => `<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)}</option>`).join('');
-        }
-        if (sportId && facilityId && court) {
-            const json = await (await fetch(`/Bookings/GetCourts?sportId=${sportId}&facilityId=${facilityId}`)).json();
-            court.innerHTML = '<option value="">Select court</option>' + json.courts.map(x => `<option value="${escapeHtml(x.id)}">${escapeHtml(x.name)} (${escapeHtml(x.status)})</option>`).join('');
-        }
-    }
-    async function loadSlots(form) {
-        const courtId = field(form, '[data-court-select]')?.value || field(form, '[name="CourtId"]')?.value;
-        const date = field(form, '[data-booking-date]')?.value;
-        const duration = field(form, '[data-duration]')?.value;
-        const grid = document.querySelector('[data-slot-grid]');
-        if (!courtId || !date || !duration || !grid) return;
-        const json = await (await fetch(`/Bookings/GetAvailableSlots?courtId=${courtId}&bookingDate=${date}&durationMinutes=${duration}&bookingId=${field(form, '[name="Id"]')?.value || ''}`)).json();
-        grid.innerHTML = json.slots.length ? json.slots.map(slot => `<button type="button" class="booking-slot ${slot.isAvailable ? '' : 'unavailable'}" data-slot="${escapeHtml(slot.startTime)}" ${slot.isAvailable ? '' : 'disabled'}><strong>${escapeHtml(slot.displayText)}</strong><small>${slot.isPeakRate ? 'Peak' : 'Standard'} • ${escapeHtml(String(slot.basePrice))}</small></button>`).join('') : '<div class="booking-slot-empty">No slots available for this date.</div>';
-        grid.querySelectorAll('[data-slot]').forEach(btn => btn.addEventListener('click', () => { field(form, '[data-start-time]').value = btn.dataset.slot; updateEndTime(form); updateLiveSummary(form); calculatePrice(form); grid.querySelectorAll('.selected').forEach(x => x.classList.remove('selected')); btn.classList.add('selected'); }));
-    }
-    async function calculatePrice(form) {
-        const params = new URLSearchParams({
-            customerId: field(form, '[data-customer-select]')?.value || 0,
-            sportId: field(form, '[data-sport-select]')?.value || 0,
-            courtId: field(form, '[data-court-select]')?.value || 0,
-            bookingDate: field(form, '[data-booking-date]')?.value || '',
-            startTime: field(form, '[data-start-time]')?.value || '',
-            durationMinutes: field(form, '[data-duration]')?.value || 0,
-            manualDiscountAmount: field(form, '[data-manual-discount]')?.value || 0,
-            paidAmount: field(form, '[data-paid-amount]')?.value || 0,
-            bookingId: field(form, '[name="Id"]')?.value || ''
-        });
-        if (!params.get('customerId') || !params.get('sportId') || !params.get('courtId') || !params.get('bookingDate') || !params.get('startTime')) return;
-        const json = await (await fetch(`/Bookings/CalculatePrice?${params}`)).json();
-        if (!json.summary) return;
-        const s = json.summary;
-        const panel = document.querySelector('[data-price-panel]');
-        if (panel) panel.innerHTML = `<div><span>Base</span><strong>${escapeHtml(s.currencySymbol)} ${Number(s.baseAmount).toLocaleString()}</strong></div><div><span>Membership Discount</span><strong>${escapeHtml(s.currencySymbol)} ${Number(s.membershipDiscountAmount).toLocaleString()}</strong></div><div><span>Tax</span><strong>${escapeHtml(s.currencySymbol)} ${Number(s.taxAmount).toLocaleString()}</strong></div><div><span>Total</span><strong>${escapeHtml(s.currencySymbol)} ${Number(s.totalAmount).toLocaleString()}</strong></div>`;
-        const total = document.querySelector('[data-summary-total]');
-        if (total) total.textContent = `${s.currencySymbol} ${Number(s.totalAmount).toLocaleString()}`;
+
+    function formatBookingDate(value) {
+        if (!value) return 'Not selected';
+        const parsed = new Date(`${value}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return value;
+        return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 })();

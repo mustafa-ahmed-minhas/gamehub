@@ -67,7 +67,15 @@ namespace GameHub.Controllers
 
             if (role.HasValue)
             {
-                query = query.Where(user => user.Role == role.Value);
+                var allowedRoleValues = UserFormViewModel.AllowedRoles.Select(r => r.Role).ToArray();
+                if (!allowedRoleValues.Contains(role.Value))
+                {
+                    role = null;
+                }
+                else
+                {
+                    query = query.Where(user => user.Role == role.Value);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(department))
@@ -147,6 +155,10 @@ namespace GameHub.Controllers
         {
             NormalizeForm(model);
             ApplyNormalizedValidation(model);
+            if (!UserFormViewModel.AllowedRoles.Any(r => r.Role == model.Role))
+            {
+                ModelState.AddModelError(nameof(model.Role), "Please select a valid role.");
+            }
 
             if (await EmailExistsAsync(model.Email))
             {
@@ -270,6 +282,10 @@ namespace GameHub.Controllers
 
             NormalizeForm(model);
             ApplyNormalizedValidation(model);
+            if (!UserFormViewModel.AllowedRoles.Any(r => r.Role == model.Role))
+            {
+                ModelState.AddModelError(nameof(model.Role), "Please select a valid role.");
+            }
 
             if (await EmailExistsAsync(model.Email, id))
             {

@@ -82,21 +82,24 @@
                                 <span class="membership-status-badge pending"><i></i>@Model.Items[i].ItemType.GetDisplayName()</span>
                             </div>
                             <div class="sales-cycle-line-grid">
-                                <label>Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" disabled="@(!canEdit)"></select></label>
-                                <label class="wide">Description *<input asp-for="Items[i].Description" readonly="@(!canEdit)" /><small asp-validation-for="Items[i].Description"></small></label>
-                                <label>Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
-                                <label>Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
-                                <label>Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
-                                <label>Membership Plan<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
-                                <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" readonly="@(!canEdit)" /></label>
-                                <label>Unit<input asp-for="Items[i].UnitOfMeasure" readonly="@(!canEdit)" /></label>
-                                <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" readonly="@(!canEdit)" /></label>
-                                <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
-                                <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
-                                <label>Service Date<input asp-for="Items[i].ServiceDate" type="date" readonly="@(!canEdit)" /></label>
-                                <label>Start Time<input asp-for="Items[i].StartTime" type="time" readonly="@(!canEdit)" /></label>
-                                <label>End Time<input asp-for="Items[i].EndTime" type="time" readonly="@(!canEdit)" /></label>
-                                <label>Line Total<input value="@($"{Model.CurrencySymbol} {Model.Items[i].LineTotal:N2}")" readonly /></label>
+                                <label class="so-field-type">Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" disabled="@(!canEdit)"></select></label>
+                                <label class="so-field-desc wide">Description *<input asp-for="Items[i].Description" readonly="@(!canEdit)" /><small asp-validation-for="Items[i].Description"></small></label>
+                                <label class="so-field-sport">Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label class="so-field-facility">Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label class="so-field-court">Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label class="so-field-plan">Membership Plan<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions" disabled="@(!canEdit)"><option value="">None</option></select></label>
+                                <label class="so-field-qty">Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-unit">Unit<input asp-for="Items[i].UnitOfMeasure" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-price">Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-disc">Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-tax">Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-date">Service Date<input asp-for="Items[i].ServiceDate" type="date" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-start">Start Time<input asp-for="Items[i].StartTime" type="time" readonly="@(!canEdit)" /></label>
+                                <label class="so-field-end">End Time<input asp-for="Items[i].EndTime" type="time" readonly="@(!canEdit)" /></label>
+                                <div class="so-line-total">
+                                    <span class="so-line-total-label">Line Total</span>
+                                    <strong class="so-line-total-value">@($"{Model.CurrencySymbol} {Model.Items[i].LineTotal:N2}")</strong>
+                                </div>
                             </div>
                         </article>
                     }
@@ -143,7 +146,7 @@
             <div class="customer-save-bar" data-save-bar>
                 <a class="admin-secondary-button" asp-action="Index">Cancel</a>
                 <button class="admin-secondary-button" type="submit" name="submitAction" value="draft" data-loading-button><i class="bi bi-save"></i> Save Draft</button>
-                <button class="admin-action-button" type="submit" name="submitAction" value="submit" data-loading-button><i class="bi bi-send-check"></i> Submit for Approval</button>
+                <button class="admin-action-button" type="submit" name="submitAction" value="create" data-loading-button><i class="bi bi-check2-circle"></i> Create Sales Order</button>
             </div>
         }
     </form>

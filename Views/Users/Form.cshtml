@@ -127,9 +127,9 @@
                     <div class="premium-field">
                         <label asp-for="Role">Role <span>*</span></label>
                         <div><i class="bi bi-person-gear"></i><select asp-for="Role" data-preview-role>
-                            @foreach (UserRole role in Enum.GetValues<UserRole>())
+                            @foreach (var (role, displayName) in UserFormViewModel.AllowedRoles)
                             {
-                                <option value="@role" data-description="@RoleDescription(role)">@role.GetDisplayName()</option>
+                                <option value="@role" data-description="@RoleDescription(role)">@displayName</option>
                             }
                         </select></div>
                         <small data-role-description>Select a role to define ERP access.</small>
@@ -216,14 +216,10 @@
     {
         return role switch
         {
-            UserRole.SuperAdmin => "Full system access",
-            UserRole.Admin => "General administrative access",
-            UserRole.BookingManager => "Manage bookings and schedules",
-            UserRole.CourtManager => "Manage courts and facilities",
-            UserRole.FinanceManager => "Manage payments and financial records",
-            UserRole.StaffManager => "Manage staff and attendance",
             UserRole.Receptionist => "Handle customers and daily bookings",
-            UserRole.Viewer => "Read-only access",
+            UserRole.BookingManager => "Manage leads, opportunities, and sales pipeline",
+            UserRole.FinanceManager => "Manage payments, invoices, and financial records",
+            UserRole.CourtManager => "Manage courts, facilities, and operations",
             _ => "General ERP access"
         };
     }

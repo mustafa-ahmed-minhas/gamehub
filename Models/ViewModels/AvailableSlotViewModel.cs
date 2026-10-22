@@ -10,5 +10,8 @@ namespace GameHub.Models.ViewModels
         public decimal BasePrice { get; set; }
         public bool IsPeakRate { get; set; }
         public string Message { get; set; } = string.Empty;
+
+        /// <summary>Slot length (minutes) derived from the court's schedule.</summary>
+        public int DurationMinutes { get; set; }
     }
 }

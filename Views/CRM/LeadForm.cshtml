@@ -203,6 +203,7 @@
                             <select asp-for="AssignedToUserId" asp-items="Model.UserOptions">
                                 <option value="">Unassigned</option>
                             </select>
+                            <small class="lead-field-help">Only Sales users are eligible for lead assignment.</small>
                             <span asp-validation-for="AssignedToUserId" class="text-danger lead-field-error"></span>
                         </label>
                         @if (statusLocked)

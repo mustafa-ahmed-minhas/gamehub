@@ -12,5 +12,14 @@ namespace GameHub.Models.ViewModels
         public bool IsPeakRate { get; set; }
         public string CurrencySymbol { get; set; } = "Rs";
         public string Message { get; set; } = string.Empty;
+
+        /// <summary>Set when no usable pricing rule exists for the selected court and slot.</summary>
+        public string? PricingError { get; set; }
+
+        /// <summary>Set when the submitted manual discount had to be adjusted or rejected.</summary>
+        public string? ManualDiscountMessage { get; set; }
+
+        /// <summary>Set when the submitted paid amount had to be adjusted or rejected.</summary>
+        public string? PaidAmountMessage { get; set; }
     }
 }

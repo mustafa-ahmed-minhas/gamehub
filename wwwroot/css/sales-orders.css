@@ -246,6 +246,224 @@
     }
 }
 
+/* ==========================================================================
+   Sales Order Create – Order Items section (premium ERP layout)
+   ========================================================================== */
+
+/* Make the form-lines container span the full width of the 2-column card */
+.sales-order-page .sales-cycle-form-lines {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+/* Each order item becomes a well-structured, spacious card */
+.sales-order-page .sales-cycle-line {
+    padding: 1.5rem 1.75rem;
+    border: 1px solid var(--admin-border, #e5e7eb);
+    border-radius: 1.25rem;
+    box-shadow: 0 4px 16px rgba(20, 16, 9, .06);
+    background: #fff;
+    margin-bottom: .25rem;
+    transition: box-shadow .2s ease;
+}
+
+.sales-order-page .sales-cycle-line:hover {
+    box-shadow: 0 6px 24px rgba(20, 16, 9, .10);
+}
+
+/* Item header: clear number + type badge */
+.sales-order-page .sales-cycle-line-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--admin-border, #e5e7eb);
+}
+
+.sales-order-page .sales-cycle-line-head strong {
+    font-family: var(--font-heading, inherit);
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--admin-text, #17120a);
+    letter-spacing: .01em;
+}
+
+.sales-order-page .sales-cycle-line-head .membership-status-badge {
+    font-size: .78rem;
+    padding: .3rem .75rem;
+    border-radius: .6rem;
+}
+
+/* Grid with logical row grouping – 12 columns */
+.sales-order-page .sales-cycle-line-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    align-items: start;
+}
+
+/* Base label styling */
+.sales-order-page .sales-cycle-line-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    min-width: 0;
+    color: var(--admin-muted, #6d6458);
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+/* Inputs / selects / textareas */
+.sales-order-page .sales-cycle-line-grid input,
+.sales-order-page .sales-cycle-line-grid select,
+.sales-order-page .sales-cycle-line-grid textarea {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0 .85rem;
+    color: var(--admin-text, #17120a);
+    background: #fff;
+    border: 1px solid var(--admin-border, #d1d5db);
+    border-radius: .85rem;
+    font-weight: 700;
+    font-size: .9rem;
+    outline: 0;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sales-order-page .sales-cycle-line-grid input:focus,
+.sales-order-page .sales-cycle-line-grid select:focus,
+.sales-order-page .sales-cycle-line-grid textarea:focus {
+    border-color: var(--sales-gold, #d6a952);
+    box-shadow: 0 0 0 3px rgba(214, 169, 82, .15);
+}
+
+.sales-order-page .sales-cycle-line-grid input[readonly] {
+    color: var(--admin-muted, #6d6458);
+    background: #fbf7ef;
+    cursor: default;
+}
+
+.sales-order-page .sales-cycle-line-grid small {
+    font-size: .72rem;
+    font-weight: 700;
+    color: #dc2626;
+    margin-top: .15rem;
+}
+
+/* ---- Logical row spans (12-column grid) ---- */
+
+/* Row 2: Type (2) + Description (7) + Sport (3) */
+.sales-order-page .so-field-type   { grid-column: span 2; }
+.sales-order-page .so-field-desc   { grid-column: span 7; }
+.sales-order-page .so-field-sport  { grid-column: span 3; }
+
+/* Row 3: Facility, Court, Membership Plan, Quantity (3 each) */
+.sales-order-page .so-field-facility  { grid-column: span 3; }
+.sales-order-page .so-field-court     { grid-column: span 3; }
+.sales-order-page .so-field-plan      { grid-column: span 3; }
+.sales-order-page .so-field-qty       { grid-column: span 3; }
+
+/* Row 4: Unit, Unit Price, Discount %, Tax % (3 each) */
+.sales-order-page .so-field-unit   { grid-column: span 3; }
+.sales-order-page .so-field-price  { grid-column: span 3; }
+.sales-order-page .so-field-disc   { grid-column: span 3; }
+.sales-order-page .so-field-tax    { grid-column: span 3; }
+
+/* Row 5: Service Date, Start Time, End Time, Line Total (3 each) */
+.sales-order-page .so-field-date  { grid-column: span 3; }
+.sales-order-page .so-field-start { grid-column: span 3; }
+.sales-order-page .so-field-end   { grid-column: span 3; }
+
+/* Line Total summary area – full width, visually distinct */
+.sales-order-page .so-line-total {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: .5rem;
+    padding: .85rem 1.25rem;
+    background: linear-gradient(135deg, #fbf7ef 0%, #f5edd9 100%);
+    border: 1px solid var(--sales-line, rgba(214, 169, 82, .22));
+    border-radius: .85rem;
+}
+
+.sales-order-page .so-line-total-label {
+    font-size: .82rem;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--sales-muted, #6d6458);
+}
+
+.sales-order-page .so-line-total-value {
+    font-size: 1.15rem;
+    font-weight: 950;
+    color: var(--sales-ink, #17120a);
+    font-family: var(--font-heading, inherit);
+}
+
+/* Responsive: tablet */
+@media (max-width: 991px) {
+    .sales-order-page .sales-cycle-line {
+        padding: 1.25rem;
+    }
+
+    .sales-order-page .so-field-type   { grid-column: span 3; }
+    .sales-order-page .so-field-desc   { grid-column: span 9; }
+    .sales-order-page .so-field-sport  { grid-column: span 6; }
+    .sales-order-page .so-field-facility { grid-column: span 6; }
+    .sales-order-page .so-field-court  { grid-column: span 6; }
+    .sales-order-page .so-field-plan   { grid-column: span 6; }
+    .sales-order-page .so-field-qty    { grid-column: span 6; }
+    .sales-order-page .so-field-unit   { grid-column: span 6; }
+    .sales-order-page .so-field-price  { grid-column: span 6; }
+    .sales-order-page .so-field-disc   { grid-column: span 6; }
+    .sales-order-page .so-field-tax    { grid-column: span 6; }
+    .sales-order-page .so-field-date   { grid-column: span 4; }
+    .sales-order-page .so-field-start  { grid-column: span 4; }
+    .sales-order-page .so-field-end    { grid-column: span 4; }
+}
+
+/* Responsive: mobile */
+@media (max-width: 575px) {
+    .sales-order-page .sales-cycle-line {
+        padding: 1rem;
+    }
+
+    .sales-order-page .sales-cycle-line-grid {
+        grid-template-columns: 1fr;
+        gap: .75rem;
+    }
+
+    .sales-order-page .sales-cycle-line-grid label,
+    .sales-order-page .so-field-type,
+    .sales-order-page .so-field-desc,
+    .sales-order-page .so-field-sport,
+    .sales-order-page .so-field-facility,
+    .sales-order-page .so-field-court,
+    .sales-order-page .so-field-plan,
+    .sales-order-page .so-field-qty,
+    .sales-order-page .so-field-unit,
+    .sales-order-page .so-field-price,
+    .sales-order-page .so-field-disc,
+    .sales-order-page .so-field-tax,
+    .sales-order-page .so-field-date,
+    .sales-order-page .so-field-start,
+    .sales-order-page .so-field-end {
+        grid-column: 1 / -1;
+    }
+
+    .sales-order-page .so-line-total {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .35rem;
+    }
+}
+
 /* Amount input with a currency prefix, shared by order and payment forms. */
 .sales-cycle-amount-input,
 .payment-amount-input {

@@ -10,7 +10,7 @@ namespace GameHub.Services.Implementations
     {
         private static readonly BookingStatus[] BlockingStatuses =
         {
-            BookingStatus.Pending, BookingStatus.Confirmed,
+            BookingStatus.Pending, BookingStatus.PendingApproval, BookingStatus.Confirmed,
             BookingStatus.CheckedIn, BookingStatus.InProgress
         };
 
@@ -119,28 +119,33 @@ namespace GameHub.Services.Implementations
 
             if (endTime <= startTime)
             {
-                result.Errors.Add("End time must be after start time.");
+                result.Errors.Add("Select an available slot so the booking has a valid time range.");
+                result.FieldErrors["StartTime"] = "Select an available slot so the booking has a valid time range.";
             }
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             if (bookingDate < today)
             {
                 result.Errors.Add("Booking date cannot be in the past.");
+                result.FieldErrors["BookingDate"] = "Booking date cannot be in the past.";
             }
 
             if (bookingDate > today.AddDays(settings.AdvanceBookingDays))
             {
                 result.Errors.Add($"Booking date cannot exceed {settings.AdvanceBookingDays} days in advance.");
+                result.FieldErrors["BookingDate"] = $"Booking date cannot exceed {settings.AdvanceBookingDays} days in advance.";
             }
 
-            if (isWalkIn && !settings.AllowWalkIn)
+            if ((isWalkIn || source == BookingSource.WalkIn) && !settings.AllowWalkIn)
             {
                 result.Errors.Add("Walk-in bookings are currently disabled.");
+                result.FieldErrors["Source"] = "Walk-in bookings are currently disabled.";
             }
 
             if (source == BookingSource.Website && !settings.AllowOnlineBooking)
             {
                 result.Errors.Add("Online booking source is currently disabled.");
+                result.FieldErrors["Source"] = "Online booking source is currently disabled.";
             }
 
             var customer = await _dbContext.Customers.AsNoTracking()
@@ -148,10 +153,28 @@ namespace GameHub.Services.Implementations
             if (customer == null || !customer.IsActive)
             {
                 result.Errors.Add("Selected customer is invalid or inactive.");
+                result.FieldErrors["CustomerId"] = "Selected customer is invalid or inactive.";
             }
             else if (customer.IsBlacklisted)
             {
                 result.Errors.Add("Blacklisted customers cannot create bookings.");
+                result.FieldErrors["CustomerId"] = "Blacklisted customers cannot create bookings.";
+            }
+
+            var sport = await _dbContext.Sports.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sportId);
+            if (sport == null || !sport.IsActive)
+            {
+                result.Errors.Add("Selected sport is invalid or inactive.");
+                result.FieldErrors["SportId"] = "Selected sport is invalid or inactive.";
+            }
+
+            var facility = await _dbContext.Facilities.AsNoTracking()
+                .FirstOrDefaultAsync(f => f.Id == facilityId);
+            if (facility == null || !facility.IsActive)
+            {
+                result.Errors.Add("Selected facility is invalid or inactive.");
+                result.FieldErrors["FacilityId"] = "Selected facility is invalid or inactive.";
             }
 
             var court = await _dbContext.Courts.AsNoTracking()
@@ -160,19 +183,23 @@ namespace GameHub.Services.Implementations
             if (court == null || !court.IsActive)
             {
                 result.Errors.Add("Selected court is invalid or inactive.");
+                result.FieldErrors["CourtId"] = "Selected court is invalid or inactive.";
             }
             else
             {
                 if (court.SportId != sportId || court.FacilityId != facilityId)
                 {
                     result.Errors.Add("Court does not match the selected sport and facility.");
+                    result.FieldErrors["CourtId"] = "Court does not match the selected sport and facility.";
                 }
 
                 if (court.Status is CourtStatus.Maintenance or CourtStatus.Closed)
                 {
-                    result.Errors.Add(court.Status == CourtStatus.Maintenance
+                    var message = court.Status == CourtStatus.Maintenance
                         ? "Selected court is currently under maintenance."
-                        : "Selected court is currently closed.");
+                        : "Selected court is currently closed.";
+                    result.Errors.Add(message);
+                    result.FieldErrors["CourtId"] = message;
                 }
             }
 
@@ -181,21 +208,25 @@ namespace GameHub.Services.Implementations
             if (!availability.IsAvailable)
             {
                 result.Errors.Add(availability.Message);
+                result.FieldErrors["StartTime"] = availability.Message;
             }
 
             if (manualDiscountAmount < 0)
             {
                 result.Errors.Add("Manual discount cannot be negative.");
+                result.FieldErrors["ManualDiscountAmount"] = "Manual discount cannot be negative.";
             }
 
             if (durationMinutes <= 0)
             {
                 result.Errors.Add("Duration must be greater than zero.");
+                result.FieldErrors["DurationMinutes"] = "Duration must be greater than zero.";
             }
 
             if (playerCount < 1)
             {
                 result.Errors.Add("Player count must be at least 1.");
+                result.FieldErrors["PlayerCount"] = "Player count must be at least 1.";
             }
 
             result.IsValid = result.Errors.Count == 0;

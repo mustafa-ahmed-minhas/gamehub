@@ -159,7 +159,7 @@ namespace GameHub.Controllers
                 OrderDate = model.OrderDate,
                 ServiceStartDate = model.ServiceStartDate,
                 ServiceEndDate = model.ServiceEndDate,
-                Status = submitAction == "submit" ? SalesOrderStatus.SubmittedForApproval : SalesOrderStatus.Draft,
+                Status = SalesOrderStatus.Draft,
                 CustomerPurchaseOrderNumber = model.CustomerPurchaseOrderNumber,
                 CustomerReference = model.CustomerReference,
                 Subject = model.Subject,
@@ -191,7 +191,7 @@ namespace GameHub.Controllers
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            TempData.SetToast("success", "Sales Order Created", quotation == null ? "A direct draft sales order was created." : "Approved quotation was converted into a sales order.");
+            TempData.SetToast("success", "Sales Order Created", quotation == null ? "Sales order created successfully." : "Approved quotation was converted into a sales order.");
             return RedirectToAction(nameof(Details), new { id = order.Id });
         }
 

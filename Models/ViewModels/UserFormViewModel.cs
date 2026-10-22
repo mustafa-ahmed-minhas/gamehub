@@ -67,6 +67,18 @@ namespace GameHub.Models.ViewModels
 
         public bool IsEditMode => Id.HasValue;
 
+        /// <summary>
+        /// Returns the allowed roles for user creation/editing dropdown.
+        /// Maps internal enum values to display names: Receptionist, Sales, Finance, Operations.
+        /// </summary>
+        public static IReadOnlyList<(UserRole Role, string DisplayName)> AllowedRoles => new List<(UserRole, string)>
+        {
+            (UserRole.Receptionist, "Receptionist"),
+            (UserRole.BookingManager, "Sales"),
+            (UserRole.FinanceManager, "Finance"),
+            (UserRole.CourtManager, "Operations")
+        }.AsReadOnly();
+
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             var dateOfBirthError = DateOfBirthRules.Validate(DateOfBirth);

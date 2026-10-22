@@ -821,14 +821,42 @@ namespace GameHub.Controllers
             if (!string.IsNullOrWhiteSpace(model.WhatsAppNumber) && !HasValidPakPhone(model.WhatsAppNumber)) ModelState.AddModelError(nameof(model.WhatsAppNumber), PhoneFormatMessage);
             if (model.PreferredDate.HasValue && model.PreferredDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)) ModelState.AddModelError(nameof(model.PreferredDate), "Preferred date cannot be in the past.");
             if (id == null && model.NextFollowUpAt.HasValue && model.NextFollowUpAt.Value < DateTime.UtcNow) ModelState.AddModelError(nameof(model.NextFollowUpAt), "Next follow-up cannot be scheduled in the past.");
-            if (model.AssignedToUserId.HasValue && !await _dbContext.Users.AnyAsync(x => x.Id == model.AssignedToUserId && x.IsActive))
+            if (model.AssignedToUserId.HasValue)
             {
-                // An existing owner may have been deactivated after the record was
-                // assigned. Keeping that owner must still be possible so unrelated
-                // edits can be saved without silently dropping the assignment.
-                var keepsExistingOwner = id.HasValue
-                    && await _dbContext.Leads.AnyAsync(x => x.Id == id && x.AssignedToUserId == model.AssignedToUserId);
-                if (!keepsExistingOwner) ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user is invalid or no longer active.");
+                var assignedUser = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == model.AssignedToUserId);
+                if (assignedUser == null)
+                {
+                    ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user does not exist.");
+                }
+                else
+                {
+                    var isSalesRole = assignedUser.Role == UserRole.BookingManager;
+                    var isActive = assignedUser.IsActive;
+                    var keepsExistingOwner = id.HasValue
+                        && await _dbContext.Leads.AnyAsync(x => x.Id == id && x.AssignedToUserId == model.AssignedToUserId);
+
+                    // For new assignments, user must be active and have Sales role.
+                    // For existing assignments, we allow keeping the owner even if inactive or role changed.
+                    if (!keepsExistingOwner)
+                    {
+                        if (!isActive)
+                        {
+                            ModelState.AddModelError(nameof(model.AssignedToUserId), "Assigned user is no longer active.");
+                        }
+                        else if (!isSalesRole)
+                        {
+                            ModelState.AddModelError(nameof(model.AssignedToUserId), "Only users with the Sales role can be assigned to leads.");
+                        }
+                    }
+                    else if (!isActive)
+                    {
+                        // Existing owner kept but inactive - allow but no error (UserOptionsAsync will show them as inactive)
+                    }
+                    else if (!isSalesRole)
+                    {
+                        // Existing owner kept but no longer Sales role - allow but no error
+                    }
+                }
             }
             if (model.CustomerId.HasValue && !await _dbContext.Customers.AnyAsync(x => x.Id == model.CustomerId)) ModelState.AddModelError(nameof(model.CustomerId), "Selected customer no longer exists.");
             if (model.SportId.HasValue && !await _dbContext.Sports.AnyAsync(x => x.Id == model.SportId)) ModelState.AddModelError(nameof(model.SportId), "Selected sport no longer exists.");
@@ -902,7 +930,7 @@ namespace GameHub.Controllers
         private async Task<LeadFormViewModel> AddLeadOptionsAsync(LeadFormViewModel model)
         {
             model.CustomerOptions = await _dbContext.Customers.AsNoTracking().OrderBy(x => x.FirstName).Select(x => new SelectListItem(x.FirstName + " " + x.LastName + " - " + x.PrimaryPhone, x.Id.ToString(), x.Id == model.CustomerId)).ToListAsync();
-            model.UserOptions = await UserOptionsAsync(model.AssignedToUserId);
+            model.UserOptions = await LeadUserOptionsAsync(model.AssignedToUserId);
             model.SportOptions = await SportOptionsAsync(model.SportId);
             model.FacilityOptions = await _dbContext.Facilities.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.FacilityId)).ToListAsync();
             model.CourtOptions = await _dbContext.Courts.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.CourtId)).ToListAsync();
@@ -921,6 +949,41 @@ namespace GameHub.Controllers
             model.CourtOptions = await _dbContext.Courts.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.CourtId)).ToListAsync();
             model.MembershipPlanOptions = await _dbContext.MembershipPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.MembershipPlanId)).ToListAsync();
             return model;
+        }
+
+        /// <summary>
+        /// Users available for lead assignment (active Sales-role users only).
+        /// When a lead is already assigned to a user who has since been deactivated
+        /// or changed roles, that user is still listed and selected (labelled
+        /// "(inactive)") so the dropdown reflects the saved owner instead of
+        /// showing "Unassigned" and silently clearing the assignment on next save.
+        /// Display format: "UserID | Username | [Sales]"
+        /// </summary>
+        private async Task<List<SelectListItem>> LeadUserOptionsAsync(int? selected = null)
+        {
+            var selectedId = selected ?? 0;
+            var users = await _dbContext.Users.AsNoTracking()
+                .Where(x => (x.IsActive && x.Role == UserRole.BookingManager) || x.Id == selectedId)
+                .OrderBy(x => x.IsActive && x.Role == UserRole.BookingManager ? 0 : 1)
+                .ThenBy(x => x.FirstName)
+                .Select(x => new { x.Id, x.FirstName, x.LastName, x.Email, x.IsActive, x.Role })
+                .ToListAsync();
+
+            if (!users.Any())
+            {
+                return new List<SelectListItem>
+                {
+                    new SelectListItem("No eligible Sales users available", "", false, true) { Disabled = true }
+                };
+            }
+
+            return users.Select(x =>
+            {
+                var isEligible = x.IsActive && x.Role == UserRole.BookingManager;
+                var username = string.IsNullOrWhiteSpace(x.Email) ? $"{x.FirstName}.{x.LastName}" : x.Email;
+                var label = $"{x.Id} | {username} | [Sales]" + (isEligible ? string.Empty : " (inactive)");
+                return new SelectListItem(label, x.Id.ToString(), x.Id == selectedId);
+            }).ToList();
         }
 
         /// <summary>

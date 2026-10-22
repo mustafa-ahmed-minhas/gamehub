@@ -70,25 +70,17 @@
         let emailAvailable = true;
 
         const roleSummaries = {
-            SuperAdmin: "This user will have complete access to all ERP modules.",
-            Admin: "This user will have general administrative access across the ERP.",
-            BookingManager: "This user will manage bookings, customers, and schedules.",
-            CourtManager: "This user will manage courts and facility availability.",
-            FinanceManager: "This user will manage payments and financial records.",
-            StaffManager: "This user will manage staff and attendance.",
             Receptionist: "This user will handle bookings, customers, and front-desk operations.",
-            Viewer: "This user will have read-only access."
+            BookingManager: "This user will manage leads, opportunities, and sales pipeline.",
+            FinanceManager: "This user will manage payments and financial records.",
+            CourtManager: "This user will manage courts, facilities, and operations."
         };
 
         const displayRoleNames = {
-            SuperAdmin: "Super Admin",
-            Admin: "Admin",
-            BookingManager: "Booking Manager",
-            CourtManager: "Court Manager",
-            FinanceManager: "Finance Manager",
-            StaffManager: "Staff Manager",
             Receptionist: "Receptionist",
-            Viewer: "Viewer"
+            BookingManager: "Sales",
+            FinanceManager: "Finance",
+            CourtManager: "Operations"
         };
 
         const updatePreview = () => {
