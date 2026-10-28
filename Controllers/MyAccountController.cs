@@ -248,7 +248,8 @@ namespace GameHub.Controllers
             quotation.Status = SalesQuotationStatus.Accepted;
             quotation.AcceptedAt = DateTime.UtcNow;
             quotation.UpdatedAt = DateTime.UtcNow;
-            _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = quotation.OpportunityId, ActivityType = OpportunityActivityType.Proposal, Subject = "Quotation accepted by customer", Description = $"{quotation.QuotationNumber} accepted through customer portal.", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = quotation.CreatedByUserId, IsCompleted = true });
+            if (quotation.OpportunityId.HasValue)
+                _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = quotation.OpportunityId.Value, ActivityType = OpportunityActivityType.Proposal, Subject = "Quotation accepted by customer", Description = $"{quotation.QuotationNumber} accepted through customer portal.", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = quotation.CreatedByUserId, IsCompleted = true });
             await _dbContext.SaveChangesAsync();
             TempData.SetToast("success", "Quotation Accepted", "Your quotation has been accepted.");
             return RedirectToAction(nameof(QuotationDetails), new { id });
@@ -273,7 +274,8 @@ namespace GameHub.Controllers
             quotation.RejectedAt = DateTime.UtcNow;
             quotation.RejectionReason = reason.Trim();
             quotation.UpdatedAt = DateTime.UtcNow;
-            _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = quotation.OpportunityId, ActivityType = OpportunityActivityType.Proposal, Subject = "Quotation rejected by customer", Description = $"{quotation.QuotationNumber} rejected. Reason: {quotation.RejectionReason}", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = quotation.CreatedByUserId, IsCompleted = true });
+            if (quotation.OpportunityId.HasValue)
+                _dbContext.OpportunityActivities.Add(new OpportunityActivity { OpportunityId = quotation.OpportunityId.Value, ActivityType = OpportunityActivityType.Proposal, Subject = "Quotation rejected by customer", Description = $"{quotation.QuotationNumber} rejected. Reason: {quotation.RejectionReason}", ActivityDate = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, CreatedByUserId = quotation.CreatedByUserId, IsCompleted = true });
             await _dbContext.SaveChangesAsync();
             TempData.SetToast("info", "Quotation Rejected", "Your response has been recorded.");
             return RedirectToAction(nameof(QuotationDetails), new { id });

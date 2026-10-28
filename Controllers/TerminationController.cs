@@ -59,17 +59,20 @@ namespace GameHub.Controllers
         private readonly ITerminationNumberService _numberService;
         private readonly IJobApplicationFileService _fileService;
         private readonly ISimplePdfGenerator _pdfGenerator;
+        private readonly ILogger<TerminationController> _logger;
 
         public TerminationController(
             ApplicationDbContext dbContext,
             ITerminationNumberService numberService,
             IJobApplicationFileService fileService,
-            ISimplePdfGenerator pdfGenerator)
+            ISimplePdfGenerator pdfGenerator,
+            ILogger<TerminationController> logger)
         {
             _dbContext = dbContext;
             _numberService = numberService;
             _fileService = fileService;
             _pdfGenerator = pdfGenerator;
+            _logger = logger;
         }
 
         // ------------------------------------------------------------------
@@ -177,8 +180,9 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
+                _logger.LogError(ex, "Failed to create termination request for employee {EmployeeId}.", model.EmployeeId);
                 ModelState.AddModelError(string.Empty, "A request with this reference already exists. Please try again.");
                 model.ReferenceNumber ??= await _numberService.GenerateNextReferenceAsync();
                 return View("Form", model);
@@ -274,8 +278,9 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
+                _logger.LogError(ex, "Failed to update termination request {RequestId}.", request.Id);
                 ModelState.AddModelError(string.Empty, "The request could not be saved. Please review the values and try again.");
                 return View("Form", model);
             }
@@ -416,7 +421,16 @@ namespace GameHub.Controllers
                 ChangedAt = DateTime.UtcNow
             });
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to transition termination request {RequestId} from {FromStatus} to {ToStatus}.", request.Id, fromStatus, status);
+                TempData.SetToast("error", "Update Failed", "The termination status could not be changed. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
 
             TempData.SetToast("success", "Success", $"Termination {request.ReferenceNumber} moved to {status.GetDisplayName()}.");
             return SafeRedirect(returnUrl, id);
@@ -456,13 +470,25 @@ namespace GameHub.Controllers
             var bytes = _pdfGenerator.Generate(TerminationLetterComposer.LetterTitle, lines);
 
             // Replace any previously stored letter; supporting documents are untouched.
-            foreach (var existing in request.Documents.Where(document => document.IsLetter).ToList())
+            // Old files are only deleted after the new letter is committed.
+            var replacedLetters = request.Documents.Where(document => document.IsLetter).ToList();
+            foreach (var existing in replacedLetters)
             {
-                await _fileService.DeleteAsync(existing.StoredFileName, DocumentsFolder);
                 _dbContext.TerminationDocuments.Remove(existing);
             }
 
-            var storedName = await _fileService.SaveBytesAsync(bytes, DocumentsFolder);
+            string storedName;
+            try
+            {
+                storedName = await _fileService.SaveBytesAsync(bytes, DocumentsFolder);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(ex, "Failed to write the generated termination letter for request {RequestId}.", request.Id);
+                TempData.SetToast("error", "Generation Failed", "The termination letter could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
+
             _dbContext.TerminationDocuments.Add(new TerminationDocument
             {
                 TerminationRequestId = request.Id,
@@ -477,7 +503,23 @@ namespace GameHub.Controllers
             });
 
             request.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to store the generated termination letter for request {RequestId}.", request.Id);
+                await DeleteFileQuietlyAsync(storedName);
+                TempData.SetToast("error", "Generation Failed", "The termination letter could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
+
+            foreach (var existing in replacedLetters)
+            {
+                await DeleteFileQuietlyAsync(existing.StoredFileName);
+            }
 
             TempData.SetToast("success", "Success", "The termination letter was generated.");
             return SafeRedirect(returnUrl, id);
@@ -509,9 +551,9 @@ namespace GameHub.Controllers
                 return SafeRedirect(returnUrl, id);
             }
 
-            foreach (var existing in request.Documents.Where(document => document.IsLetter).ToList())
+            var replacedLetters = request.Documents.Where(document => document.IsLetter).ToList();
+            foreach (var existing in replacedLetters)
             {
-                await _fileService.DeleteAsync(existing.StoredFileName, DocumentsFolder);
                 _dbContext.TerminationDocuments.Remove(existing);
             }
 
@@ -529,7 +571,23 @@ namespace GameHub.Controllers
             });
 
             request.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to store the uploaded termination letter for request {RequestId}.", request.Id);
+                await DeleteFileQuietlyAsync(result.StoredFileName);
+                TempData.SetToast("error", "Upload Failed", "The termination letter could not be uploaded. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
+
+            foreach (var existing in replacedLetters)
+            {
+                await DeleteFileQuietlyAsync(existing.StoredFileName);
+            }
 
             TempData.SetToast("success", "Success", "The termination letter was uploaded.");
             return SafeRedirect(returnUrl, id);
@@ -596,7 +654,22 @@ namespace GameHub.Controllers
             }
 
             request.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to store {Count} supporting document(s) for termination request {RequestId}.", saved.Count, request.Id);
+                foreach (var (storedName, _) in saved)
+                {
+                    await DeleteFileQuietlyAsync(storedName);
+                }
+
+                TempData.SetToast("error", "Upload Failed", "The documents could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
 
             TempData.SetToast("success", "Success", $"{(saved.Count == 1 ? "1 document was" : $"{saved.Count} documents were")} uploaded.");
             return SafeRedirect(returnUrl, id);
@@ -614,10 +687,21 @@ namespace GameHub.Controllers
             }
 
             var requestId = document.TerminationRequestId;
-            await _fileService.DeleteAsync(document.StoredFileName, DocumentsFolder);
             _dbContext.TerminationDocuments.Remove(document);
             await TouchRequestAsync(requestId);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to remove termination document {DocumentId}.", document.Id);
+                TempData.SetToast("error", "Delete Failed", "The document could not be removed. Please try again.");
+                return SafeRedirect(returnUrl, requestId);
+            }
+
+            await DeleteFileQuietlyAsync(document.StoredFileName);
 
             TempData.SetToast("success", "Success", "The document was removed.");
             return SafeRedirect(returnUrl, requestId);
@@ -742,6 +826,17 @@ namespace GameHub.Controllers
             model.EmployeeName = request.Employee is null ? null : $"{request.Employee.FirstName} {request.Employee.LastName}".Trim();
             PopulateClearanceOptions(model);
 
+            // No unique index backs this pair, so duplicates are blocked here.
+            var duplicateCategory = await _dbContext.ClearanceItems.AnyAsync(item =>
+                item.IsActive
+                && item.TerminationRequestId == request.Id
+                && item.Category == model.Category);
+            if (duplicateCategory)
+            {
+                ModelState.AddModelError(nameof(model.Category),
+                    "This clearance category is already on the checklist for this request.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return View("ClearanceForm", model);
@@ -767,7 +862,17 @@ namespace GameHub.Controllers
 
             _dbContext.ClearanceItems.Add(item);
             await TouchRequestAsync(request.Id);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to add a clearance item to termination request {RequestId}.", request.Id);
+                ModelState.AddModelError(string.Empty, "The clearance item could not be saved. Please try again.");
+                return View("ClearanceForm", model);
+            }
 
             TempData.SetToast("success", "Success", "The clearance item was added.");
             return RedirectToAction(nameof(Details), new { id = request.Id });
@@ -846,6 +951,17 @@ namespace GameHub.Controllers
                 : $"{item.TerminationRequest.Employee.FirstName} {item.TerminationRequest.Employee.LastName}".Trim();
             PopulateClearanceOptions(model);
 
+            var duplicateCategory = await _dbContext.ClearanceItems.AnyAsync(other =>
+                other.IsActive
+                && other.TerminationRequestId == item.TerminationRequestId
+                && other.Category == model.Category
+                && other.Id != item.Id);
+            if (duplicateCategory)
+            {
+                ModelState.AddModelError(nameof(model.Category),
+                    "This clearance category is already on the checklist for this request.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return View("ClearanceForm", model);
@@ -864,7 +980,17 @@ namespace GameHub.Controllers
             item.UpdatedAt = DateTime.UtcNow;
 
             await TouchRequestAsync(item.TerminationRequestId);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update clearance item {ClearanceItemId}.", item.Id);
+                ModelState.AddModelError(string.Empty, "The clearance item could not be saved. Please try again.");
+                return View("ClearanceForm", model);
+            }
 
             TempData.SetToast("success", "Success", "The clearance item was updated.");
             return RedirectToAction(nameof(Details), new { id = item.TerminationRequestId });
@@ -902,7 +1028,17 @@ namespace GameHub.Controllers
             item.UpdatedAt = DateTime.UtcNow;
 
             await TouchRequestAsync(item.TerminationRequestId);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update clearance item {ClearanceItemId} to {Status}.", item.Id, status);
+                TempData.SetToast("error", "Update Failed", "The clearance status could not be changed. Please try again.");
+                return SafeRedirect(returnUrl, item.TerminationRequestId);
+            }
 
             TempData.SetToast("success", "Success", $"The clearance item was marked as {status.GetDisplayName()}.");
             return SafeRedirect(returnUrl, item.TerminationRequestId);
@@ -931,7 +1067,17 @@ namespace GameHub.Controllers
             item.UpdatedAt = DateTime.UtcNow;
 
             await TouchRequestAsync(item.TerminationRequestId);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to remove clearance item {ClearanceItemId}.", item.Id);
+                TempData.SetToast("error", "Delete Failed", "The clearance item could not be removed. Please try again.");
+                return SafeRedirect(returnUrl, item.TerminationRequestId);
+            }
 
             TempData.SetToast("success", "Success", "The clearance item was removed.");
             return SafeRedirect(returnUrl, item.TerminationRequestId);
@@ -965,7 +1111,17 @@ namespace GameHub.Controllers
 
             SeedClearanceItems(request);
             await TouchRequestAsync(request.Id);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to seed the clearance checklist for termination request {RequestId}.", request.Id);
+                TempData.SetToast("error", "Save Failed", "The clearance checklist could not be created. Please try again.");
+                return SafeRedirect(returnUrl, id);
+            }
 
             TempData.SetToast("success", "Success", "The standard clearance checklist was created.");
             return SafeRedirect(returnUrl, id);
@@ -1158,6 +1314,11 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.EmployeeId),
                     "This employee already has an active termination request. Complete or reject it before creating another.");
             }
+
+            if (model.NoticePeriod != null && !DefaultNoticePeriods.Contains(model.NoticePeriod))
+            {
+                ModelState.AddModelError(nameof(model.NoticePeriod), "Select a notice period from the list.");
+            }
         }
 
         // ------------------------------------------------------------------
@@ -1298,6 +1459,23 @@ namespace GameHub.Controllers
             model.ResponsibleDepartment = TrimOptional(model.ResponsibleDepartment);
             model.OutstandingItems = TrimOptional(model.OutstandingItems);
             model.Remarks = TrimOptional(model.Remarks);
+        }
+
+        private async Task DeleteFileQuietlyAsync(string? storedFileName)
+        {
+            if (string.IsNullOrWhiteSpace(storedFileName))
+            {
+                return;
+            }
+
+            try
+            {
+                await _fileService.DeleteAsync(storedFileName, DocumentsFolder);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not delete termination file {StoredFileName}.", storedFileName);
+            }
         }
 
         private IActionResult SafeRedirect(string? returnUrl, int requestId) =>

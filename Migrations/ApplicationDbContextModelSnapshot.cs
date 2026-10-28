@@ -4329,7 +4329,7 @@ namespace GameHub.Migrations
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
 
-                    b.Property<int>("OpportunityId")
+                    b.Property<int?>("OpportunityId")
                         .HasColumnType("int");
 
                     b.Property<DateOnly>("QuotationDate")
@@ -6026,8 +6026,7 @@ namespace GameHub.Migrations
                     b.HasOne("GameHub.Models.Entities.Opportunity", "Opportunity")
                         .WithMany()
                         .HasForeignKey("OpportunityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AssignedToUser");
 

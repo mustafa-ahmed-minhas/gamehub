@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using GameHub.Helpers;
 using GameHub.Models.Entities;
 using GameHub.Models.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -128,6 +129,22 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            if (RequestDate.HasValue && RequestDate.Value > today)
+            {
+                yield return new ValidationResult(
+                    "Request date cannot be in the future.",
+                    new[] { nameof(RequestDate) });
+            }
+
+            if (!IsEditMode && ProposedLastWorkingDay.HasValue && ProposedLastWorkingDay.Value < today)
+            {
+                yield return new ValidationResult(
+                    "The proposed last working day cannot be in the past.",
+                    new[] { nameof(ProposedLastWorkingDay) });
+            }
+
             if (RequestDate.HasValue && ProposedLastWorkingDay.HasValue
                 && ProposedLastWorkingDay.Value < RequestDate.Value)
             {
@@ -154,6 +171,7 @@ namespace GameHub.Models.ViewModels
         public ClearanceCategory Category { get; set; } = ClearanceCategory.ITAssets;
 
         [MaxLength(120, ErrorMessage = "Responsible person cannot exceed 120 characters.")]
+        [RegularExpression(HrValidationRules.PersonNamePattern, ErrorMessage = HrValidationRules.PersonNameMessage)]
         public string? ResponsiblePerson { get; set; }
 
         [MaxLength(100, ErrorMessage = "Department cannot exceed 100 characters.")]

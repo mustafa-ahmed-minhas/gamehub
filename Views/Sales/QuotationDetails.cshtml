@@ -17,7 +17,7 @@
             ? "expired"
             : q.RemainingValidityDays <= 2 ? "pending" : "confirmed";
 
-    var subject = string.IsNullOrWhiteSpace(q.Subject) ? q.Opportunity.Name : q.Subject;
+    var subject = string.IsNullOrWhiteSpace(q.Subject) ? (q.Opportunity != null ? q.Opportunity.Name : string.Empty) : q.Subject;
     var initials = string.Join("", (q.Customer.FullName ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
     var lineCount = q.Items.Count;
     var documentCompleteness = Math.Clamp((int)Math.Round(new[] { lineCount > 0, q.Subtotal > 0, q.ValidUntil >= q.QuotationDate, !string.IsNullOrWhiteSpace(q.TermsAndConditions) }
@@ -87,7 +87,7 @@
                     {
                         <span class="membership-status-badge suspended"><i></i>Sales Order Created</span>
                     }
-                    <span class="role-badge">@q.Opportunity.Stage.GetDisplayName()</span>
+                    <span class="role-badge">@(q.Opportunity != null ? q.Opportunity.Stage.GetDisplayName() : string.Empty)</span>
                 </div>
             </div>
         </div>
@@ -142,6 +142,8 @@
 
             <article class="customer-info-card admin-reveal">
                 <header><i class="bi bi-bullseye"></i><div><h2>Opportunity Details</h2><p>Source opportunity that produced this quotation.</p></div></header>
+                @if (q.Opportunity != null)
+                {
                 <dl class="customer-meta-grid">
                     <div><dt>Number</dt><dd>@q.Opportunity.OpportunityNumber</dd></div>
                     <div><dt>Name</dt><dd>@q.Opportunity.Name</dd></div>
@@ -151,6 +153,11 @@
                 <div class="customer-detail-actions">
                     <a class="admin-secondary-button" asp-controller="CRM" asp-action="OpportunityDetails" asp-route-id="@q.Opportunity.Id"><i class="bi bi-clock-history"></i> View CRM History</a>
                 </div>
+                }
+                else
+                {
+                    <div class="customer-empty-copy">This is a direct quotation with no linked opportunity.</div>
+                }
             </article>
 
             <article class="customer-info-card admin-reveal">
@@ -276,16 +283,26 @@
 
             <article class="customer-side-card admin-reveal">
                 <header><i class="bi bi-clipboard2-check"></i><h2>Sales Order</h2></header>
-                @if (q.IsReadyForSalesOrder)
-                {
-                    <p>This accepted quotation can now be converted into a sales order.</p>
-                    <a class="admin-action-button" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@q.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
-                }
-                else
-                {
-                    <p class="customer-empty-copy">@(q.SalesOrderCreated ? "A sales order has already been created for this quotation." : "Only accepted quotations can be converted into sales orders.")</p>
-                    <button class="admin-secondary-button" type="button" disabled><i class="bi bi-lock"></i> Create Sales Order</button>
-                }
+                <!-- Sales Order Creation Section -->
+<article class="customer-side-card admin-reveal">
+    <header><i class="bi bi-clipboard2-check"></i><h2>Sales Order</h2></header>
+    <div class="sales-order-eligibility">
+        @if (q.Status == SalesQuotationStatus.Confirmed)
+        {
+            <p>This accepted quotation can now be converted into a sales order.</p>
+            <a class="admin-action-button" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@q.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
+        }
+        else if (q.SalesOrderCreated)
+        {
+            <span class="suspended"><i></i>Sales Order Created</span>
+        }
+        else
+        {
+            <p class="customer-empty-copy">Only quotations with status <strong>Confirmed</strong> can be converted into sales orders.</p>
+            <button class="admin-secondary-button" type="button" disabled><i class="bi bi-lock"></i> Create Sales Order</button>
+        }
+    </div>
+</article>
             </article>
 
             <article class="customer-side-card admin-reveal">

@@ -1,0 +1,119 @@
+@model SalesQuotationFormViewModel
+@using GameHub.Helpers
+@using GameHub.Models.Enums
+@{
+    var isEdit = Model.Id.HasValue;
+    var quotationStatus = Model.Status;
+    var canConfirm = quotationStatus == SalesQuotationStatus.Draft;
+    ViewData["Title"] = "Edit Quotation";
+    Layout = "_AdminLayout";
+}
+
+<section class="users-page customer-form-page sales-cycle-page">
+    <header class="users-header admin-reveal">
+        <div>
+            <span class="admin-label">Sales Management</span>
+            <h1>Edit Quotation</h1>
+            <p>Review quotation details before confirming. All fields are read-only.</p>
+        </div>
+        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-arrow-left"></i> Back to Sales</a>
+    </header>
+
+    <div class="customer-form-main">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <section class="customer-form-card">
+            <h2><i class="bi bi-bullseye"></i> Opportunity and Customer</h2>
+            <label><span>Opportunity</span><input value="@Model.OpportunityLabel ?? "None (Direct Quotation)"" readonly /></label>
+            <label><span>Customer</span><input value="@Model.CustomerLabel" readonly /></label>
+            <label><span>Assigned Owner</span><input value="@(Model.UserOptions.FirstOrDefault(x => x.Selected)?.Text ?? "Unassigned")" readonly /></label>
+            <label><span>Customer Reference</span><input value="@Model.CustomerReference" readonly /></label>
+        </section>
+
+        <section class="customer-form-card">
+            <h2><i class="bi bi-file-earmark-text"></i> Quotation Information</h2>
+            <label><span>Quotation Date</span><input value="@Model.QuotationDate.ToString("yyyy-MM-dd")" readonly /></label>
+            <label><span>Valid Until</span><input value="@Model.ValidUntil.ToString("yyyy-MM-dd")" readonly /></label>
+            <label><span>Subject</span><input value="@Model.Subject" readonly /></label>
+            <label><span>Introduction</span><textarea readonly>@Model.Introduction</textarea></label>
+        </section>
+
+        <section class="customer-form-card">
+            <div class="sales-cycle-section-head">
+                <h2><i class="bi bi-list-check"></i> Line Items</h2>
+            </div>
+            <div class="sales-cycle-form-lines" data-sales-lines>
+                @for (var i = 0; i < Model.Items.Count; i++)
+                {
+                    var item = Model.Items[i];
+                    <article class="sales-cycle-line" data-sales-line>
+                        <div class="sales-cycle-line-head">
+                            <strong>Line @(i + 1)</strong>
+                        </div>
+                        <div class="sales-cycle-line-grid">
+                            <label>Item Type<input value="@item.ItemType.GetDisplayName()" readonly /></label>
+                            <label>Sport<input value="@(item.SportId.HasValue ? Model.SportOptions.FirstOrDefault(x => x.Value == item.SportId.ToString())?.Text : "Any")" readonly /></label>
+                            <label>Facility<input value="@(item.FacilityId.HasValue ? Model.FacilityOptions.FirstOrDefault(x => x.Value == item.FacilityId.ToString())?.Text : "Any")" readonly /></label>
+                            <label>Court<input value="@(item.CourtId.HasValue ? Model.CourtOptions.FirstOrDefault(x => x.Value == item.CourtId.ToString())?.Text : "Any")" readonly /></label>
+                            <label>Membership<input value="@(item.MembershipPlanId.HasValue ? Model.MembershipPlanOptions.FirstOrDefault(x => x.Value == item.MembershipPlanId.ToString())?.Text : "None")" readonly /></label>
+                            <label class="wide">Description<input value="@item.Description" readonly /></label>
+                            <label>Quantity<input value="@item.Quantity.ToString("0.##")" readonly /></label>
+                            <label>Unit<input value="@item.UnitOfMeasure" readonly /></label>
+                            <label>Unit Price<input value="@item.UnitPrice.ToString("N2")" readonly /></label>
+                            <label>Discount %<input value="@item.DiscountPercentage.ToString("0.##")" readonly /></label>
+                            <label>Tax %<input value="@item.TaxPercentage.ToString("0.##")" readonly /></label>
+                            <label>Line Total<input value="@item.LineTotal.ToString("N2")" readonly /></label>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="customer-form-card">
+            <h2><i class="bi bi-journal-richtext"></i> Terms and Notes</h2>
+            <label><span>Terms and Conditions</span><textarea readonly>@Model.TermsAndConditions</textarea></label>
+            <label><span>Customer Notes</span><textarea readonly>@Model.CustomerNotes</textarea></label>
+            <label><span>Internal Notes</span><textarea readonly>@Model.InternalNotes</textarea></label>
+        </section>
+
+        <section class="customer-form-card">
+            <h2><i class="bi bi-calculator"></i> Financial Summary</h2>
+            <div class="sales-cycle-totals">
+                <span>Subtotal <strong>@Model.CurrencySymbol @Model.Subtotal.ToString("N2")</strong></span>
+                <span>Line Discounts <strong>@Model.CurrencySymbol @Model.LineDiscountTotal.ToString("N2")</strong></span>
+                <span>Tax <strong>@Model.CurrencySymbol @Model.TaxTotal.ToString("N2")</strong></span>
+                <span class="grand">Grand Total <strong>@Model.CurrencySymbol @Model.GrandTotal.ToString("N2")</strong></span>
+            </div>
+            <label class="sales-cycle-manual-discount">
+                <span>Manual Discount</span>
+                <input value="@Model.ManualDiscountAmount.ToString("N2")" readonly />
+            </label>
+        </section>
+
+        <section class="customer-form-card">
+            <h2><i class="bi bi-info-circle"></i> Status</h2>
+            <label><span>Current Status</span><span class="@quotationStatus.Badge()"><i></i>@quotationStatus.GetDisplayName()</span></label>
+            @if (canConfirm)
+            {
+                <label><span>Action</span></label>
+                <form asp-action="ConfirmQuotation" asp-route-id="@Model.Id" method="post" class="confirm-action">
+                    @Html.AntiForgeryToken()
+                    <button class="admin-action-button" type="submit" data-loading-button><i class="bi bi-check2-circle"></i> Confirm Quotation</button>
+                    <span class="confirm-hint">Confirming will set this quotation to <strong>Confirmed</strong> and make it read-only. Only Draft quotations can be confirmed.</span>
+                </form>
+            }
+            else
+            {
+                <label><span>Action</span><span class="membership-status-badge suspended"><i></i>No action available</span></label>
+                <span class="confirm-hint">Only Draft quotations can be confirmed. This quotation is already @quotationStatus.GetDisplayName().</span>
+            }
+        </section>
+    </div>
+
+    <div class="customer-save-bar" data-save-bar>
+        <a class="admin-secondary-button" asp-action="QuotationDetails" asp-route-id="@Model.Id">View Details</a>
+        <a class="admin-secondary-button" asp-action="Index" asp-route-tab="quotations">Back to List</a>
+    </div>
+</section>
+
+@section Styles { <link rel="stylesheet" href="~/css/sales.css" asp-append-version="true" /> }

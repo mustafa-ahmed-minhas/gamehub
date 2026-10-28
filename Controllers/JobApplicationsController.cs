@@ -23,17 +23,20 @@ namespace GameHub.Controllers
         private readonly IJobApplicationNumberService _applicationNumberService;
         private readonly IJobApplicationFileService _fileService;
         private readonly IJobApplicationDuplicateService _duplicateService;
+        private readonly ILogger<JobApplicationsController> _logger;
 
         public JobApplicationsController(
             ApplicationDbContext dbContext,
             IJobApplicationNumberService applicationNumberService,
             IJobApplicationFileService fileService,
-            IJobApplicationDuplicateService duplicateService)
+            IJobApplicationDuplicateService duplicateService,
+            ILogger<JobApplicationsController> logger)
         {
             _dbContext = dbContext;
             _applicationNumberService = applicationNumberService;
             _fileService = fileService;
             _duplicateService = duplicateService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -147,17 +150,17 @@ namespace GameHub.Controllers
                 TempData.SetToast("success", "Success", $"Application {application.ApplicationNumber} submitted successfully.");
                 return RedirectToAction(nameof(Index));
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
                 // Guards the race between the pre-save duplicate check and the unique DB indexes.
+                _logger.LogError(ex, "Failed to create job application for posting {JobPostingId}.", model.JobPostingId);
                 await _fileService.DeleteAsync(cvResult.StoredFileName!, CvFolder);
                 foreach (var (stored, _, _) in savedDocuments)
                 {
                     await _fileService.DeleteAsync(stored, DocumentsFolder);
                 }
 
-                ModelState.AddModelError(string.Empty,
-                    "An application for this job with the same email, phone number, or National ID already exists. Duplicate applications are not allowed.");
+                AddApplicationConstraintErrors(ex);
                 return View("Form", await PopulateOptionsAsync(model));
             }
         }
@@ -339,11 +342,11 @@ namespace GameHub.Controllers
                 TempData.SetToast("success", "Success", $"Application {application.ApplicationNumber} updated successfully.");
                 return RedirectToAction(nameof(Details), new { id = application.Id });
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
+                _logger.LogError(ex, "Failed to update job application {ApplicationId}.", id);
                 await DeleteUploadedAsync(newCvStoredName, savedDocuments);
-                ModelState.AddModelError(string.Empty,
-                    "An application for this job with the same email, phone number, or National ID already exists. Duplicate applications are not allowed.");
+                AddApplicationConstraintErrors(ex);
                 await RefillEditContextAsync(model, application);
                 return View("Form", model);
             }
@@ -370,9 +373,18 @@ namespace GameHub.Controllers
             {
                 application.Status = JobApplicationStatus.Shortlisted;
                 application.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success",
-                    $"{application.FirstName} {application.LastName} has been shortlisted for {application.ApplicationNumber}.");
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                    TempData.SetToast("success", "Success",
+                        $"{application.FirstName} {application.LastName} has been shortlisted for {application.ApplicationNumber}.");
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Failed to shortlist job application {ApplicationId}.", id);
+                    TempData.SetToast("error", "Update Failed", "The application could not be shortlisted. Please try again.");
+                }
             }
 
             return SafeRedirect(returnUrl, application.Id);
@@ -398,9 +410,18 @@ namespace GameHub.Controllers
             {
                 application.Status = JobApplicationStatus.Rejected;
                 application.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success",
-                    $"{application.FirstName} {application.LastName} has been rejected for {application.ApplicationNumber}.");
+
+                try
+                {
+                    await _dbContext.SaveChangesAsync();
+                    TempData.SetToast("success", "Success",
+                        $"{application.FirstName} {application.LastName} has been rejected for {application.ApplicationNumber}.");
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Failed to reject job application {ApplicationId}.", id);
+                    TempData.SetToast("error", "Update Failed", "The application could not be rejected. Please try again.");
+                }
             }
 
             return SafeRedirect(returnUrl, application.Id);
@@ -451,8 +472,22 @@ namespace GameHub.Controllers
 
             FillInterviewContext(model, application);
 
+            if (application.Status is JobApplicationStatus.Hired or JobApplicationStatus.Rejected)
+            {
+                TempData.SetToast("warning", "Not Allowed",
+                    "Interviews cannot be scheduled for a hired or rejected application.");
+                return RedirectToAction(nameof(Details), new { id = application.Id });
+            }
+
             if (!ModelState.IsValid)
             {
+                return View("InterviewForm", model);
+            }
+
+            if (await InterviewSlotExistsAsync(application.Id, model.InterviewDate!.Value, model.InterviewTime!.Value))
+            {
+                ModelState.AddModelError(nameof(model.InterviewTime),
+                    "An interview for this candidate is already scheduled at that date and time.");
                 return View("InterviewForm", model);
             }
 
@@ -483,7 +518,17 @@ namespace GameHub.Controllers
             }
 
             application.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to schedule interview for application {ApplicationId}.", application.Id);
+                ModelState.AddModelError(string.Empty, "The interview could not be scheduled. Please try again.");
+                return View("InterviewForm", model);
+            }
 
             TempData.SetToast("success", "Success",
                 $"Interview scheduled for {application.FirstName} {application.LastName} on {interview.InterviewDate:dd MMM yyyy} at {interview.InterviewTime:HH\\:mm}.");
@@ -554,6 +599,13 @@ namespace GameHub.Controllers
                 return View("InterviewForm", model);
             }
 
+            if (await InterviewSlotExistsAsync(interview.JobApplicationId, model.InterviewDate!.Value, model.InterviewTime!.Value, interview.Id))
+            {
+                ModelState.AddModelError(nameof(model.InterviewTime),
+                    "An interview for this candidate is already scheduled at that date and time.");
+                return View("InterviewForm", model);
+            }
+
             interview.InterviewDate = model.InterviewDate!.Value;
             interview.InterviewTime = model.InterviewTime!.Value;
             interview.InterviewType = model.InterviewType;
@@ -565,7 +617,16 @@ namespace GameHub.Controllers
             interview.Feedback = TrimOptional(model.Feedback);
             interview.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update interview {InterviewId}.", id);
+                ModelState.AddModelError(string.Empty, "The interview could not be updated. Please try again.");
+                return View("InterviewForm", model);
+            }
 
             TempData.SetToast("success", "Success", "Interview updated successfully.");
             return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
@@ -583,10 +644,29 @@ namespace GameHub.Controllers
                 return NotFound();
             }
 
+            if (!Enum.IsDefined(status) || !Enum.IsDefined(outcome))
+            {
+                TempData.SetToast("warning", "Invalid Selection", "Select a valid interview status and outcome.");
+                return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
+            }
+
             if (status == InterviewStatus.Completed && outcome == InterviewOutcome.Pending)
             {
                 TempData.SetToast("warning", "Outcome Required",
                     "Select an interview outcome before marking the interview as completed.");
+                return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
+            }
+
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var nowTime = TimeOnly.FromDateTime(now);
+            var isScheduledInFuture = interview.InterviewDate > today
+                || (interview.InterviewDate == today && interview.InterviewTime > nowTime);
+
+            if (isScheduledInFuture && status is InterviewStatus.Completed or InterviewStatus.NoShow)
+            {
+                TempData.SetToast("warning", "Not Allowed",
+                    "An interview cannot be marked completed or no-show before its scheduled time.");
                 return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
             }
 
@@ -595,7 +675,16 @@ namespace GameHub.Controllers
             interview.Feedback = TrimOptional(feedback);
             interview.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update interview status for {InterviewId}.", id);
+                TempData.SetToast("error", "Update Failed", "The interview status could not be updated. Please try again.");
+                return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
+            }
 
             TempData.SetToast("success", "Success", "Interview status and outcome updated.");
             return RedirectToAction(nameof(Details), new { id = interview.JobApplicationId });
@@ -700,6 +789,58 @@ namespace GameHub.Controllers
                     "An application for this job with the same email, phone number, or National ID already exists.");
                 ModelState.AddModelError(string.Empty,
                     "A duplicate application for this job was detected. Only one application per person per job is allowed.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Country) && !HRLists.Countries.Contains(model.Country))
+            {
+                ModelState.AddModelError(nameof(model.Country), "Select a country from the list.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.HighestEducation) && !HRLists.EducationLevels.Contains(model.HighestEducation))
+            {
+                ModelState.AddModelError(nameof(model.HighestEducation), "Select an education level from the list.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.NoticePeriod) && !HRLists.NoticePeriods.Contains(model.NoticePeriod))
+            {
+                ModelState.AddModelError(nameof(model.NoticePeriod), "Select a notice period from the list.");
+            }
+        }
+
+        private Task<bool> InterviewSlotExistsAsync(int applicationId, DateOnly date, TimeOnly time, int? excludeInterviewId = null)
+        {
+            return _dbContext.Interviews.AnyAsync(interview =>
+                interview.IsActive
+                && interview.JobApplicationId == applicationId
+                && interview.InterviewDate == date
+                && interview.InterviewTime == time
+                && interview.Status != InterviewStatus.Cancelled
+                && (!excludeInterviewId.HasValue || interview.Id != excludeInterviewId.Value));
+        }
+
+        private void AddApplicationConstraintErrors(DbUpdateException ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            const string duplicateMessage =
+                "An application for this job with the same email, phone number, or National ID already exists. Duplicate applications are not allowed.";
+
+            if (detail.Contains("IX_JobApplications_JobPostingId_Email", StringComparison.OrdinalIgnoreCase)
+                || detail.Contains("IX_JobApplications_JobPostingId_Phone", StringComparison.OrdinalIgnoreCase)
+                || detail.Contains("IX_JobApplications_JobPostingId_NationalIdNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(JobApplicationFormViewModel.Email), duplicateMessage);
+                ModelState.AddModelError(string.Empty, duplicateMessage);
+                TempData.SetToast("error", "Duplicate Application", duplicateMessage);
+            }
+            else if (detail.Contains("IX_JobApplications_ApplicationNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "A conflicting application number was generated. Please submit the form again.");
+                TempData.SetToast("error", "Please Retry", "A conflicting application number was generated. Submit the form again.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "The application could not be saved due to a data conflict. Please review the details and try again.");
+                TempData.SetToast("error", "Save Failed", "The application could not be saved. Please try again.");
             }
         }
 

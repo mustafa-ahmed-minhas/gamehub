@@ -2,6 +2,12 @@
 @{
     ViewData["Title"] = "Create Account";
     Layout = "_CustomerLayout";
+    var passwordMinLength = ViewData["PasswordMinLength"] as int? ?? 8;
+    var requireStrongPassword = ViewData["RequireStrongPassword"] as bool? ?? true;
+    var passwordPolicyMessage = requireStrongPassword
+        ? $"Use at least {passwordMinLength} characters with uppercase, lowercase, number and symbol."
+        : $"Use at least {passwordMinLength} characters.";
+    var requireStrongPasswordValue = requireStrongPassword ? "true" : "false";
 }
 
 <section class="account-hero">
@@ -12,7 +18,7 @@
             <h1>Create your GameHub account</h1>
             <p>Create your player profile, verify your email, and start booking courts online right away.</p>
         </div>
-        <form asp-action="Signup" method="post" class="account-card" data-account-form data-email-check-url="@Url.Action("CheckEmail", "Account")" data-phone-check-url="@Url.Action("CheckPhone", "Account")">
+        <form asp-action="Signup" method="post" class="account-card" data-account-form data-email-check-url="@Url.Action("CheckEmail", "Account")" data-phone-check-url="@Url.Action("CheckPhone", "Account")" data-password-min-length="@passwordMinLength" data-require-strong-password="@requireStrongPasswordValue">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
             <div class="form-grid two">
@@ -59,7 +65,9 @@
                     <span asp-validation-for="DateOfBirth" class="text-danger small"></span>
                 </div>
                 <div class="form-floating">
-                    <select asp-for="Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()"></select>
+                    <select asp-for="Gender" class="form-select" asp-items="Html.GetEnumSelectList<Gender>()">
+                        <option value="">Select gender</option>
+                    </select>
                     <label asp-for="Gender">Gender</label>
                     <span asp-validation-for="Gender" class="text-danger small"></span>
                 </div>
@@ -67,7 +75,7 @@
             <div class="form-grid two">
                 <div class="password-wrap">
                     <div class="form-floating">
-                        <input asp-for="Password" class="form-control" placeholder="Password" data-password-input />
+                        <input asp-for="Password" class="form-control" placeholder="Password" data-password-input data-val-passwordpolicy="@passwordPolicyMessage" />
                         <label asp-for="Password">Password</label>
                     </div>
                     <button class="password-toggle" type="button" data-password-toggle><i class="bi bi-eye"></i></button>
@@ -83,9 +91,9 @@
                 </div>
             </div>
             <div class="password-meter" data-password-meter><span></span></div>
-            <p class="field-hint" data-password-text>Use at least 8 characters with uppercase, lowercase, number and symbol.</p>
+            <p class="field-hint" data-password-text>@passwordPolicyMessage</p>
             <label class="premium-check">
-                <input asp-for="AcceptTerms" />
+                <input asp-for="AcceptTerms" data-val="true" data-val-mustbetrue="You must accept the terms to create an account." />
                 <span></span>
                 I accept GameHub terms and booking policies.
             </label>
@@ -102,6 +110,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/signup-validation.js" asp-append-version="true"></script>
 }
 
 @section Styles {

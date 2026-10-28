@@ -1,0 +1,91 @@
+@model IEnumerable<GameHub.Models.Entities.SalesQuotation>
+
+@{
+    ViewData["Title"] = "Select Quotation for Sales Order";
+    Layout = "_AdminLayout";
+}
+
+<section class="arena-page sales-cycle-page sales-order-page">
+    <header class="arena-header admin-reveal">
+        <div>
+            <span class="admin-label">Sales Management</span>
+            <h1>Select Quotation for Sales Order</h1>
+            <p>Choose a confirmed quotation that has not yet been converted to a sales order.</p>
+        </div>
+        <div class="arena-actions">
+            <a class="admin-secondary-button" asp-controller="SalesOrders" asp-action="Index"><i class="bi bi-arrow-left-circle"></i> Back to Sales Orders</a>
+        </div>
+    </header>
+
+    <div class="sales-cycle-layout sales-cycle-layout-wide">
+        <main class="sales-cycle-main">
+            @if (!Model.Any())
+            {
+                <div class="arena-empty">
+                    <i class="bi bi-file-e-text"></i>
+                    <h2>No Eligible Quotations</h2>
+                    <p>There are no confirmed quotations available for conversion to a sales order.</p>
+                    <p class="muted">Quotations must be in <strong>Confirmed</strong> status and must not already have a sales order created.</p>
+                    <a class="admin-action-button" asp-controller="SalesOrders" asp-action="Index"><i class="bi bi-clipboard"></i> View All Sales Orders</a>
+                </div>
+            }
+            else
+            {
+                <div class="arena-table-wrap">
+                    <table class="arena-table sales-cycle-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Quotation</th>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Opportunity</th>
+                                <th scope="col">Amount</th>
+                                <th scope="col">Created</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                var customerFullName = item.Customer?.FullName ?? "Unknown";
+                                var customerInitials = item.Customer?.Initials ?? "Q";
+                                var customerCode = item.Customer?.CustomerCode ?? "";
+                                var oppNumber = item.Opportunity?.OpportunityNumber ?? "-";
+                                var oppStage = item.Opportunity?.Stage.GetDisplayName() ?? "";
+                                <tr>
+                                    <td data-label="Quotation">
+                                        <strong title="@item.QuotationNumber">@item.QuotationNumber</strong>
+                                        <small title="@(item.Subject ?? "Commercial quotation")">@(item.Subject ?? "Commercial quotation")</small>
+                                        <em>@item.CreatedAt.ToString("MMM dd, yyyy")</em>
+                                    </td>
+                                    <td data-label="Customer">
+                                        <div class="user-cell membership-name-cell">
+                                            <span class="user-avatar membership-table-avatar">@(customerInitials.Length == 0 ? "Q" : customerInitials)</span>
+                                            <div>
+                                                <strong title="@customerFullName">@customerFullName</strong>
+                                                <small>@customerCode</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="Opportunity">
+                                        <strong>@oppNumber</strong>
+                                        <small title="@(item.Opportunity?.Stage.ToString() ?? "")">@oppStage</small>
+                                    </td>
+                                    <td data-label="Amount">
+                                        <strong>@item.CurrencySymbol @item.GrandTotal.ToString("N0")</strong>
+                                        <small>Grand total</small>
+                                    </td>
+                                    <td data-label="Created">
+                                        <span>@item.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                    </td>
+                                    <td data-label="Actions" class="text-end">
+                                        <a class="admin-action-button" asp-controller="SalesOrders" asp-action="CreateFromQuotation" asp-route-quotationId="@item.Id"><i class="bi bi-clipboard2-plus"></i> Create Sales Order</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </main>
+    </div>
+</section>

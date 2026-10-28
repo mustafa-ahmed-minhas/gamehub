@@ -117,6 +117,24 @@ namespace GameHub.Controllers
             return View("Form", await AddOptionsAsync(model));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> SelectQuotationForSO()
+        {
+            if (!CanCreateOrder()) return RedirectToAction("NotFound", "Error");
+            
+            var eligibleQuotations = await _dbContext.SalesQuotations
+                .Where(x => x.Status == SalesQuotationStatus.Confirmed 
+                    && !x.SalesOrderCreated
+                    && x.IsActive)
+                .Include(x => x.Customer)
+                .Include(x => x.Opportunity)
+                .Include(x => x.Items)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+            
+            return View(eligibleQuotations);
+        }
+
         [HttpGet("SalesOrders/CreateDirect")]
         public async Task<IActionResult> CreateDirect()
         {
@@ -441,11 +459,9 @@ namespace GameHub.Controllers
                 .Include(x => x.Items)
                 .FirstOrDefaultAsync(x => x.Id == quotationId);
             if (quotation == null || !quotation.IsActive) return (false, "Quotation was not found.", null);
-            if (quotation.Status is not (SalesQuotationStatus.Approved or SalesQuotationStatus.AcceptedByCustomer)) return (false, "Only approved or customer-accepted quotations can be converted into sales orders.", quotation);
+            if (quotation.Status != SalesQuotationStatus.Confirmed) return (false, "Only confirmed quotations can be converted into sales orders.", quotation);
             if (!quotation.Items.Any()) return (false, "Quotation must contain at least one line item.", quotation);
             if (quotation.Customer == null || !quotation.Customer.IsActive) return (false, "Customer is inactive or missing.", quotation);
-            if (quotation.Customer.IsBlacklisted) return (false, "Blacklisted customers cannot be converted into sales orders.", quotation);
-            if (quotation.Opportunity == null || !quotation.Opportunity.IsActive) return (false, "Opportunity is inactive or missing.", quotation);
             var exists = await _dbContext.SalesOrders.AnyAsync(x => x.SalesQuotationId == quotationId && x.IsActive);
             if (exists) return (false, "This quotation already has an active sales order.", quotation);
             return (true, string.Empty, quotation);
@@ -483,15 +499,15 @@ namespace GameHub.Controllers
                 CustomerId = quotation.CustomerId,
                 AssignedToUserId = quotation.AssignedToUserId,
                 OrderDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                Subject = quotation.Subject ?? quotation.Opportunity.Name,
+                Subject = quotation.Subject ?? (quotation.Opportunity != null ? quotation.Opportunity.Name : string.Empty),
                 CustomerReference = quotation.CustomerReference,
                 TermsAndConditions = quotation.TermsAndConditions,
                 CustomerNotes = quotation.CustomerNotes,
                 InternalNotes = quotation.InternalNotes,
                 Currency = quotation.Currency,
                 CurrencySymbol = quotation.CurrencySymbol,
-                QuotationLabel = $"{quotation.QuotationNumber} - {quotation.Subject ?? quotation.Opportunity.Name}",
-                OpportunityLabel = $"{quotation.Opportunity.OpportunityNumber} - {quotation.Opportunity.Name}",
+                QuotationLabel = $"{quotation.QuotationNumber} - {quotation.Subject ?? (quotation.Opportunity != null ? quotation.Opportunity.Name : string.Empty)}",
+                OpportunityLabel = quotation.Opportunity != null ? $"{quotation.QuotationNumber} - {quotation.Opportunity.OpportunityNumber} - {quotation.Opportunity.Name}" : quotation.QuotationNumber,
                 CustomerLabel = $"{quotation.Customer.CustomerCode} - {quotation.Customer.FullName}",
                 Items = quotation.Items.OrderBy(x => x.DisplayOrder).Select(x => new SalesOrderItemViewModel
                 {

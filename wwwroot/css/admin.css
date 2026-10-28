@@ -240,6 +240,29 @@
     border-radius: 99px;
 }
 
+/* Nested entries beneath a module link (HR sub-tabs and report pages). */
+.admin-nav-sublink {
+    min-height: 2rem;
+    margin-left: 1.55rem;
+    padding: 0 0.6rem;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.admin-nav-sublink i {
+    width: 0.95rem;
+    font-size: 0.85rem;
+}
+
+.admin-nav-sublink.active {
+    color: #f7dfa5;
+}
+
+.admin-nav-sublink.active::before {
+    display: none;
+}
+
 /* Entries for module screens that are planned but not yet implemented. */
 .admin-nav-link.is-disabled {
     cursor: not-allowed;
@@ -400,6 +423,10 @@
 .admin-shell.is-collapsed .admin-nav-link {
     justify-content: center;
     padding: 0;
+}
+
+.admin-shell.is-collapsed .admin-nav-sublink {
+    margin-left: 0;
 }
 
 .admin-shell.is-collapsed .admin-profile-block {

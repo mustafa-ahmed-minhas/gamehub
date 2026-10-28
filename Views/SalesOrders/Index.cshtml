@@ -41,6 +41,7 @@
             @if (Model.CanCreate)
             {
                 <a class="admin-action-button" asp-action="CreateDirect"><i class="bi bi-plus-circle"></i> Direct Sales Order</a>
+                <a class="admin-action-button" asp-controller="SalesOrders" asp-action="SelectQuotationForSO"><i class="bi bi-clipboard2-plus"></i> Create SO with Quotation</a>
             }
             <a class="admin-secondary-button" asp-controller="Sales" asp-action="Index" asp-route-tab="quotations"><i class="bi bi-file-earmark-check"></i> Accepted Quotations</a>
         </div>

@@ -60,11 +60,13 @@ namespace GameHub.Controllers
 
         private readonly ApplicationDbContext _dbContext;
         private readonly IPerformanceNumberService _numberService;
+        private readonly ILogger<PerformanceController> _logger;
 
-        public PerformanceController(ApplicationDbContext dbContext, IPerformanceNumberService numberService)
+        public PerformanceController(ApplicationDbContext dbContext, IPerformanceNumberService numberService, ILogger<PerformanceController> logger)
         {
             _dbContext = dbContext;
             _numberService = numberService;
+            _logger = logger;
         }
 
         // ------------------------------------------------------------------
@@ -193,9 +195,10 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
-                ModelState.AddModelError(string.Empty, "A case with this reference already exists. Please try again.");
+                _logger.LogError(ex, "Failed to create performance case for employee {EmployeeId}.", model.EmployeeId);
+                ModelState.AddModelError(string.Empty, "The case could not be saved due to a data conflict. Please try again.");
                 model.CaseNumber ??= await _numberService.GenerateNextCaseNumberAsync();
                 return View("CaseForm", model);
             }
@@ -276,8 +279,9 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
+                _logger.LogError(ex, "Failed to update performance case {CaseId}.", id);
                 ModelState.AddModelError(string.Empty, "The case could not be saved. Please review the values and try again.");
                 return View("CaseForm", model);
             }
@@ -361,8 +365,11 @@ namespace GameHub.Controllers
                     break;
             }
 
-            await _dbContext.SaveChangesAsync();
-            TempData.SetToast("success", "Success", $"Case {detail.CaseNumber} is now {status.GetDisplayName()}.");
+            if (await TrySaveAsync($"transition case {id}"))
+            {
+                TempData.SetToast("success", "Success", $"Case {detail.CaseNumber} is now {status.GetDisplayName()}.");
+            }
+
             return SafeRedirect(returnUrl, id);
         }
 
@@ -420,9 +427,12 @@ namespace GameHub.Controllers
 
             // Adding a meeting keeps an in-flight case moving through review.
             await AdvanceCaseForActivityAsync(model.PerformanceCaseId, PerformanceCaseStatus.UnderReview);
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The meeting record was added.");
+            if (await TrySaveAsync($"create meeting for case {model.PerformanceCaseId}"))
+            {
+                TempData.SetToast("success", "Success", "The meeting record was added.");
+            }
+
             return RedirectToAction(nameof(Details), new { id = model.PerformanceCaseId });
         }
 
@@ -466,7 +476,7 @@ namespace GameHub.Controllers
             if (model.Id != id) return NotFound();
 
             await FillMeetingContextAsync(model);
-            await ValidateMeetingAsync(model);
+            await ValidateMeetingAsync(model, id);
 
             var meeting = await _dbContext.PerformanceMeetings.FirstOrDefaultAsync(entity => entity.Id == id && entity.IsActive);
             if (meeting == null)
@@ -487,7 +497,17 @@ namespace GameHub.Controllers
             meeting.Status = model.Status;
             meeting.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update performance meeting {MeetingId}.", id);
+                ModelState.AddModelError(string.Empty, "The meeting record could not be saved. Please try again.");
+                return View("MeetingForm", model);
+            }
+
             TempData.SetToast("success", "Success", "The meeting record was updated.");
             return RedirectToAction(nameof(Details), new { id = meeting.PerformanceCaseId });
         }
@@ -506,9 +526,12 @@ namespace GameHub.Controllers
             var caseId = meeting.PerformanceCaseId;
             meeting.IsActive = false;
             meeting.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The meeting record was removed.");
+            if (await TrySaveAsync($"delete meeting {id}"))
+            {
+                TempData.SetToast("success", "Success", "The meeting record was removed.");
+            }
+
             return SafeRedirect(returnUrl, caseId);
         }
 
@@ -564,9 +587,12 @@ namespace GameHub.Controllers
 
             // A formal warning moves an open / under-review case into the Warning stage.
             await AdvanceCaseForActivityAsync(model.PerformanceCaseId, PerformanceCaseStatus.Warning);
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The formal warning was recorded.");
+            if (await TrySaveAsync($"create warning for case {model.PerformanceCaseId}"))
+            {
+                TempData.SetToast("success", "Success", "The formal warning was recorded.");
+            }
+
             return RedirectToAction(nameof(Details), new { id = model.PerformanceCaseId });
         }
 
@@ -627,7 +653,17 @@ namespace GameHub.Controllers
             warning.Status = model.Status;
             warning.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update performance warning {WarningId}.", id);
+                ModelState.AddModelError(string.Empty, "The formal warning could not be saved. Please try again.");
+                return View("WarningForm", model);
+            }
+
             TempData.SetToast("success", "Success", "The formal warning was updated.");
             return RedirectToAction(nameof(Details), new { id = warning.PerformanceCaseId });
         }
@@ -646,9 +682,12 @@ namespace GameHub.Controllers
             var caseId = warning.PerformanceCaseId;
             warning.IsActive = false;
             warning.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The formal warning was removed.");
+            if (await TrySaveAsync($"delete warning {id}"))
+            {
+                TempData.SetToast("success", "Success", "The formal warning was removed.");
+            }
+
             return SafeRedirect(returnUrl, caseId);
         }
 
@@ -712,9 +751,12 @@ namespace GameHub.Controllers
 
             // A plan moves an open / under-review case into the Improvement Plan stage.
             await AdvanceCaseForActivityAsync(model.PerformanceCaseId, PerformanceCaseStatus.ImprovementPlan);
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The improvement plan was added.");
+            if (await TrySaveAsync($"create improvement plan for case {model.PerformanceCaseId}"))
+            {
+                TempData.SetToast("success", "Success", "The improvement plan was added.");
+            }
+
             return RedirectToAction(nameof(Details), new { id = model.PerformanceCaseId });
         }
 
@@ -785,7 +827,17 @@ namespace GameHub.Controllers
             plan.Status = model.Status;
             plan.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update improvement plan {PlanId}.", id);
+                ModelState.AddModelError(string.Empty, "The improvement plan could not be saved. Please try again.");
+                return View("PlanForm", model);
+            }
+
             TempData.SetToast("success", "Success", "The improvement plan was updated.");
             return RedirectToAction(nameof(Details), new { id = plan.PerformanceCaseId });
         }
@@ -804,9 +856,12 @@ namespace GameHub.Controllers
             var caseId = plan.PerformanceCaseId;
             plan.IsActive = false;
             plan.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
 
-            TempData.SetToast("success", "Success", "The improvement plan was removed.");
+            if (await TrySaveAsync($"delete improvement plan {id}"))
+            {
+                TempData.SetToast("success", "Success", "The improvement plan was removed.");
+            }
+
             return SafeRedirect(returnUrl, caseId);
         }
 
@@ -1150,15 +1205,46 @@ namespace GameHub.Controllers
                         "An open case with this title already exists for the selected employee.");
                 }
             }
+
+            if (model.AssignedHrUserId.HasValue)
+            {
+                var hrUserIsValid = await _dbContext.Users.AsNoTracking().AnyAsync(user =>
+                    user.Id == model.AssignedHrUserId.Value
+                    && user.IsActive
+                    && (user.Role == UserRole.SuperAdmin || user.Role == UserRole.Admin || user.Role == UserRole.StaffManager));
+
+                if (!hrUserIsValid)
+                {
+                    ModelState.AddModelError(nameof(model.AssignedHrUserId), "Select an active HR user for this case.");
+                }
+            }
         }
 
-        private async Task ValidateMeetingAsync(PerformanceMeetingFormViewModel model)
+        private async Task ValidateMeetingAsync(PerformanceMeetingFormViewModel model, int? excludeId = null)
         {
             var exists = await _dbContext.PerformanceCases.AsNoTracking()
                 .AnyAsync(detail => detail.Id == model.PerformanceCaseId && detail.IsActive);
             if (!exists)
             {
                 ModelState.AddModelError(nameof(model.PerformanceCaseId), "The linked case could not be found.");
+                return;
+            }
+
+            if (model.MeetingDate.HasValue && model.MeetingTime.HasValue)
+            {
+                var slotTaken = await _dbContext.PerformanceMeetings.AsNoTracking().AnyAsync(meeting =>
+                    meeting.IsActive
+                    && meeting.PerformanceCaseId == model.PerformanceCaseId
+                    && meeting.MeetingDate == model.MeetingDate.Value
+                    && meeting.MeetingTime == model.MeetingTime.Value
+                    && meeting.Status != PerformanceMeetingStatus.Cancelled
+                    && (excludeId == null || meeting.Id != excludeId.Value));
+
+                if (slotTaken)
+                {
+                    ModelState.AddModelError(nameof(model.MeetingTime),
+                        "A meeting for this case is already scheduled at that date and time.");
+                }
             }
         }
 
@@ -1254,7 +1340,14 @@ namespace GameHub.Controllers
                 plan.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to mark {Count} improvement plan(s) overdue.", overdue.Count);
+            }
         }
 
         private async Task<PerformanceCase?> LoadCaseAsync(int id) =>
@@ -1285,6 +1378,21 @@ namespace GameHub.Controllers
         {
             model.Title = TrimRequired(model.Title);
             model.Description = TrimRequired(model.Description);
+        }
+
+        private async Task<bool> TrySaveAsync(string action)
+        {
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to save performance change: {Action}.", action);
+                TempData.SetToast("error", "Save Failed", "The change could not be saved. Please try again.");
+                return false;
+            }
         }
 
         private IActionResult SafeRedirect(string? returnUrl, int caseId) =>

@@ -31,7 +31,7 @@
                         @foreach (var item in Model)
                         {
                             <tr>
-                                <td data-label="Quotation"><strong>@item.QuotationNumber</strong><span>@(item.Subject ?? item.Opportunity.Name)</span></td>
+                                <td data-label="Quotation"><strong>@item.QuotationNumber</strong><span>@(item.Subject ?? (item.Opportunity != null ? item.Opportunity.Name : string.Empty))</span></td>
                                 <td data-label="Amount"><strong>@item.CurrencySymbol @item.GrandTotal.ToString("N0")</strong></td>
                                 <td data-label="Status"><span class="sales-status status-@item.Status.ToString().ToLowerInvariant()">@item.Status.GetDisplayName()</span></td>
                                 <td data-label="Valid Until">@item.ValidUntil.ToString("MMM dd, yyyy")</td>

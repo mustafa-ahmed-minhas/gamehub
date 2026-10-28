@@ -5,6 +5,7 @@ namespace GameHub.Models.Enums
     public enum SalesQuotationStatus
     {
         Draft,
+        [Display(Name = "Confirmed")] Confirmed,
         [Display(Name = "Submitted For Approval")] SubmittedForApproval,
         Approved,
         [Display(Name = "Accepted By Customer")] AcceptedByCustomer,

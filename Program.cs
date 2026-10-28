@@ -106,11 +106,12 @@ app.MapControllerRoute(
 
 app.MapHub<CrmNotificationsHub>(CrmNotificationsHub.Route);
 
-// Database seeding disabled to maintain empty database state after reset.
-// To re-enable automatic seeding in Development, uncomment the block below.
-// if (app.Environment.IsDevelopment())
-// {
-//     await DatabaseSeeder.SeedAsync(app.Services);
-// }
+// Database seeding enabled in Development for master data, CRM customers, and HR demo records.
+// Seeds Sports, Facilities, Courts, Pricing, Time Slots, Customers, and the HR module dataset.
+// Unrelated modules (Users, Memberships, Bookings, CRM Leads, Sales, Invoices) are not seeded.
+if (app.Environment.IsDevelopment())
+{
+    await DatabaseSeeder.SeedMasterDataAndCustomersAsync(app.Services);
+}
 
 app.Run();

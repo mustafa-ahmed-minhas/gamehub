@@ -25,17 +25,20 @@ namespace GameHub.Controllers
         private readonly IJobApplicationNumberService _applicationNumberService;
         private readonly IJobApplicationFileService _fileService;
         private readonly IJobApplicationDuplicateService _duplicateService;
+        private readonly ILogger<CareersController> _logger;
 
         public CareersController(
             ApplicationDbContext dbContext,
             IJobApplicationNumberService applicationNumberService,
             IJobApplicationFileService fileService,
-            IJobApplicationDuplicateService duplicateService)
+            IJobApplicationDuplicateService duplicateService,
+            ILogger<CareersController> logger)
         {
             _dbContext = dbContext;
             _applicationNumberService = applicationNumberService;
             _fileService = fileService;
             _duplicateService = duplicateService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -70,8 +73,9 @@ namespace GameHub.Controllers
 
                 model.OpenPositions = positions;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to load the public careers listings.");
                 model.LoadFailed = true;
             }
 
@@ -123,8 +127,9 @@ namespace GameHub.Controllers
                 ViewData["Title"] = posting.JobTitle;
                 return View(new PublicJobDetailsViewModel { Posting = posting });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to load public job posting {PostingId}.", id);
                 ViewData["Title"] = "Job Details";
                 return View(new PublicJobDetailsViewModel { LoadFailed = true });
             }
@@ -138,8 +143,9 @@ namespace GameHub.Controllers
             {
                 posting = await LoadPostingHeaderAsync(id);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to load the public application form for posting {PostingId}.", id);
                 ViewData["Title"] = "Job Application";
                 return View(new PublicJobApplicationViewModel { LoadFailed = true });
             }
@@ -161,7 +167,18 @@ namespace GameHub.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Apply(int id, PublicJobApplicationViewModel model)
         {
-            var posting = await LoadPostingHeaderAsync(id);
+            PublicJobPostingViewModel? posting;
+            try
+            {
+                posting = await LoadPostingHeaderAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load the public application form for posting {PostingId}.", id);
+                ViewData["Title"] = "Job Application";
+                return View(new PublicJobApplicationViewModel { LoadFailed = true });
+            }
+
             if (posting == null)
             {
                 return NotFound();
@@ -283,16 +300,18 @@ namespace GameHub.Controllers
 
                 return RedirectToAction(nameof(ApplySuccess));
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
                 // Guards the race between the pre-save duplicate check and the
                 // unique indexes on (JobPostingId, Email / Phone / NationalIdNumber).
+                _logger.LogWarning(ex, "Duplicate public application detected for posting {PostingId}.", posting.Id);
                 await DeleteUploadedAsync(cvResult.StoredFileName!, savedDocuments);
                 model.DuplicateDetected = true;
                 return View(model);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to submit a public application for posting {PostingId}.", posting.Id);
                 await DeleteUploadedAsync(cvResult.StoredFileName!, savedDocuments);
                 ModelState.AddModelError(string.Empty,
                     "We could not submit your application right now. Please try again in a moment.");
@@ -393,12 +412,29 @@ namespace GameHub.Controllers
         {
             if (!string.IsNullOrWhiteSpace(cvStoredName))
             {
-                await _fileService.DeleteAsync(cvStoredName, CvFolder);
+                await DeleteFileQuietlyAsync(cvStoredName, CvFolder);
             }
 
             foreach (var (stored, _, _) in documents)
             {
-                await _fileService.DeleteAsync(stored, DocumentsFolder);
+                await DeleteFileQuietlyAsync(stored, DocumentsFolder);
+            }
+        }
+
+        private async Task DeleteFileQuietlyAsync(string? storedFileName, string folder)
+        {
+            if (string.IsNullOrWhiteSpace(storedFileName))
+            {
+                return;
+            }
+
+            try
+            {
+                await _fileService.DeleteAsync(storedFileName, folder);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not delete uploaded file {StoredFileName}.", storedFileName);
             }
         }
 

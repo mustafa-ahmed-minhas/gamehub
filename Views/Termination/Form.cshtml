@@ -71,12 +71,12 @@
             </label>
             <label>
                 <span>Request Date *</span>
-                <input asp-for="RequestDate" type="date" />
+                <input asp-for="RequestDate" type="date" max="@today.ToString("yyyy-MM-dd")" />
                 <span asp-validation-for="RequestDate"></span>
             </label>
             <label>
                 <span>Proposed Last Working Day *</span>
-                <input asp-for="ProposedLastWorkingDay" type="date" />
+                <input asp-for="ProposedLastWorkingDay" type="date" min="@(Model.IsEditMode ? null : today.ToString("yyyy-MM-dd"))" />
                 <small class="hr-hint">Must not be before the request date.</small>
                 <span asp-validation-for="ProposedLastWorkingDay"></span>
             </label>
@@ -89,7 +89,7 @@
                         <option value="@period.Value"></option>
                     }
                 </datalist>
-                <small class="hr-hint">Optional. Select a common value or type your own.</small>
+                <small class="hr-hint">Optional. Choose a standard notice period from the list.</small>
                 <span asp-validation-for="NoticePeriod"></span>
             </label>
         </section>
@@ -134,5 +134,6 @@
 }
 
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/hr-recruitment.js" asp-append-version="true"></script>
 }

@@ -81,14 +81,28 @@
 
         let dirty = false;
         qsa('input, select, textarea', form).forEach((field) => field.addEventListener('change', () => dirty = true));
+
+        const submitButton = qs('[data-loading-button]', form);
+        const restoreSubmitButton = () => {
+            if (!submitButton || !submitButton.disabled) return;
+            submitButton.disabled = false;
+            if (submitButton.dataset.originalText) {
+                submitButton.innerHTML = submitButton.dataset.originalText;
+            }
+        };
+
         form.addEventListener('submit', () => {
             dirty = false;
-            const button = qs('[data-loading-button]', form);
-            if (button) {
-                button.disabled = true;
-                button.dataset.originalText = button.innerHTML;
-                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-            }
+            if (!submitButton) return;
+            submitButton.disabled = true;
+            submitButton.dataset.originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        });
+
+        // jQuery unobtrusive blocks an invalid submission in the same submit
+        // event, so re-enable the button it was disabled in that cycle.
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.jQuery) window.jQuery(form).on('invalid-form', restoreSubmitButton);
         });
         window.addEventListener('beforeunload', (event) => {
             if (!dirty) return;

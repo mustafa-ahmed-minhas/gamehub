@@ -24,12 +24,14 @@ namespace GameHub.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly IEmployeeNumberService _employeeNumberService;
         private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<EmployeesController> _logger;
 
-        public EmployeesController(ApplicationDbContext dbContext, IEmployeeNumberService employeeNumberService, IWebHostEnvironment environment)
+        public EmployeesController(ApplicationDbContext dbContext, IEmployeeNumberService employeeNumberService, IWebHostEnvironment environment, ILogger<EmployeesController> logger)
         {
             _dbContext = dbContext;
             _employeeNumberService = employeeNumberService;
             _environment = environment;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -162,6 +164,21 @@ namespace GameHub.Controllers
             employee.CreatedByUserId = CurrentUserId();
             employee.IsActive = true;
 
+            JobOffer? linkedOffer = null;
+            if (model.OfferId.HasValue)
+            {
+                linkedOffer = await _dbContext.JobOffers
+                    .Include(offer => offer.JobApplication)
+                    .FirstOrDefaultAsync(offer => offer.Id == model.OfferId.Value && offer.IsActive);
+
+                if (linkedOffer == null || linkedOffer.EmployeeId.HasValue || linkedOffer.Status != JobOfferStatus.Accepted)
+                {
+                    ModelState.AddModelError(string.Empty, "The selected offer is no longer available for hiring.");
+                    TempData.SetToast("error", "Offer Unavailable", "This offer has already been filled or is no longer active.");
+                    return View("Form", await PopulateOptionsAsync(model));
+                }
+            }
+
             var imageResult = await SaveProfileImageAsync(model);
             if (!imageResult.Success)
             {
@@ -172,11 +189,30 @@ namespace GameHub.Controllers
             employee.ProfileImageUrl = imageResult.Url;
 
             _dbContext.Employees.Add(employee);
-            await _dbContext.SaveChangesAsync();
 
-            if (model.OfferId.HasValue)
+            if (linkedOffer != null)
             {
-                await LinkOfferAsync(model.OfferId.Value, employee.Id);
+                linkedOffer.Employee = employee;
+                linkedOffer.Status = JobOfferStatus.Hired;
+                linkedOffer.JoiningRecordedAt = DateTime.UtcNow;
+                linkedOffer.UpdatedAt = DateTime.UtcNow;
+                if (linkedOffer.JobApplication != null)
+                {
+                    linkedOffer.JobApplication.Status = JobApplicationStatus.Hired;
+                    linkedOffer.JobApplication.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to save new employee {Email}.", model.Email);
+                DeleteProfileImage(imageResult.Url);
+                AddEmployeeConstraintError(ex);
+                return View("Form", await PopulateOptionsAsync(model));
             }
 
             TempData.SetToast("success", "Success", $"Employee {employee.EmployeeNumber} created successfully.");
@@ -240,7 +276,18 @@ namespace GameHub.Controllers
             }
             employee.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update employee {EmployeeId}.", id);
+                DeleteProfileImage(imageResult.Url);
+                AddEmployeeConstraintError(ex);
+                return View("Form", await PopulateOptionsAsync(model));
+            }
+
             if (!string.IsNullOrWhiteSpace(imageResult.Url) || model.RemoveProfileImage)
             {
                 DeleteProfileImage(previousImage);
@@ -284,7 +331,16 @@ namespace GameHub.Controllers
 
             employee.EmploymentStatus = employmentStatus;
             employee.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to change employment status for employee {EmployeeId}.", id);
+                return Json(new { success = false, message = "The status could not be updated. Please try again." });
+            }
 
             var statusText = employmentStatus.GetDisplayName();
             return Json(new
@@ -299,8 +355,8 @@ namespace GameHub.Controllers
         public async Task<IActionResult> CheckEmail(string? email, int? id)
         {
             email = NormalizeEmail(email);
-            if (string.IsNullOrWhiteSpace(email)) return Json(new { available = true, message = "Email is required." });
-            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email)) return Json(new { available = false, message = "Invalid email format." });
+            if (string.IsNullOrWhiteSpace(email)) return Json(new { available = false, message = "Email is required." });
+            if (!HrValidationRules.IsComEmail(email)) return Json(new { available = false, message = HrValidationRules.EmailMessage });
             var exists = await _dbContext.Employees.AnyAsync(employee => employee.Email == email && employee.IsActive && (!id.HasValue || employee.Id != id.Value));
             return Json(new { available = !exists, message = exists ? "Email address is already registered to an active employee." : "Email is available." });
         }
@@ -364,6 +420,19 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.NationalIdNumber), "National ID / CNIC is already registered.");
                 ModelState.AddModelError(string.Empty, "National ID / CNIC is already registered.");
             }
+
+            if (model.ReportingManagerId.HasValue)
+            {
+                var managerIsValid = await _dbContext.Employees.AnyAsync(employee =>
+                    employee.Id == model.ReportingManagerId.Value
+                    && employee.IsActive
+                    && (!id.HasValue || employee.Id != id.Value));
+
+                if (!managerIsValid)
+                {
+                    ModelState.AddModelError(nameof(model.ReportingManagerId), "Select an active employee as the reporting manager. An employee cannot report to themselves.");
+                }
+            }
         }
 
         private void NormalizeForm(EmployeeFormViewModel model)
@@ -389,7 +458,7 @@ namespace GameHub.Controllers
             employee.PhoneNumber = model.PhoneNumber;
             employee.NationalIdNumber = model.NationalIdNumber;
             employee.DateOfBirth = model.DateOfBirth ?? DateOnly.FromDateTime(DateTime.UtcNow);
-            employee.Gender = model.Gender;
+            employee.Gender = model.Gender!.Value;
             employee.Department = model.Department;
             employee.Designation = model.Designation;
             employee.EmploymentType = model.EmploymentType;
@@ -562,35 +631,6 @@ namespace GameHub.Controllers
             model.Notes = $"Hired through offer {offer.ReferenceNumber} (application {application.ApplicationNumber}).";
         }
 
-        /// <summary>
-        /// Links a newly created employee back to its accepted offer, closing
-        /// the recruiting loop. Guards against duplicate hiring.
-        /// </summary>
-        private async Task LinkOfferAsync(int offerId, int employeeId)
-        {
-            var offer = await _dbContext.JobOffers
-                .Include(entity => entity.JobApplication)
-                .FirstOrDefaultAsync(entity => entity.Id == offerId && entity.IsActive);
-
-            if (offer == null || offer.EmployeeId.HasValue || offer.Status != JobOfferStatus.Accepted)
-            {
-                return;
-            }
-
-            offer.EmployeeId = employeeId;
-            offer.Status = JobOfferStatus.Hired;
-            offer.JoiningRecordedAt = DateTime.UtcNow;
-            offer.UpdatedAt = DateTime.UtcNow;
-
-            if (offer.JobApplication != null)
-            {
-                offer.JobApplication.Status = JobApplicationStatus.Hired;
-                offer.JobApplication.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await _dbContext.SaveChangesAsync();
-        }
-
         private IQueryable<Employee> ApplySorting(IQueryable<Employee> query, string sortBy)
         {
             return sortBy switch
@@ -617,20 +657,65 @@ namespace GameHub.Controllers
             }
 
             var folder = Path.Combine(_environment.WebRootPath, "uploads", "employees");
-            Directory.CreateDirectory(folder);
             var fileName = $"{Guid.NewGuid():N}{extension}";
             var fullPath = Path.Combine(folder, fileName);
-            await using var stream = System.IO.File.Create(fullPath);
-            await model.ProfileImage.CopyToAsync(stream);
+
+            try
+            {
+                Directory.CreateDirectory(folder);
+                await using var stream = System.IO.File.Create(fullPath);
+                await model.ProfileImage.CopyToAsync(stream);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(ex, "Failed to store employee profile image.");
+                return (false, null, "The profile photo could not be stored. Please try again.");
+            }
+
             return (true, $"/uploads/employees/{fileName}", string.Empty);
         }
 
         private void DeleteProfileImage(string? url)
         {
             if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("/uploads/employees/", StringComparison.OrdinalIgnoreCase)) return;
-            var fileName = Path.GetFileName(url);
-            var fullPath = Path.Combine(_environment.WebRootPath, "uploads", "employees", fileName);
-            if (System.IO.File.Exists(fullPath)) System.IO.File.Delete(fullPath);
+            try
+            {
+                var fileName = Path.GetFileName(url);
+                var fullPath = Path.Combine(_environment.WebRootPath, "uploads", "employees", fileName);
+                if (System.IO.File.Exists(fullPath)) System.IO.File.Delete(fullPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Failed to delete employee profile image {ImageUrl}.", url);
+            }
+        }
+
+        private void AddEmployeeConstraintError(DbUpdateException ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+
+            if (detail.Contains("IX_Employees_Email", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(EmployeeFormViewModel.Email), "Email address is already registered.");
+                ModelState.AddModelError(string.Empty, "Email address is already registered.");
+                TempData.SetToast("error", "Duplicate Email", "That email address is already registered to an active employee.");
+            }
+            else if (detail.Contains("IX_Employees_NationalIdNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(EmployeeFormViewModel.NationalIdNumber), "National ID / CNIC is already registered.");
+                ModelState.AddModelError(string.Empty, "National ID / CNIC is already registered.");
+                TempData.SetToast("error", "Duplicate National ID", "That National ID / CNIC is already registered to an active employee.");
+            }
+            else if (detail.Contains("IX_Employees_EmployeeNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "The employee number conflicted with another record. Please submit the form again.");
+                TempData.SetToast("error", "Please Retry", "A conflicting employee number was generated. Submit the form again.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "The employee could not be saved due to a data conflict. Please review the details and try again.");
+                TempData.SetToast("error", "Save Failed", "The employee could not be saved. Please try again.");
+            }
         }
 
         private Task<bool> PhoneExistsAsync(string? phone, int? id = null)

@@ -8,7 +8,7 @@ namespace GameHub.Models.Entities
     {
         public int Id { get; set; }
         [Required, MaxLength(30)] public string QuotationNumber { get; set; } = string.Empty;
-        public int OpportunityId { get; set; }
+        public int? OpportunityId { get; set; }
         public int CustomerId { get; set; }
         public int? AssignedToUserId { get; set; }
         public DateOnly QuotationDate { get; set; }
@@ -53,7 +53,7 @@ namespace GameHub.Models.Entities
         public bool IsLocked { get; set; }
         [Timestamp] public byte[]? RowVersion { get; set; }
 
-        public Opportunity Opportunity { get; set; } = null!;
+        public Opportunity? Opportunity { get; set; }
         public Customer Customer { get; set; } = null!;
         public User? AssignedToUser { get; set; }
         public ICollection<SalesQuotationItem> Items { get; set; } = new List<SalesQuotationItem>();

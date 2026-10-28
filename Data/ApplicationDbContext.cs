@@ -740,7 +740,7 @@ namespace GameHub.Data
                 entity.Property(quotation => quotation.RowVersion).IsRowVersion();
                 entity.Property(quotation => quotation.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
                 entity.Property(quotation => quotation.IsActive).HasDefaultValue(true);
-                entity.HasOne(quotation => quotation.Opportunity).WithMany().HasForeignKey(quotation => quotation.OpportunityId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(quotation => quotation.Opportunity).WithMany().HasForeignKey(quotation => quotation.OpportunityId).OnDelete(DeleteBehavior.Restrict).IsRequired(false);
                 entity.HasOne(quotation => quotation.Customer).WithMany().HasForeignKey(quotation => quotation.CustomerId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(quotation => quotation.AssignedToUser).WithMany().HasForeignKey(quotation => quotation.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
                 entity.HasMany(quotation => quotation.Items).WithOne(item => item.SalesQuotation).HasForeignKey(item => item.SalesQuotationId).OnDelete(DeleteBehavior.Cascade);

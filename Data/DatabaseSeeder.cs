@@ -912,5 +912,651 @@ namespace GameHub.Data
                 await dbContext.SaveChangesAsync();
             }
         }
+
+        public static async Task SeedMasterDataAndCustomersAsync(IServiceProvider serviceProvider)
+        {
+            using var scope = serviceProvider.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            await SeedSportsAsync(dbContext);
+            await SeedFacilitiesAsync(dbContext);
+            await SeedCourtsAsync(dbContext);
+            await SeedCourtPricingsAsync(dbContext);
+            await SeedCourtSchedulesAsync(dbContext);
+            await SeedCustomerRecordsAsync(dbContext);
+            await HrDemoDataSeeder.SeedAsync(dbContext, scope.ServiceProvider);
+        }
+
+        private static async Task SeedSportsAsync(ApplicationDbContext db)
+        {
+            var sports = new[]
+            {
+                new Sport { Name = "Cricket", Code = "CRK", Description = "Cricket nets and practice lanes.", IconClass = "bi-bullseye", AccentColor = "#c95245", DefaultDurationMinutes = 60, DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Football", Code = "FTB", Description = "Full-size and small-sided football turf.", IconClass = "bi-trophy", AccentColor = "#4f7aa8", DefaultDurationMinutes = 90, DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Badminton", Code = "BDM", Description = "Indoor badminton courts.", IconClass = "bi-feather", AccentColor = "#2ba061", DefaultDurationMinutes = 60, DisplayOrder = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Padel", Code = "PAD", Description = "Glass-wall padel courts.", IconClass = "bi-dribbble", AccentColor = "#d6a950", DefaultDurationMinutes = 60, DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Tennis", Code = "TNS", Description = "Hard and clay tennis courts.", IconClass = "bi-tennisball", AccentColor = "#6c757d", DefaultDurationMinutes = 90, DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Squash", Code = "SQU", Description = "Indoor squash courts.", IconClass = "bi-squash", AccentColor = "#6f42c1", DefaultDurationMinutes = 45, DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Table Tennis", Code = "TTN", Description = "Multi-table table tennis zone.", IconClass = "bi-table", AccentColor = "#20c997", DefaultDurationMinutes = 30, DisplayOrder = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Basketball", Code = "BKB", Description = "Outdoor basketball court.", IconClass = "bi-basketball", AccentColor = "#0d6efd", DefaultDurationMinutes = 60, DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Volleyball", Code = "VOL", Description = "Sand and indoor volleyball.", IconClass = "bi-volleyball", AccentColor = "#fd7e14", DefaultDurationMinutes = 60, DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Sport { Name = "Swimming", Code = "SWM", Description = "Indoor swimming lanes.", IconClass = "bi-swimming", AccentColor = "#0dcaf0", DefaultDurationMinutes = 60, DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var sport in sports)
+            {
+                if (!await db.Sports.AnyAsync(s => s.Code == sport.Code))
+                {
+                    db.Sports.Add(sport);
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedFacilitiesAsync(ApplicationDbContext db)
+        {
+            var facilities = new[]
+            {
+                new Facility { Name = "Main Indoor Arena", Code = "IND-A", Type = FacilityType.Indoor, LocationLabel = "Main Building", DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "Outdoor Sports Complex", Code = "OUT-B", Type = FacilityType.Outdoor, LocationLabel = "East Grounds", DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "North Block", Code = "BLK-N", Type = FacilityType.Block, LocationLabel = "North Wing", DisplayOrder = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "South Block", Code = "BLK-S", Type = FacilityType.Block, LocationLabel = "South Wing", DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "East Pavilion", Code = "EAS-P", Type = FacilityType.Mixed, LocationLabel = "Pavilion Block", DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "West Complex", Code = "WES-C", Type = FacilityType.Outdoor, LocationLabel = "West Grounds", DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "Central Fitness Hub", Code = "CTR-H", Type = FacilityType.Indoor, LocationLabel = "Central Block", DisplayOrder = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "Premium Clubhouse", Code = "PRM-C", Type = FacilityType.Mixed, LocationLabel = "Clubhouse", DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "Riverside Grounds", Code = "RIV-G", Type = FacilityType.Outdoor, LocationLabel = "Riverside", DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Facility { Name = "Summit Arena", Code = "SUM-A", Type = FacilityType.Indoor, LocationLabel = "Summit Tower", DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var facility in facilities)
+            {
+                if (!await db.Facilities.AnyAsync(f => f.Code == facility.Code))
+                {
+                    db.Facilities.Add(facility);
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedCourtsAsync(ApplicationDbContext db)
+        {
+            var sports = await db.Sports.ToDictionaryAsync(s => s.Code);
+            var facilities = await db.Facilities.ToDictionaryAsync(f => f.Code);
+
+            var courts = new[]
+            {
+                new Court { Name = "Cricket Nets North 01", Code = "CRK-N1", SportId = sports["CRK"].Id, FacilityId = facilities["BLK-N"].Id, Status = CourtStatus.Available, Capacity = 6, DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Cricket Nets North 02", Code = "CRK-N2", SportId = sports["CRK"].Id, FacilityId = facilities["BLK-N"].Id, Status = CourtStatus.Available, Capacity = 6, DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Football Turf East 01", Code = "FTB-E1", SportId = sports["FTB"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 14, DisplayOrder = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Football Turf East 02", Code = "FTB-E2", SportId = sports["FTB"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 10, DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Badminton Court Indoor 01", Code = "BDM-I1", SportId = sports["BDM"].Id, FacilityId = facilities["IND-A"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Badminton Court Indoor 02", Code = "BDM-I2", SportId = sports["BDM"].Id, FacilityId = facilities["IND-A"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Badminton Court Indoor 03", Code = "BDM-I3", SportId = sports["BDM"].Id, FacilityId = facilities["IND-A"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Padel Court Glass 01", Code = "PAD-G1", SportId = sports["PAD"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Padel Court Glass 02", Code = "PAD-G2", SportId = sports["PAD"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Tennis Court Hard 01", Code = "TNS-H1", SportId = sports["TNS"].Id, FacilityId = facilities["SUM-A"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Tennis Court Clay 01", Code = "TNS-C1", SportId = sports["TNS"].Id, FacilityId = facilities["SUM-A"].Id, Status = CourtStatus.Maintenance, Capacity = 4, DisplayOrder = 11, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Squash Court Glass 01", Code = "SQU-G1", SportId = sports["SQU"].Id, FacilityId = facilities["CTR-H"].Id, Status = CourtStatus.Available, Capacity = 2, DisplayOrder = 12, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Squash Court Glass 02", Code = "SQU-G2", SportId = sports["SQU"].Id, FacilityId = facilities["CTR-H"].Id, Status = CourtStatus.Available, Capacity = 2, DisplayOrder = 13, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Table Tennis Zone 01", Code = "TTN-M1", SportId = sports["TTN"].Id, FacilityId = facilities["PRM-C"].Id, Status = CourtStatus.Available, Capacity = 8, DisplayOrder = 14, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new Court { Name = "Basketball Court Riverside 01", Code = "BKB-R1", SportId = sports["BKB"].Id, FacilityId = facilities["RIV-G"].Id, Status = CourtStatus.Available, Capacity = 12, DisplayOrder = 15, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var court in courts)
+            {
+                if (!await db.Courts.AnyAsync(c => c.Code == court.Code))
+                {
+                    db.Courts.Add(court);
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedCourtPricingsAsync(ApplicationDbContext db)
+        {
+            var courts = await db.Courts.ToDictionaryAsync(c => c.Code);
+
+            var pricings = new[]
+            {
+                new CourtPricing { CourtId = courts["CRK-N1"].Id, Name = "Morning Off-Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), DurationMinutes = 60, Price = 1200, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["CRK-N1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 2200, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["CRK-N2"].Id, Name = "Morning Off-Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), DurationMinutes = 60, Price = 1200, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["CRK-N2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 2200, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["FTB-E1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 90, Price = 3500, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["FTB-E1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 90, Price = 5500, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["FTB-E2"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 90, Price = 2500, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["FTB-E2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 90, Price = 4000, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BDM-I1"].Id, Name = "Morning Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), DurationMinutes = 60, Price = 800, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BDM-I1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 1400, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BDM-I2"].Id, Name = "Morning Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(12, 0), DurationMinutes = 60, Price = 800, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BDM-I2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 1400, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BDM-I3"].Id, Name = "Off-Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 60, Price = 700, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["PAD-G1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 60, Price = 1500, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["PAD-G1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 2500, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["PAD-G2"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 60, Price = 1500, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["PAD-G2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 2500, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["TNS-H1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 90, Price = 1800, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["TNS-H1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 90, Price = 3000, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["SQU-G1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 45, Price = 600, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["SQU-G1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 45, Price = 1100, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["SQU-G2"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 45, Price = 600, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["SQU-G2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 45, Price = 1100, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["TTN-M1"].Id, Name = "Hourly Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 30, Price = 400, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new CourtPricing { CourtId = courts["BKB-R1"].Id, Name = "Hourly Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 1000, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            foreach (var pricing in pricings)
+            {
+                var exists = await db.CourtPricings.AnyAsync(p =>
+                    p.CourtId == pricing.CourtId &&
+                    p.DayOfWeek == pricing.DayOfWeek &&
+                    p.StartTime == pricing.StartTime &&
+                    p.EndTime == pricing.EndTime &&
+                    p.DurationMinutes == pricing.DurationMinutes);
+                if (!exists)
+                {
+                    db.CourtPricings.Add(pricing);
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedCourtSchedulesAsync(ApplicationDbContext db)
+        {
+            var courts = await db.Courts.ToDictionaryAsync(c => c.Code);
+
+            var scheduledCourts = new[] { "CRK-N1", "FTB-E1", "BDM-I1", "PAD-G1" };
+            var days = Enum.GetValues<DayOfWeek>().Where(d => d != DayOfWeek.Sunday).ToArray();
+
+            foreach (var courtCode in scheduledCourts)
+            {
+                var courtId = courts[courtCode].Id;
+                foreach (var day in days)
+                {
+                    var exists = await db.CourtSchedules.AnyAsync(s =>
+                        s.CourtId == courtId && s.DayOfWeek == day && s.IsActive);
+                    if (!exists)
+                    {
+                        db.CourtSchedules.Add(new CourtSchedule
+                        {
+                            CourtId = courtId,
+                            DayOfWeek = day,
+                            OpeningTime = new TimeOnly(6, 0),
+                            ClosingTime = new TimeOnly(23, 0),
+                            IsClosed = false,
+                            SlotDurationMinutes = 60,
+                            BufferMinutes = 10,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedCustomerRecordsAsync(ApplicationDbContext db)
+        {
+            var now = DateTime.UtcNow;
+            var customers = new[]
+            {
+                new Customer
+                {
+                    CustomerCode = "CUST-000001",
+                    FirstName = "Omar",
+                    LastName = "Khalid",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03001122334",
+                    Email = "omar.khalid@lhrsports.com",
+                    NationalIdNumber = "3520211223344",
+                    City = "Lahore",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Individual,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "CRK,FTB",
+                    ReceiveBookingReminders = true,
+                    LoyaltyPoints = 250,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-45)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000002",
+                    FirstName = "Fatima",
+                    LastName = "Ahmed",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03012233445",
+                    Email = "fatima.ahmed@islabc.com",
+                    NationalIdNumber = "6110122334455",
+                    City = "Islamabad",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.VIP,
+                    CustomerSource = CustomerSource.SocialMedia,
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "PAD,TNS",
+                    IsMember = true,
+                    MembershipNumber = "MEM-VIP-001",
+                    MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-3)),
+                    MembershipExpiryDate = DateOnly.FromDateTime(now.AddMonths(9)),
+                    AllowCredit = true,
+                    CreditLimit = 75000,
+                    LoyaltyPoints = 1500,
+                    ReceiveBookingReminders = true,
+                    ReceiveMarketingMessages = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-90)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000003",
+                    FirstName = "Imran",
+                    LastName = "Hussain",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03023344556",
+                    Email = "imran.hussain@karachicc.com",
+                    NationalIdNumber = "4210133445566",
+                    City = "Karachi",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Corporate,
+                    CustomerSource = CustomerSource.Corporate,
+                    OrganizationName = "Karachi Cricket Club",
+                    Occupation = "Sports Coordinator",
+                    PreferredContactMethod = PreferredContactMethod.Phone,
+                    PreferredSportCodes = "CRK,FTB",
+                    AllowCredit = true,
+                    CreditLimit = 120000,
+                    OutstandingBalance = 15000,
+                    LoyaltyPoints = 600,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-120)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000004",
+                    FirstName = "Ayesha",
+                    LastName = "Siddiqui",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03034455667",
+                    Email = "ayesha.siddiqui@student.edu",
+                    NationalIdNumber = "3520144556677",
+                    City = "Lahore",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Student,
+                    CustomerSource = CustomerSource.WalkIn,
+                    PreferredContactMethod = PreferredContactMethod.SMS,
+                    PreferredSportCodes = "BDM",
+                    ReceiveBookingReminders = true,
+                    LoyaltyPoints = 80,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-60)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000005",
+                    FirstName = "Ali",
+                    LastName = "Raza",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03045566778",
+                    Email = "ali.raza@rawalpindi.club",
+                    NationalIdNumber = "3740155667788",
+                    City = "Rawalpindi",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Family,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "PAD,FTB",
+                    LoyaltyPoints = 350,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-75)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000006",
+                    FirstName = "Sara",
+                    LastName = "Malik",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03056677889",
+                    Email = "sara.malik@faisalabad.net",
+                    NationalIdNumber = "3310166778899",
+                    City = "Faisalabad",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Individual,
+                    CustomerSource = CustomerSource.Website,
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "BDM,CRK",
+                    IsMember = true,
+                    MembershipNumber = "MEM-IND-002",
+                    MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-1)),
+                    MembershipExpiryDate = DateOnly.FromDateTime(now.AddMonths(11)),
+                    ReceiveBookingReminders = true,
+                    LoyaltyPoints = 400,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-30)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000007",
+                    FirstName = "Bilal",
+                    LastName = "Khan",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03067788990",
+                    Email = "bilal.khan@multan.pk",
+                    NationalIdNumber = "3630177889900",
+                    City = "Multan",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Student,
+                    CustomerSource = CustomerSource.PhoneCall,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "PAD",
+                    LoyaltyPoints = 120,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-40)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000008",
+                    FirstName = "Hina",
+                    LastName = "Farooq",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03078899001",
+                    Email = "hina.farooq@peshawar.sports",
+                    NationalIdNumber = "1730188990011",
+                    City = "Peshawar",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Individual,
+                    CustomerSource = CustomerSource.SocialMedia,
+                    PreferredContactMethod = PreferredContactMethod.SMS,
+                    PreferredSportCodes = "BDM,CRK",
+                    LoyaltyPoints = 200,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-55)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000009",
+                    FirstName = "Usman",
+                    LastName = "Tariq",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03089900112",
+                    Email = "usman.tariq@quetta.org",
+                    NationalIdNumber = "5440199001122",
+                    City = "Quetta",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.WalkIn,
+                    CustomerSource = CustomerSource.WalkIn,
+                    PreferredContactMethod = PreferredContactMethod.Phone,
+                    PreferredSportCodes = "FTB",
+                    LoyaltyPoints = 50,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-20)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000010",
+                    FirstName = "Zainab",
+                    LastName = "Nawaz",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03090011223",
+                    Email = "zainab.nawaz@gujranwala.com",
+                    NationalIdNumber = "3410100112233",
+                    City = "Gujranwala",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.VIP,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "FTB,BDM",
+                    IsMember = true,
+                    MembershipNumber = "MEM-VIP-003",
+                    MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-4)),
+                    MembershipExpiryDate = DateOnly.FromDateTime(now.AddMonths(8)),
+                    AllowCredit = true,
+                    CreditLimit = 60000,
+                    LoyaltyPoints = 980,
+                    ReceiveBookingReminders = true,
+                    ReceiveMarketingMessages = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-50)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000011",
+                    FirstName = "Hassan",
+                    LastName = "Ali",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03101122334",
+                    Email = "hassan.ali@hyderabad.biz",
+                    NationalIdNumber = "4130111223344",
+                    City = "Hyderabad",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Corporate,
+                    CustomerSource = CustomerSource.Corporate,
+                    OrganizationName = "Hyderabad Business Group",
+                    Occupation = "Procurement Manager",
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "CRK,FTB",
+                    AllowCredit = true,
+                    CreditLimit = 90000,
+                    OutstandingBalance = 8000,
+                    LoyaltyPoints = 450,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-100)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000012",
+                    FirstName = "Mariam",
+                    LastName = "Shah",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03112233445",
+                    Email = "mariam.shah@islamabad.edu",
+                    NationalIdNumber = "6110133445566",
+                    City = "Islamabad",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Student,
+                    CustomerSource = CustomerSource.Website,
+                    PreferredContactMethod = PreferredContactMethod.SMS,
+                    PreferredSportCodes = "TNS,SQU",
+                    LoyaltyPoints = 100,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-35)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000013",
+                    FirstName = "Ahmed",
+                    LastName = "Raza",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03123344556",
+                    Email = "ahmed.raza@lahore.pk",
+                    NationalIdNumber = "3520233445566",
+                    City = "Lahore",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Individual,
+                    CustomerSource = CustomerSource.PhoneCall,
+                    PreferredContactMethod = PreferredContactMethod.Phone,
+                    PreferredSportCodes = "PAD,TNS",
+                    LoyaltyPoints = 180,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-25)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000014",
+                    FirstName = "Nida",
+                    LastName = "Iqbal",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03134455667",
+                    Email = "nida.iqbal@karachi.net",
+                    NationalIdNumber = "4210144556677",
+                    City = "Karachi",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Family,
+                    CustomerSource = CustomerSource.SocialMedia,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "BDM,FTB",
+                    IsMember = true,
+                    MembershipNumber = "MEM-FAM-004",
+                    MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-6)),
+                    MembershipExpiryDate = DateOnly.FromDateTime(now.AddMonths(6)),
+                    AllowCredit = true,
+                    CreditLimit = 40000,
+                    LoyaltyPoints = 550,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-70)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000015",
+                    FirstName = "Yasir",
+                    LastName = "Mahmood",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03145566778",
+                    Email = "yasir.mahmood@rawalpindi.org",
+                    NationalIdNumber = "3740166778899",
+                    City = "Rawalpindi",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.WalkIn,
+                    CustomerSource = CustomerSource.WalkIn,
+                    PreferredContactMethod = PreferredContactMethod.SMS,
+                    PreferredSportCodes = "CRK",
+                    LoyaltyPoints = 70,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-15)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000016",
+                    FirstName = "Samina",
+                    LastName = "Bano",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03156677889",
+                    Email = "samina.bano@faisalabad.pk",
+                    NationalIdNumber = "3310177889900",
+                    City = "Faisalabad",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Individual,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.Email,
+                    PreferredSportCodes = "TNS,PAD",
+                    LoyaltyPoints = 220,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-45)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000017",
+                    FirstName = "Bilal",
+                    LastName = "Ahmed",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03167788990",
+                    Email = "bilal.ahmed@peshawar.net",
+                    NationalIdNumber = "1730177889900",
+                    City = "Peshawar",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Student,
+                    CustomerSource = CustomerSource.PhoneCall,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "SQU,TTN",
+                    LoyaltyPoints = 90,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-38)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000018",
+                    FirstName = "Aiman",
+                    LastName = "Khan",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03178899001",
+                    Email = "aiman.khan@quetta.edu",
+                    NationalIdNumber = "5440188990011",
+                    City = "Quetta",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.VIP,
+                    CustomerSource = CustomerSource.SocialMedia,
+                    PreferredContactMethod = PreferredContactMethod.WhatsApp,
+                    PreferredSportCodes = "PAD,VOL",
+                    IsMember = true,
+                    MembershipNumber = "MEM-VIP-005",
+                    MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-2)),
+                    MembershipExpiryDate = DateOnly.FromDateTime(now.AddMonths(10)),
+                    AllowCredit = true,
+                    CreditLimit = 50000,
+                    LoyaltyPoints = 850,
+                    ReceiveBookingReminders = true,
+                    ReceiveMarketingMessages = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-52)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000019",
+                    FirstName = "Farhan",
+                    LastName = "Siddiqui",
+                    Gender = Gender.Male,
+                    PrimaryPhone = "03189900112",
+                    Email = "farhan.siddiqui@multan.org",
+                    NationalIdNumber = "3630199001122",
+                    City = "Multan",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Corporate,
+                    CustomerSource = CustomerSource.Corporate,
+                    OrganizationName = "Multan Sports Organization",
+                    Occupation = "Operations Head",
+                    PreferredContactMethod = PreferredContactMethod.Phone,
+                    PreferredSportCodes = "FTB,CRK",
+                    AllowCredit = true,
+                    CreditLimit = 110000,
+                    OutstandingBalance = 5000,
+                    LoyaltyPoints = 520,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-85)
+                },
+                new Customer
+                {
+                    CustomerCode = "CUST-000020",
+                    FirstName = "Hina",
+                    LastName = "Malik",
+                    Gender = Gender.Female,
+                    PrimaryPhone = "03190011223",
+                    Email = "hina.malik@lhrsports.com",
+                    NationalIdNumber = "3520200112233",
+                    City = "Lahore",
+                    Country = "Pakistan",
+                    CustomerType = CustomerType.Family,
+                    CustomerSource = CustomerSource.Referral,
+                    PreferredContactMethod = PreferredContactMethod.SMS,
+                    PreferredSportCodes = "FTB,BDM",
+                    LoyaltyPoints = 280,
+                    ReceiveBookingReminders = true,
+                    IsActive = true,
+                    CreatedAt = now.AddDays(-28)
+                }
+            };
+
+            foreach (var customer in customers)
+            {
+                if (!await db.Customers.AnyAsync(c => c.CustomerCode == customer.CustomerCode))
+                {
+                    db.Customers.Add(customer);
+                }
+            }
+            await db.SaveChangesAsync();
+        }
     }
 }

@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = Model.IsEditMode ? "Edit Improvement Plan" : "New Improvement Plan";
     Layout = "_AdminLayout";
+    var today = DateOnly.FromDateTime(DateTime.UtcNow);
 }
 
 <section class="arena-page hr-page performance-form-page" data-performance-form-page>
@@ -43,7 +44,7 @@
             <h2><i class="bi bi-calendar-range"></i> Timeline &amp; Progress</h2>
             <label>
                 <span>Start Date *</span>
-                <input asp-for="StartDate" type="date" />
+                <input asp-for="StartDate" type="date" min="@(Model.IsEditMode ? null : today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="StartDate"></span>
             </label>
             <label>

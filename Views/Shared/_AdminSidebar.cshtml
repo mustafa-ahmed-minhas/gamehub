@@ -25,7 +25,7 @@
     bool CrmActive = On("Customers") || On("CRM");
     bool SalesActive = On("Sales") || On("SalesOrders") || On("Invoices") || On("Payments");
     bool OperationsActive = (On("Bookings") && view != "calendar") || On("Memberships");
-    bool HrActive = On("HR") || On("Recruitment") || On("Offers") || On("Employees") || On("Performance") || On("Termination") || On("HRReports");
+    bool HrActive = On("HR") || On("Recruitment") || On("JobPostings") || On("JobApplications") || On("Offers") || On("Employees") || On("Performance") || On("Termination") || On("HRReports");
     bool AdminActive = On("Users") || On("Settings");
     bool ReportsActive = On("Reports");
 
@@ -144,7 +144,6 @@
             </section>
         }
 
-        @* TEMPORARILY HIDDEN - HR section. Remove these comment markers to restore it.
         @if (Can("HR"))
         {
             <section class="@GroupClass(HrActive)" data-nav-group>
@@ -156,16 +155,25 @@
                     <div class="admin-nav-group-inner">
                         <a class="admin-nav-link @(On("HR") ? "active" : "")" asp-controller="HR" asp-action="Index"><i class="bi bi-people-fill"></i><span>HR Dashboard</span></a>
                         <a class="admin-nav-link @(On("Recruitment") ? "active" : "")" asp-controller="Recruitment" asp-action="Index"><i class="bi bi-person-plus"></i><span>Recruitment Management</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("Recruitment") && tab == "applications" ? "active" : "")" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications"><i class="bi bi-inbox"></i><span>Applications</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("JobPostings") ? "active" : "")" asp-controller="JobPostings" asp-action="Index"><i class="bi bi-journal-text"></i><span>Job Postings</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("JobApplications") ? "active" : "")" asp-controller="JobApplications" asp-action="Index"><i class="bi bi-file-earmark-person"></i><span>Job Applications</span></a>
                         <a class="admin-nav-link @(On("Offers") ? "active" : "")" asp-controller="Offers" asp-action="Index"><i class="bi bi-file-earmark-check"></i><span>Offer &amp; Hiring</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("Offers") && tab == "hiring" ? "active" : "")" asp-controller="Offers" asp-action="Index" asp-route-tab="hiring"><i class="bi bi-people"></i><span>Hiring</span></a>
                         <a class="admin-nav-link @(On("Employees") ? "active" : "")" asp-controller="Employees" asp-action="Index"><i class="bi bi-person-vcard"></i><span>Employee Management</span></a>
                         <a class="admin-nav-link @(On("Performance") ? "active" : "")" asp-controller="Performance" asp-action="Index"><i class="bi bi-graph-up-arrow"></i><span>Performance &amp; Warnings</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("Performance") && tab == "warnings" ? "active" : "")" asp-controller="Performance" asp-action="Index" asp-route-tab="warnings"><i class="bi bi-exclamation-triangle"></i><span>Warnings</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("Performance") && tab == "plans" ? "active" : "")" asp-controller="Performance" asp-action="Index" asp-route-tab="plans"><i class="bi bi-clipboard-check"></i><span>Improvement Plans</span></a>
                         <a class="admin-nav-link @(On("Termination") ? "active" : "")" asp-controller="Termination" asp-action="Index"><i class="bi bi-box-arrow-right"></i><span>Termination &amp; Clearance</span></a>
                         <a class="admin-nav-link @(On("HRReports") ? "active" : "")" asp-controller="HRReports" asp-action="Index"><i class="bi bi-bar-chart-line"></i><span>HR Reports</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("HRReports") && string.Equals(action, "Recruitment", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="HRReports" asp-action="Recruitment"><i class="bi bi-person-plus"></i><span>Recruitment Report</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("HRReports") && string.Equals(action, "Employees", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="HRReports" asp-action="Employees"><i class="bi bi-people"></i><span>Employee Report</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("HRReports") && string.Equals(action, "Performance", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="HRReports" asp-action="Performance"><i class="bi bi-graph-up-arrow"></i><span>Performance Report</span></a>
+                        <a class="admin-nav-link admin-nav-sublink @(On("HRReports") && string.Equals(action, "Termination", StringComparison.OrdinalIgnoreCase) ? "active" : "")" asp-controller="HRReports" asp-action="Termination"><i class="bi bi-box-arrow-right"></i><span>Termination Report</span></a>
                     </div>
                 </div>
             </section>
         }
-        *@
 
         @if (Can("Users") || Can("Settings"))
         {
@@ -189,7 +197,6 @@
             </section>
         }
 
-        @* TEMPORARILY HIDDEN - Reports section. Remove these comment markers to restore it.
         @if (Can("Reports"))
         {
             <section class="@GroupClass(ReportsActive)" data-nav-group>
@@ -204,7 +211,6 @@
                 </div>
             </section>
         }
-        *@
 
     </nav>
     <div class="admin-profile-block"><div class="admin-avatar">@initials</div><div class="admin-profile-text"><strong>@name</strong><span class="admin-role-badge">@role</span></div><form asp-controller="Auth" asp-action="Logout" method="post" class="admin-sidebar-logout">@Html.AntiForgeryToken()<button type="submit" class="icon-button" title="Sign Out" aria-label="Sign Out"><i class="bi bi-box-arrow-right"></i></button></form></div>

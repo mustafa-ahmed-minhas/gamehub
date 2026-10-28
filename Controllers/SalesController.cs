@@ -58,9 +58,9 @@ namespace GameHub.Controllers
                 CustomerName = x.Customer.FirstName + " " + x.Customer.LastName,
                 CustomerCode = x.Customer.CustomerCode,
                 OrganizationName = x.Customer.OrganizationName,
-                OpportunityNumber = x.Opportunity.OpportunityNumber,
-                OpportunityName = x.Opportunity.Name,
-                OpportunityStage = x.Opportunity.Stage,
+                OpportunityNumber = x.Opportunity != null ? x.Opportunity.OpportunityNumber : string.Empty,
+                OpportunityName = x.Opportunity != null ? x.Opportunity.Name : string.Empty,
+                OpportunityStage = x.Opportunity != null ? x.Opportunity.Stage : default,
                 Owner = x.AssignedToUser == null ? null : x.AssignedToUser.FirstName + " " + x.AssignedToUser.LastName,
                 SalesOrderCreated = x.SalesOrderCreated
             }).ToListAsync();
@@ -153,6 +153,52 @@ namespace GameHub.Controllers
             return View("QuotationForm", await AddOptionsAsync(model));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> CreateDirect()
+        {
+            if (!CanCreateQuotation()) return RedirectToAction("NotFound", "Error");
+            var settings = await GetSettingsAsync();
+            var model = new SalesQuotationFormViewModel
+            {
+                CustomerId = 0,
+                AssignedToUserId = CurrentUserId(),
+                QuotationDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(Math.Max(settings.DefaultQuotationValidityDays, 1))),
+                Subject = string.Empty,
+                Introduction = string.Empty,
+                TermsAndConditions = "This quotation is valid until the date mentioned above. Prices are subject to availability and final confirmation.",
+                Currency = settings.Currency,
+                CurrencySymbol = settings.CurrencySymbol ?? "Rs",
+                ManualDiscountAmount = 0,
+                OpportunityLabel = null,
+                CustomerLabel = null,
+                Items = new List<SalesQuotationItemViewModel>
+                {
+                    new()
+                    {
+                        LineNumber = 1,
+                        DisplayOrder = 1,
+                        ItemType = SalesItemType.CustomService,
+                        Description = string.Empty,
+                        Quantity = 1,
+                        UnitOfMeasure = "Unit",
+                        UnitPrice = 0,
+                        TaxPercentage = settings.TaxPercentage
+                    }
+                }
+            };
+            Recalculate(model);
+            return View("QuotationForm", await AddOptionsAsync(model));
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateDirect(SalesQuotationFormViewModel model, string? submitAction)
+        {
+            if (!CanCreateQuotation()) return RedirectToAction("NotFound", "Error");
+            model.OpportunityId = null;
+            return await CreateQuotation(model, submitAction);
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateQuotation(SalesQuotationFormViewModel model, string? submitAction)
         {
@@ -161,6 +207,12 @@ namespace GameHub.Controllers
             Recalculate(model);
             await ValidateFormAsync(model);
             if (!ModelState.IsValid) return View("QuotationForm", await AddOptionsAsync(model));
+
+            // Enforce server-side price integrity: never trust client-submitted UnitPrice
+            if (!await ValidateAndSetPricingAsync(model))
+            {
+                return View("QuotationForm", await AddOptionsAsync(model));
+            }
 
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             var settings = await GetSettingsAsync();
@@ -191,25 +243,28 @@ namespace GameHub.Controllers
             _dbContext.SalesQuotations.Add(quotation);
             await _dbContext.SaveChangesAsync();
 
-            var opportunity = await _dbContext.Opportunities.FirstAsync(x => x.Id == quotation.OpportunityId);
-            opportunity.QuotationCreated = true;
-            opportunity.QuotationId = quotation.Id;
-            opportunity.UpdatedAt = DateTime.UtcNow;
-            _dbContext.OpportunityActivities.Add(new OpportunityActivity
+            if (quotation.OpportunityId.HasValue)
             {
-                OpportunityId = opportunity.Id,
-                ActivityType = OpportunityActivityType.Proposal,
-                Subject = "Quotation created",
-                Description = $"Quotation {quotation.QuotationNumber} was created.",
-                ActivityDate = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
-                CreatedByUserId = CurrentUserId(),
-                IsCompleted = true
-            });
-            await _dbContext.SaveChangesAsync();
+                var opportunity = await _dbContext.Opportunities.FirstAsync(x => x.Id == quotation.OpportunityId.Value);
+                opportunity.QuotationCreated = true;
+                opportunity.QuotationId = quotation.Id;
+                opportunity.UpdatedAt = DateTime.UtcNow;
+                _dbContext.OpportunityActivities.Add(new OpportunityActivity
+                {
+                    OpportunityId = opportunity.Id,
+                    ActivityType = OpportunityActivityType.Proposal,
+                    Subject = "Quotation created",
+                    Description = $"Quotation {quotation.QuotationNumber} was created.",
+                    ActivityDate = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId(),
+                    IsCompleted = true
+                });
+                await _dbContext.SaveChangesAsync();
+            }
             await transaction.CommitAsync();
 
-            TempData.SetToast("success", "Quotation Created", "Quotation was created successfully.");
+            TempData.SetToast("success", quotation.OpportunityId.HasValue ? "Quotation Created" : "Direct Quotation Created", quotation.OpportunityId.HasValue ? "Quotation was created successfully." : "Direct quotation was created successfully.");
             return RedirectToAction(nameof(QuotationDetails), new { id = quotation.Id });
         }
 
@@ -219,46 +274,31 @@ namespace GameHub.Controllers
             if (!CanCreateQuotation()) return RedirectToAction("NotFound", "Error");
             var quotation = await LoadQuotationQuery(tracked: false).FirstOrDefaultAsync(x => x.Id == id);
             if (quotation == null) return RedirectToAction("NotFound", "Error");
-            if (!quotation.IsEditable)
-            {
-                TempData.SetToast("warning", "Editing Locked", "Only Draft and Ready for Review quotations can be edited.");
-                return RedirectToAction(nameof(QuotationDetails), new { id });
-            }
-            return View("QuotationForm", await AddOptionsAsync(MapForm(quotation)));
+            return View("QuotationEdit", MapForm(quotation));
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditQuotation(int id, SalesQuotationFormViewModel model)
+        public async Task<IActionResult> ConfirmQuotation(int id)
         {
             if (!CanCreateQuotation()) return RedirectToAction("NotFound", "Error");
-            if (model.Id != id) return RedirectToAction("NotFound", "Error");
             var quotation = await LoadQuotationQuery(tracked: true).FirstOrDefaultAsync(x => x.Id == id);
-            if (quotation == null) return RedirectToAction("NotFound", "Error");
-            if (!quotation.IsEditable) return RedirectToAction("NotFound", "Error");
+            if (quotation == null)
+            {
+                TempData.SetToast("error", "Quotation Not Found", "The quotation no longer exists.");
+                return RedirectToAction(nameof(Index), new { tab = "quotations" });
+            }
+            if (quotation.Status != SalesQuotationStatus.Draft)
+            {
+                TempData.SetToast("warning", "Cannot Confirm", "Only Draft quotations can be confirmed. This quotation is already " + quotation.Status.GetDisplayName() + ".");
+                return RedirectToAction(nameof(QuotationDetails), new { id });
+            }
 
-            Normalize(model);
-            Recalculate(model);
-            await ValidateFormAsync(model, id);
-            if (!ModelState.IsValid) return View("QuotationForm", await AddOptionsAsync(model));
-
-            quotation.AssignedToUserId = model.AssignedToUserId;
-            quotation.QuotationDate = model.QuotationDate;
-            quotation.ValidUntil = model.ValidUntil;
-            quotation.Subject = model.Subject;
-            quotation.Introduction = model.Introduction;
-            quotation.TermsAndConditions = model.TermsAndConditions;
-            quotation.CustomerNotes = model.CustomerNotes;
-            quotation.InternalNotes = model.InternalNotes;
-            quotation.CustomerReference = model.CustomerReference;
-            quotation.ManualDiscountAmount = model.ManualDiscountAmount;
+            quotation.Status = SalesQuotationStatus.Confirmed;
             quotation.UpdatedAt = DateTime.UtcNow;
             quotation.UpdatedByUserId = CurrentUserId();
-            ApplyTotals(model, quotation);
-            _dbContext.SalesQuotationItems.RemoveRange(quotation.Items);
-            quotation.Items.Clear();
-            MapItems(model, quotation);
             await _dbContext.SaveChangesAsync();
-            TempData.SetToast("success", "Quotation Updated", "Quotation changes were saved.");
+
+            TempData.SetToast("success", "Quotation Confirmed", "Quotation " + quotation.QuotationNumber + " has been confirmed and is now read-only.");
             return RedirectToAction(nameof(QuotationDetails), new { id });
         }
 
@@ -364,12 +404,13 @@ namespace GameHub.Controllers
             quotation.UpdatedAt = DateTime.UtcNow;
             quotation.UpdatedByUserId = CurrentUserId();
             mutate?.Invoke(quotation);
-            if (to == SalesQuotationStatus.Sent && CanTransition(quotation.Opportunity.Stage, OpportunityStage.ProposalSent))
+            if (quotation.OpportunityId.HasValue && to == SalesQuotationStatus.Sent && CanTransition(quotation.Opportunity!.Stage, OpportunityStage.ProposalSent))
             {
                 quotation.Opportunity.Stage = OpportunityStage.ProposalSent;
                 quotation.Opportunity.ProbabilityPercentage = Math.Max(quotation.Opportunity.ProbabilityPercentage, 60);
             }
-            await AddOpportunityActivityAsync(quotation.OpportunityId, "Quotation status changed", $"{quotation.QuotationNumber}: {from.GetDisplayName()} to {to.GetDisplayName()}");
+            if (quotation.OpportunityId.HasValue)
+                await AddOpportunityActivityAsync(quotation.OpportunityId.Value, "Quotation status changed", $"{quotation.QuotationNumber}: {from.GetDisplayName()} to {to.GetDisplayName()}");
             await _dbContext.SaveChangesAsync();
             TempData.SetToast("success", "Quotation Updated", message);
             return RedirectToAction(nameof(QuotationDetails), new { id });
@@ -384,7 +425,8 @@ namespace GameHub.Controllers
             quotation.AcceptedAt = DateTime.UtcNow;
             quotation.UpdatedAt = DateTime.UtcNow;
             quotation.UpdatedByUserId = CurrentUserId();
-            await AddOpportunityActivityAsync(quotation.OpportunityId, "Quotation accepted", $"{quotation.QuotationNumber} accepted. Ready for Sales Order phase.");
+            if (quotation.OpportunityId.HasValue)
+                await AddOpportunityActivityAsync(quotation.OpportunityId.Value, "Quotation accepted", $"{quotation.QuotationNumber} accepted. Ready for Sales Order phase.");
             await RecordApprovalAsync(quotation, ApprovalAction.CustomerAccepted, SalesQuotationStatus.Approved.ToString(), null, null, true);
             await RecordActivityAsync(quotation.Id, ApprovalAction.CustomerAccepted, "Quotation accepted by customer.");
             await _dbContext.SaveChangesAsync();
@@ -410,7 +452,8 @@ namespace GameHub.Controllers
             quotation.RejectionReason = reason.Trim();
             quotation.IsLocked = false;
             quotation.UpdatedAt = DateTime.UtcNow;
-            await AddOpportunityActivityAsync(quotation.OpportunityId, "Quotation rejected", $"{quotation.QuotationNumber} rejected. Reason: {quotation.RejectionReason}");
+            if (quotation.OpportunityId.HasValue)
+                await AddOpportunityActivityAsync(quotation.OpportunityId.Value, "Quotation rejected", $"{quotation.QuotationNumber} rejected. Reason: {quotation.RejectionReason}");
             await RecordApprovalAsync(quotation, ApprovalAction.Rejected, SalesQuotationStatus.SubmittedForApproval.ToString(), null, quotation.RejectionReason, true);
             await RecordActivityAsync(quotation.Id, ApprovalAction.Rejected, $"Quotation rejected: {quotation.RejectionReason}");
             await _dbContext.SaveChangesAsync();
@@ -433,7 +476,8 @@ namespace GameHub.Controllers
             quotation.CancellationReason = reason.Trim();
             quotation.UpdatedAt = DateTime.UtcNow;
             quotation.UpdatedByUserId = CurrentUserId();
-            await AddOpportunityActivityAsync(quotation.OpportunityId, "Quotation cancelled", $"{quotation.QuotationNumber} cancelled. Reason: {quotation.CancellationReason}");
+            if (quotation.OpportunityId.HasValue)
+                await AddOpportunityActivityAsync(quotation.OpportunityId.Value, "Quotation cancelled", $"{quotation.QuotationNumber} cancelled. Reason: {quotation.CancellationReason}");
             await _dbContext.SaveChangesAsync();
             TempData.SetToast("info", "Quotation Cancelled", "Quotation was cancelled.");
             return RedirectToAction(nameof(QuotationDetails), new { id });
@@ -516,7 +560,7 @@ namespace GameHub.Controllers
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var term = search.Trim().ToLower();
-                query = query.Where(x => x.QuotationNumber.ToLower().Contains(term) || (x.Subject ?? "").ToLower().Contains(term) || (x.CustomerReference ?? "").ToLower().Contains(term) || x.Customer.CustomerCode.ToLower().Contains(term) || (x.Customer.FirstName + " " + x.Customer.LastName).ToLower().Contains(term) || x.Customer.PrimaryPhone.Contains(term) || x.Opportunity.OpportunityNumber.ToLower().Contains(term) || x.Opportunity.Name.ToLower().Contains(term));
+                query = query.Where(x => x.QuotationNumber.ToLower().Contains(term) || (x.Subject ?? "").ToLower().Contains(term) || (x.CustomerReference ?? "").ToLower().Contains(term) || x.Customer.CustomerCode.ToLower().Contains(term) || (x.Customer.FirstName + " " + x.Customer.LastName).ToLower().Contains(term) || x.Customer.PrimaryPhone.Contains(term) || (x.Opportunity != null && x.Opportunity.OpportunityNumber.ToLower().Contains(term)) || (x.Opportunity != null && x.Opportunity.Name.ToLower().Contains(term)));
             }
             if (status.HasValue) query = query.Where(x => x.Status == status.Value);
             if (customerId.HasValue) query = query.Where(x => x.CustomerId == customerId.Value);
@@ -552,13 +596,18 @@ namespace GameHub.Controllers
             };
         }
 
-        private async Task<(bool Success, string Message, Opportunity? Opportunity)> ValidateOpportunityForQuotationAsync(int opportunityId, int? currentQuotationId = null)
+        private async Task<(bool Success, string Message, Opportunity? Opportunity)> ValidateOpportunityForQuotationAsync(int? opportunityId, int? currentQuotationId = null, int? customerId = null)
         {
-            var opportunity = await _dbContext.Opportunities.Include(x => x.Customer).FirstOrDefaultAsync(x => x.Id == opportunityId);
+            if (!opportunityId.HasValue) return (true, string.Empty, null);
+            var opportunity = await _dbContext.Opportunities.Include(x => x.Customer).FirstOrDefaultAsync(x => x.Id == opportunityId.Value);
             if (opportunity == null || !opportunity.IsActive) return (false, "Opportunity was not found.", null);
             if (opportunity.Stage == OpportunityStage.Lost) return (false, "Lost opportunities cannot be quoted.", opportunity);
             if (opportunity.CustomerId == null || opportunity.Customer == null) return (false, "Opportunity must be linked to a customer before quotation.", opportunity);
             if (!opportunity.Customer.IsActive || opportunity.Customer.IsBlacklisted) return (false, "Customer is inactive or blocked.", opportunity);
+            if (customerId.HasValue && opportunity.CustomerId.Value != customerId.Value)
+            {
+                return (false, "The selected customer does not match the opportunity's customer.", opportunity);
+            }
             var hasQuotation = await _dbContext.SalesQuotations.AnyAsync(x => x.OpportunityId == opportunityId && x.IsActive && x.Id != currentQuotationId && x.Status != SalesQuotationStatus.Cancelled && x.Status != SalesQuotationStatus.Rejected);
             if (hasQuotation) return (false, "This opportunity already has an active quotation.", opportunity);
             return (true, string.Empty, opportunity);
@@ -566,8 +615,25 @@ namespace GameHub.Controllers
 
         private async Task ValidateFormAsync(SalesQuotationFormViewModel model, int? id = null)
         {
-            var result = await ValidateOpportunityForQuotationAsync(model.OpportunityId, id);
-            if (!result.Success) ModelState.AddModelError(nameof(model.OpportunityId), result.Message);
+            if (model.CustomerId <= 0)
+            {
+                ModelState.AddModelError(nameof(model.CustomerId), "Customer is required.");
+            }
+            else
+            {
+                var customer = await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == model.CustomerId && x.IsActive && !x.IsBlacklisted);
+                if (customer == null)
+                {
+                    ModelState.AddModelError(nameof(model.CustomerId), "The selected customer does not exist or is inactive.");
+                }
+            }
+
+            if (model.OpportunityId.HasValue)
+            {
+                var result = await ValidateOpportunityForQuotationAsync(model.OpportunityId.Value, id, model.CustomerId);
+                if (!result.Success) ModelState.AddModelError(nameof(model.OpportunityId), result.Message);
+            }
+
             if (model.ValidUntil < model.QuotationDate) ModelState.AddModelError(nameof(model.ValidUntil), "Valid until date must be after quotation date.");
             if (!model.Items.Any(x => !string.IsNullOrWhiteSpace(x.Description))) ModelState.AddModelError(string.Empty, "At least one quotation line is required.");
             foreach (var item in model.Items.Where(x => !string.IsNullOrWhiteSpace(x.Description)))
@@ -678,7 +744,7 @@ namespace GameHub.Controllers
                 ManualDiscountAmount = quotation.ManualDiscountAmount,
                 Currency = quotation.Currency,
                 CurrencySymbol = quotation.CurrencySymbol,
-                OpportunityLabel = $"{quotation.Opportunity.OpportunityNumber} - {quotation.Opportunity.Name}",
+                OpportunityLabel = quotation.Opportunity != null ? $"{quotation.Opportunity.OpportunityNumber} - {quotation.Opportunity.Name}" : null,
                 CustomerLabel = $"{quotation.Customer.CustomerCode} - {quotation.Customer.FullName}",
                 Items = quotation.Items.OrderBy(x => x.DisplayOrder).Select(x => new SalesQuotationItemViewModel
                 {
@@ -709,6 +775,8 @@ namespace GameHub.Controllers
         private async Task<SalesQuotationFormViewModel> AddOptionsAsync(SalesQuotationFormViewModel model)
         {
             model.UserOptions = await UserOptionsAsync(model.AssignedToUserId);
+            model.CustomerOptions = await CustomerOptionsAsync(model.CustomerId);
+            model.OpportunityOptions = await OpportunityOptionsAsync(model.OpportunityId);
             model.SportOptions = await _dbContext.Sports.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
             model.FacilityOptions = await _dbContext.Facilities.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
             model.CourtOptions = await _dbContext.Courts.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayOrder).Select(x => new SelectListItem(x.Name, x.Id.ToString())).ToListAsync();
@@ -717,7 +785,173 @@ namespace GameHub.Controllers
             return model;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetCourtPricing(int courtId)
+        {
+            var court = await _dbContext.Courts.AsNoTracking()
+                .Include(x => x.Sport)
+                .FirstOrDefaultAsync(x => x.Id == courtId && x.IsActive);
+
+            if (court == null)
+            {
+                return Json(new { success = false, error = "Court not found or inactive." });
+            }
+
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var currentDayOfWeek = (DayOfWeek)now.DayOfWeek;
+            var currentTime = new TimeOnly(now.Hour, now.Minute);
+
+            // Build query: only active pricings for this court
+            var pricingQuery = _dbContext.CourtPricings.AsNoTracking()
+                .Where(x => x.CourtId == courtId && x.IsActive);
+
+            // Apply time-based filtering to select the single applicable pricing record
+            pricingQuery = pricingQuery.Where(x =>
+                // Match day of week, or day is null (applies every day)
+                (x.DayOfWeek == null || x.DayOfWeek == today.DayOfWeek) &&
+                // Match time range: booking start time falls within [StartTime, EndTime)
+                x.StartTime <= currentTime &&
+                x.EndTime > currentTime
+            );
+
+            var pricings = await pricingQuery.ToListAsync();
+
+            // If no pricing matches the current time, try without time filtering
+            // (for quotations, we'll use the first applicable pricing)
+            if (!pricings.Any())
+            {
+                // Fall back to all active pricings, ordered by peak then price
+                pricings = await _dbContext.CourtPricings.AsNoTracking()
+                    .Where(x => x.CourtId == courtId && x.IsActive)
+                    .OrderByDescending(x => x.IsPeakRate)
+                    .ThenBy(x => x.Price)
+                    .ToListAsync();
+            }
+
+            if (!pricings.Any())
+            {
+                return Json(new { success = false, error = $"No active pricing found for court '{court.Name}'." });
+            }
+
+            // Select the most appropriate pricing record:
+            // 1. If time-filtered results exist, use the first match
+            // 2. Otherwise, use the first by peak rate then price (existing convention)
+            var selectedPricing = pricings[0];
+
+            return Json(new
+            {
+                success = true,
+                courtId = court.Id,
+                courtName = court.Name,
+                sportName = court.Sport.Name,
+                sportId = court.SportId,
+                pricingId = selectedPricing.Id,
+                pricingName = selectedPricing.Name,
+                price = selectedPricing.Price,
+                durationMinutes = selectedPricing.DurationMinutes,
+                isPeakRate = selectedPricing.IsPeakRate,
+                dayOfWeek = selectedPricing.DayOfWeek,
+                startTime = selectedPricing.StartTime.ToString("HH:mm"),
+                endTime = selectedPricing.EndTime.ToString("HH:mm")
+            });
+        }
+
         private async Task<List<SelectListItem>> UserOptionsAsync(int? selected = null) => await _dbContext.Users.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.FirstName).Select(x => new SelectListItem(x.FirstName + " " + x.LastName, x.Id.ToString(), x.Id == selected)).ToListAsync();
+        private async Task<bool> ValidateAndSetPricingAsync(SalesQuotationFormViewModel model)
+{
+            bool valid = true;
+            foreach (var item in model.Items.Where(x => !string.IsNullOrWhiteSpace(x.Description)))
+            {
+                // If court is selected, look up pricing from database
+                if (item.CourtId.HasValue)
+                {
+                    var court = await _dbContext.Courts.AsNoTracking()
+                        .Include(x => x.Sport)
+                        .FirstOrDefaultAsync(x => x.Id == item.CourtId.Value && x.IsActive);
+
+                    if (court == null)
+                    {
+                        ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].CourtId", "Selected court is not active or found.");
+                        valid = false;
+                        continue;
+                    }
+
+                    // Check that the item's sport matches the court's sport (if sport is specified)
+                    if (item.SportId.HasValue && item.SportId.Value != court.SportId)
+                    {
+                        ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].SportId", "Selected sport does not match the court's sport.");
+                        valid = false;
+                        continue;
+                    }
+
+                    // Build pricing query with time-based filtering
+                    var now = DateTime.UtcNow;
+                    var today = DateOnly.FromDateTime(now);
+                    var currentTime = new TimeOnly(now.Hour, now.Minute);
+
+                    var pricingQuery = _dbContext.CourtPricings.AsNoTracking()
+                        .Where(x => x.CourtId == item.CourtId.Value && x.IsActive);
+
+                    // Apply time-based filtering to select the single applicable pricing record
+                    pricingQuery = pricingQuery.Where(x =>
+                        // Match day of week, or day is null (applies every day)
+                        (x.DayOfWeek == null || x.DayOfWeek == today.DayOfWeek) &&
+                        // Match time range: current time falls within [StartTime, EndTime)
+                        x.StartTime <= currentTime &&
+                        x.EndTime > currentTime
+                    );
+
+                    var pricings = await pricingQuery.ToListAsync();
+
+                    // If no pricing matches current time, fall back to all active pricings
+                    if (!pricings.Any())
+                    {
+                        pricings = await _dbContext.CourtPricings.AsNoTracking()
+                            .Where(x => x.CourtId == item.CourtId.Value && x.IsActive)
+                            .OrderByDescending(x => x.IsPeakRate)
+                            .ThenBy(x => x.Price)
+                            .ToListAsync();
+                    }
+
+                    if (!pricings.Any())
+                    {
+                        ModelState.AddModelError($"Items[{model.Items.IndexOf(item)}].CourtId", $"No active pricing found for court '{court.Name}'.");
+                        valid = false;
+                        continue;
+                    }
+
+                    // Select the most appropriate pricing record
+                    // 1. If time-filtered results exist, use the first match
+                    // 2. Otherwise, use the first by peak rate then price (existing convention)
+                    var pricing = pricings[0];
+
+                    // Check time applicability if day and time are specified
+                    // For now, we'll use the first active pricing record
+                    // In a full implementation, you'd check DayOfWeek, StartTime, EndTime against the booking time
+
+                    // Set the unit price from the pricing record - never trust client value
+                    item.UnitPrice = pricing.Price;
+                    item.PricingDurationMinutes = pricing.DurationMinutes;
+                    item.PricingName = pricing.Name;
+                    item.IsPeakRate = pricing.IsPeakRate;
+                    item.PricingError = null;
+                }
+                else if (item.FacilityId.HasValue || item.SportId.HasValue)
+                {
+                    // For custom services or memberships without a specific court,
+                    // keep the existing unit price but validate it's reasonable
+                    item.PricingError = null;
+                }
+                else
+                {
+                    // No court or facility selected - this is a custom/service item
+                    // Keep existing price validation but don't override
+                    item.PricingError = null;
+                }
+            }
+            return valid;
+        }
         private async Task<List<SelectListItem>> CustomerOptionsAsync(int? selected = null) => await _dbContext.Customers.AsNoTracking().OrderBy(x => x.FirstName).Select(x => new SelectListItem(x.FirstName + " " + x.LastName + " - " + x.CustomerCode, x.Id.ToString(), x.Id == selected)).ToListAsync();
         private async Task<List<SelectListItem>> OpportunityOptionsAsync(int? selected = null) => await _dbContext.Opportunities.AsNoTracking().OrderByDescending(x => x.CreatedAt).Select(x => new SelectListItem(x.OpportunityNumber + " - " + x.Name, x.Id.ToString(), x.Id == selected)).ToListAsync();
 

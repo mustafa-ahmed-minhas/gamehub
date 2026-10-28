@@ -31,8 +31,6 @@
     <form class="customer-form-grid" asp-action="@(isEdit ? "EditQuotation" : "CreateQuotation")" asp-route-id="@Model.Id" method="post" data-sales-form>
         @Html.AntiForgeryToken()
         <input asp-for="Id" type="hidden" />
-        <input asp-for="OpportunityId" type="hidden" />
-        <input asp-for="CustomerId" type="hidden" />
         <input asp-for="Currency" type="hidden" />
         <input asp-for="CurrencySymbol" type="hidden" />
 
@@ -41,8 +39,18 @@
 
             <section class="customer-form-card">
                 <h2><i class="bi bi-bullseye"></i> Opportunity and Customer</h2>
-                <label><span>Opportunity</span><input value="@Model.OpportunityLabel" readonly /><small asp-validation-for="OpportunityId"></small></label>
-                <label><span>Customer</span><input value="@Model.CustomerLabel" readonly /><small asp-validation-for="CustomerId"></small></label>
+                @if (!string.IsNullOrWhiteSpace(Model.OpportunityLabel))
+                {
+                    <input asp-for="OpportunityId" type="hidden" />
+                    <input asp-for="CustomerId" type="hidden" />
+                    <label><span>Opportunity</span><input value="@Model.OpportunityLabel" readonly /><small asp-validation-for="OpportunityId"></small></label>
+                    <label><span>Customer</span><input value="@Model.CustomerLabel" readonly /><small asp-validation-for="CustomerId"></small></label>
+                }
+                else
+                {
+                    <label><span>Opportunity</span><select asp-for="OpportunityId" asp-items="Model.OpportunityOptions"><option value="">No linked opportunity (Direct Quotation)</option></select><small asp-validation-for="OpportunityId"></small></label>
+                    <label><span>Customer *</span><select asp-for="CustomerId" asp-items="Model.CustomerOptions"><option value="">Select customer</option></select><small asp-validation-for="CustomerId"></small></label>
+                }
                 <label><span>Assigned Owner</span><select asp-for="AssignedToUserId" asp-items="Model.UserOptions"><option value="">Unassigned</option></select></label>
                 <label><span>Customer Reference</span><input asp-for="CustomerReference" placeholder="PO, email reference or note" /><small asp-validation-for="CustomerReference"></small></label>
             </section>
@@ -56,13 +64,11 @@
             </section>
 
             <section class="customer-form-card">
-                <div class="sales-cycle-section-head">
-                    <h2><i class="bi bi-list-check"></i> Line Items</h2>
-                    <div class="sales-cycle-section-actions">
-                        <button class="admin-secondary-button" type="button" data-add-line data-type="CourtBooking"><i class="bi bi-plus"></i> Add Court Service</button>
-                        <button class="admin-secondary-button" type="button" data-add-line data-type="Membership"><i class="bi bi-plus"></i> Add Membership</button>
-                        <button class="admin-action-button" type="button" data-add-line data-type="CustomService"><i class="bi bi-plus-lg"></i> Add Custom Service</button>
-                    </div>
+                <h2><i class="bi bi-list-check"></i> Line Items</h2>
+                <div class="sales-cycle-line-toolbar">
+                    <button class="admin-secondary-button" type="button" data-add-line data-type="CourtBooking"><i class="bi bi-plus"></i> Add Court Service</button>
+                    <button class="admin-secondary-button" type="button" data-add-line data-type="Membership"><i class="bi bi-plus"></i> Add Membership</button>
+                    <button class="admin-action-button" type="button" data-add-line data-type="CustomService"><i class="bi bi-plus-lg"></i> Add Custom Service</button>
                 </div>
                 <div class="sales-cycle-form-lines" data-sales-lines>
                     @for (var i = 0; i < Model.Items.Count; i++)
@@ -71,23 +77,26 @@
                             <input asp-for="Items[i].Id" type="hidden" />
                             <input asp-for="Items[i].LineNumber" type="hidden" />
                             <input asp-for="Items[i].DisplayOrder" type="hidden" />
-                            <div class="sales-cycle-line-head">
-                                <strong>Line @(i + 1)</strong>
-                                <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                            <div class="sales-cycle-line-grid">
-                                <label>Item Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" data-item-type></select></label>
-                                <label>Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions"><option value="">Any</option></select></label>
-                                <label>Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions"><option value="">Any</option></select></label>
-                                <label>Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions"><option value="">Any</option></select></label>
-                                <label>Membership<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions"><option value="">None</option></select></label>
-                                <label class="wide">Description<input asp-for="Items[i].Description" data-line-description /><small asp-validation-for="Items[i].Description"></small></label>
-                                <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" data-line-quantity /></label>
-                                <label>Unit<input asp-for="Items[i].UnitOfMeasure" maxlength="30" data-line-unit /></label>
-                                <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" min="0" data-line-price /></label>
-                                <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" min="0" max="100" data-line-discount /></label>
-                                <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" min="0" max="100" data-line-tax /></label>
-                                <label>Line Total<input asp-for="Items[i].LineTotal" readonly data-line-total /></label>
+                            <div class="sales-cycle-line-content">
+                                <div class="sales-cycle-line-head">
+                                    <strong>Line @(i + 1)</strong>
+                                    <button type="button" data-remove-line aria-label="Remove line"><i class="bi bi-x-lg"></i></button>
+                                </div>
+                                <div class="sales-cycle-line-grid">
+                                    <label>Item Type<select asp-for="Items[i].ItemType" asp-items="Html.GetEnumSelectList<SalesItemType>()" data-item-type></select></label>
+                                    <label>Sport<select asp-for="Items[i].SportId" asp-items="Model.SportOptions"><option value="">Any</option></select></label>
+                                    <label>Facility<select asp-for="Items[i].FacilityId" asp-items="Model.FacilityOptions"><option value="">Any</option></select></label>
+                                    <label>Court<select asp-for="Items[i].CourtId" asp-items="Model.CourtOptions"><option value="">Any</option></select></label>
+                                    <label>Membership<select asp-for="Items[i].MembershipPlanId" asp-items="Model.MembershipPlanOptions"><option value="">None</option></select></label>
+                                    <label class="wide">Description<input asp-for="Items[i].Description" data-line-description /><small asp-validation-for="Items[i].Description"></small></label>
+                                    <label>Quantity<input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" data-line-quantity /></label>
+                                    <label>Unit<input asp-for="Items[i].UnitOfMeasure" maxlength="30" data-line-unit /></label>
+                                    <label>Unit Price<input asp-for="Items[i].UnitPrice" type="number" step="0.01" min="0" data-line-price readonly /></label>
+                                    <span class="price-meta" data-price-meta></span>
+                                    <label>Discount %<input asp-for="Items[i].DiscountPercentage" type="number" step="0.01" min="0" max="100" data-line-discount /></label>
+                                    <label>Tax %<input asp-for="Items[i].TaxPercentage" type="number" step="0.01" min="0" max="100" data-line-tax /></label>
+                                    <label>Line Total<input asp-for="Items[i].LineTotal" readonly data-line-total /></label>
+                                </div>
                             </div>
                         </article>
                     }
@@ -167,6 +176,7 @@
             <label>Quantity<input name="Items[__index__].Quantity" type="number" step="0.01" min="0.01" value="1" data-line-quantity /></label>
             <label>Unit<input name="Items[__index__].UnitOfMeasure" value="Unit" maxlength="30" data-line-unit /></label>
             <label>Unit Price<input name="Items[__index__].UnitPrice" type="number" step="0.01" min="0" value="0" data-line-price /></label>
+            <span class="price-meta" data-price-meta></span>
             <label>Discount %<input name="Items[__index__].DiscountPercentage" type="number" step="0.01" min="0" max="100" value="0" data-line-discount /></label>
             <label>Tax %<input name="Items[__index__].TaxPercentage" type="number" step="0.01" min="0" max="100" value="@Model.Items.FirstOrDefault()?.TaxPercentage" data-line-tax /></label>
             <label>Line Total<input name="Items[__index__].LineTotal" readonly data-line-total /></label>

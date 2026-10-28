@@ -66,7 +66,7 @@ namespace GameHub.Models.ViewModels
     {
         public int? Id { get; set; }
         public string? QuotationNumber { get; set; }
-        [Required] public int OpportunityId { get; set; }
+        public int? OpportunityId { get; set; }
         [Required] public int CustomerId { get; set; }
         public int? AssignedToUserId { get; set; }
         [Required] public DateOnly QuotationDate { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -91,6 +91,8 @@ namespace GameHub.Models.ViewModels
         public string? CustomerLabel { get; set; }
         public List<SalesQuotationItemViewModel> Items { get; set; } = new();
         public IReadOnlyList<SelectListItem> UserOptions { get; set; } = Array.Empty<SelectListItem>();
+        public IReadOnlyList<SelectListItem> CustomerOptions { get; set; } = Array.Empty<SelectListItem>();
+        public IReadOnlyList<SelectListItem> OpportunityOptions { get; set; } = Array.Empty<SelectListItem>();
         public IReadOnlyList<SelectListItem> SportOptions { get; set; } = Array.Empty<SelectListItem>();
         public IReadOnlyList<SelectListItem> FacilityOptions { get; set; } = Array.Empty<SelectListItem>();
         public IReadOnlyList<SelectListItem> CourtOptions { get; set; } = Array.Empty<SelectListItem>();
@@ -118,6 +120,15 @@ namespace GameHub.Models.ViewModels
         public decimal LineSubtotal { get; set; }
         public decimal LineTotal { get; set; }
         public int DisplayOrder { get; set; }
+
+        // Pricing metadata populated from database - never trusted from client
+        public int? PricingDurationMinutes { get; set; }
+        public string? PricingName { get; set; }
+        public bool IsPeakRate { get; set; }
+        public string? PricingError { get; set; }
+
+        // Read-only pricing info displayed to user (not for editing)
+        public string? DisplayPricingInfo { get; set; }
     }
 
     public class SalesQuotationDetailsViewModel

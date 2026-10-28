@@ -198,6 +198,39 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var nowTime = TimeOnly.FromDateTime(now);
+
+            if (!IsEditMode && MeetingDate.HasValue && MeetingDate.Value < today)
+            {
+                yield return new ValidationResult(
+                    "Meeting date cannot be in the past.",
+                    new[] { nameof(MeetingDate) });
+            }
+
+            if (!IsEditMode
+                && MeetingDate.HasValue
+                && MeetingTime.HasValue
+                && MeetingDate.Value == today
+                && MeetingTime.Value <= nowTime)
+            {
+                yield return new ValidationResult(
+                    "Meeting time has already passed today. Choose a later time.",
+                    new[] { nameof(MeetingTime) });
+            }
+
+            if (MeetingDate.HasValue
+                && MeetingTime.HasValue
+                && (Status == PerformanceMeetingStatus.Completed || Status == PerformanceMeetingStatus.NoShow)
+                && (MeetingDate.Value > today
+                    || (MeetingDate.Value == today && MeetingTime.Value > nowTime)))
+            {
+                yield return new ValidationResult(
+                    "A meeting cannot be marked completed or no-show before its scheduled time.",
+                    new[] { nameof(Status) });
+            }
+
             if (FollowUpDate.HasValue && MeetingDate.HasValue && FollowUpDate.Value < MeetingDate.Value)
             {
                 yield return new ValidationResult(
@@ -290,6 +323,22 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            if (!IsEditMode && StartDate.HasValue && StartDate.Value < today)
+            {
+                yield return new ValidationResult(
+                    "Start date cannot be in the past.",
+                    new[] { nameof(StartDate) });
+            }
+
+            if (Status == ImprovementPlanStatus.Active && StartDate.HasValue && StartDate.Value > today)
+            {
+                yield return new ValidationResult(
+                    "An active improvement plan cannot start in the future.",
+                    new[] { nameof(StartDate) });
+            }
+
             if (StartDate.HasValue && ReviewDate.HasValue && ReviewDate.Value < StartDate.Value)
             {
                 yield return new ValidationResult(

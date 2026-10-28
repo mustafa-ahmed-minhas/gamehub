@@ -30,6 +30,7 @@ namespace GameHub.Models.ViewModels
 
         [Required(ErrorMessage = "Interviewer is required.")]
         [MaxLength(150, ErrorMessage = "Interviewer cannot exceed 150 characters.")]
+        [RegularExpression(@"^[A-Za-z][A-Za-z\s'.,()\-/&]*$", ErrorMessage = "Interviewer must contain letters only (spaces and name punctuation are allowed).")]
         public string Interviewer { get; set; } = string.Empty;
 
         [MaxLength(250, ErrorMessage = "Meeting location / link cannot exceed 250 characters.")]
@@ -49,11 +50,37 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (!IsEditMode && InterviewDate.HasValue && InterviewDate.Value < DateOnly.FromDateTime(DateTime.UtcNow))
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var nowTime = TimeOnly.FromDateTime(now);
+
+            if (!IsEditMode && InterviewDate.HasValue && InterviewDate.Value < today)
             {
                 yield return new ValidationResult(
                     "Interview Date cannot be in the past.",
                     new[] { nameof(InterviewDate) });
+            }
+
+            if (!IsEditMode
+                && InterviewDate.HasValue
+                && InterviewTime.HasValue
+                && InterviewDate.Value == today
+                && InterviewTime.Value <= nowTime)
+            {
+                yield return new ValidationResult(
+                    "Interview time has already passed today. Choose a later time.",
+                    new[] { nameof(InterviewTime) });
+            }
+
+            if (InterviewDate.HasValue
+                && InterviewTime.HasValue
+                && (Status == InterviewStatus.Completed || Status == InterviewStatus.NoShow)
+                && (InterviewDate.Value > today
+                    || (InterviewDate.Value == today && InterviewTime.Value > nowTime)))
+            {
+                yield return new ValidationResult(
+                    "An interview cannot be marked completed or no-show before its scheduled time.",
+                    new[] { nameof(Status) });
             }
 
             if (Status == InterviewStatus.Completed && Outcome == InterviewOutcome.Pending)

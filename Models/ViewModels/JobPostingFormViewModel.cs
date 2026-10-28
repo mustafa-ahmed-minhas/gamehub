@@ -32,10 +32,10 @@ namespace GameHub.Models.ViewModels
         [Range(1, 100, ErrorMessage = "Vacancies must be between 1 and 100.")]
         public int? Vacancies { get; set; }
 
-        [Range(0, 999999999, ErrorMessage = "Minimum Salary cannot be negative.")]
+        [Range(0, 999999999.99, ErrorMessage = "Minimum Salary must be between 0 and 999,999,999.99.")]
         public decimal? MinimumSalary { get; set; }
 
-        [Range(0, 999999999, ErrorMessage = "Maximum Salary cannot be negative.")]
+        [Range(0, 999999999.99, ErrorMessage = "Maximum Salary must be between 0 and 999,999,999.99.")]
         public decimal? MaximumSalary { get; set; }
 
         [Required(ErrorMessage = "Currency is required.")]
@@ -94,6 +94,13 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            if (MinimumSalary.HasValue != MaximumSalary.HasValue)
+            {
+                yield return new ValidationResult(
+                    "Provide both Minimum Salary and Maximum Salary, or leave both blank.",
+                    new[] { MinimumSalary.HasValue ? nameof(MaximumSalary) : nameof(MinimumSalary) });
+            }
+
             if (MinimumSalary.HasValue && MaximumSalary.HasValue && MaximumSalary.Value < MinimumSalary.Value)
             {
                 yield return new ValidationResult(

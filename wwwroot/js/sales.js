@@ -102,4 +102,187 @@
     form.addEventListener('input', updateCompleteness);
     form.addEventListener('change', updateCompleteness);
     updateCompleteness();
+
+    // --- Pricing Lookup Logic ---
+
+    // Cache for pricing lookups: courtId -> pricing data
+    const pricingCache = {};
+
+    // Look up pricing for a court and populate the line item
+    async function lookupPricing(courtId, lineElement) {
+        const priceMeta = lineElement.querySelector('.price-meta');
+        if (!priceMeta) return;
+
+        // Show loading state
+        priceMeta.innerHTML = '<span class="spinner spinner-sm" role="status" aria-label="Loading pricing..."></span>';
+
+        // Check cache
+        if (pricingCache[courtId]) {
+            populatePriceInfo(priceMeta, pricingCache[courtId]);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/Sales/GetCourtPricing?courtId=${courtId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                pricingCache[courtId] = { error: 'Failed to fetch pricing' };
+                populatePriceInfo(priceMeta, { error: 'Failed to fetch pricing' });
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.price !== undefined) {
+                pricingCache[courtId] = data;
+                populatePriceInfo(priceMeta, data);
+                // Set the unit price from the pricing data
+                const priceInput = lineElement.querySelector('[data-line-price]');
+                if (priceInput) {
+                    priceInput.value = data.price;
+                    // Trigger recalculation
+                    lineElement.closest('[data-sales-line]').dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            } else {
+                pricingCache[courtId] = { error: data.error || 'No pricing available' };
+                populatePriceInfo(priceMeta, { error: data.error || 'No pricing available' });
+                // Clear unit price if no pricing available
+                const priceInput = lineElement.querySelector('[data-line-price]');
+                if (priceInput) {
+                    priceInput.value = '';
+                }
+            }
+        } catch (err) {
+            pricingCache[courtId] = { error: 'Error fetching pricing' };
+            populatePriceInfo(priceMeta, { error: 'Error fetching pricing' });
+            const priceInput = lineElement.querySelector('[data-line-price]');
+            if (priceInput) {
+                priceInput.value = '';
+            }
+        }
+    }
+
+    // Populate the price metadata span
+    function populatePriceInfo(priceMeta, data) {
+        priceMeta.innerHTML = '';
+        if (data.error) {
+            priceMeta.innerHTML = `<span class="text-danger small">${data.error}</span>`;
+            return;
+        }
+
+        // Display pricing info
+        const parts = [];
+        if (data.courtName) parts.push(data.courtName);
+        if (data.sportName) parts.push(`(${data.sportName})`);
+        if (data.durationMinutes) parts.push(`${data.durationMinutes} min`);
+        if (data.pricingName) parts.push(data.pricingName);
+        if (data.isPeakRate) parts.push('Peak rate');
+
+        if (parts.length > 0) {
+            priceMeta.innerHTML = `<span class="text-primary small">${parts.join(' • ')}</span>`;
+        } else {
+            priceMeta.innerHTML = `<span class="text-primary small">${data.price ? `Rs ${data.price}` : ''}</span>`;
+        }
+    }
+
+    // Handle court selection change to trigger pricing lookup
+    function handleCourtChange(lineElement) {
+        const courtSelect = lineElement.querySelector('select[name*="CourtId"], select[data-item-type~="Court"]');
+        // Actually, let's use the asp-for binding - SportId changes first, then CourtId
+        // We need to find the court select within the line
+        const courtInput = lineElement.querySelector('select[name*="Items"][name*="CourtId"]');
+        if (!courtInput) return;
+
+        const courtId = courtInput.value;
+        if (!courtId) {
+            // Clear pricing if no court selected
+            const priceMeta = lineElement.querySelector('.price-meta');
+            if (priceMeta) {
+                priceMeta.innerHTML = '';
+            }
+            const priceInput = lineElement.querySelector('[data-line-price]');
+            if (priceInput) priceInput.value = '';
+            return;
+        }
+
+        lookupPricing(courtId, lineElement);
+    }
+
+    // Initialize pricing lookups for existing lines
+    function initializeExistingLines() {
+        document.querySelectorAll('[data-sales-line]').forEach(line => {
+            // We'll hook up changes after the form is fully set up
+        });
+    }
+
+    // Hook up event handlers using delegation for dynamically added lines
+    function hookLineEvents() {
+        // Handle input changes within line items (event delegation)
+        form.addEventListener('change', (e) => {
+            const line = e.target.closest('[data-sales-line]');
+            if (!line) return;
+
+            const target = e.target;
+            const name = target.name || '';
+
+            // Handle court selection change
+            if (name.includes('CourtId') || target.matches('select[name*="CourtId"]')) {
+                handleCourtChange(line);
+                return;
+            }
+
+            // Handle sport selection change
+            if (name.includes('SportId') || target.matches('select[name*="SportId"]')) {
+                const courtSelect = line.querySelector('select[name*="CourtId"]');
+                if (courtSelect && courtSelect.value) {
+                    handleCourtChange(line);
+                }
+                return;
+            }
+
+            // Handle quantity changes - recalculate line total
+            if (name.includes('Quantity') || target.matches('input[name*="Quantity"]')) {
+                recalculateLine(line);
+                return;
+            }
+
+            // Handle discount changes - recalculate line total
+            if (name.includes('DiscountPercentage') || target.matches('input[name*="DiscountPercentage"]')) {
+                recalculateLine(line);
+                return;
+            }
+
+            // Handle tax changes - recalculate line total
+            if (name.includes('TaxPercentage') || target.matches('input[name*="TaxPercentage"]')) {
+                recalculateLine(line);
+                return;
+            }
+
+            // Handle unit price changes - recalculate (read-only, but validate)
+            if (name.includes('UnitPrice') || target.matches('input[name*="UnitPrice"]')) {
+                recalculateLine(line);
+                return;
+            }
+        });
+    }
+
+    // Recalculate a single line's total (delegates to calc for overall totals)
+    function recalculateLine(line) {
+        // Just recalculate overall totals - individual line totals are handled by calc()
+        calc();
+    }
+
+    // Money formatting helper (adapted from existing)
+    function money(n) {
+        const sym = form.querySelector('[name=CurrencySymbol]')?.value || 'Rs';
+        return `${sym} ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // Run after DOM is ready
+    hookLineEvents();
 })();

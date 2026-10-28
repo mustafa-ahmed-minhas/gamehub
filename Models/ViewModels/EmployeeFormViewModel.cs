@@ -28,34 +28,36 @@ namespace GameHub.Models.ViewModels
         [Required(ErrorMessage = "First Name is required.")]
         [MinLength(2, ErrorMessage = "First Name must be at least 2 characters.")]
         [MaxLength(50, ErrorMessage = "First Name cannot exceed 50 characters.")]
-        [RegularExpression(@"^[A-Za-z\s'-]+$", ErrorMessage = "Use letters, spaces, hyphens, and apostrophes only.")]
+        [RegularExpression(HrValidationRules.PersonNamePattern, ErrorMessage = HrValidationRules.PersonNameMessage)]
         public string FirstName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Last Name is required.")]
         [MinLength(2, ErrorMessage = "Last Name must be at least 2 characters.")]
         [MaxLength(50, ErrorMessage = "Last Name cannot exceed 50 characters.")]
-        [RegularExpression(@"^[A-Za-z\s'-]+$", ErrorMessage = "Use letters, spaces, hyphens, and apostrophes only.")]
+        [RegularExpression(HrValidationRules.PersonNamePattern, ErrorMessage = HrValidationRules.PersonNameMessage)]
         public string LastName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Email Address is required.")]
-        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [EmailAddress(ErrorMessage = HrValidationRules.EmailMessage)]
+        [RegularExpression(HrValidationRules.EmailPattern, ErrorMessage = HrValidationRules.EmailMessage)]
         [MaxLength(254, ErrorMessage = "Email Address cannot exceed 254 characters.")]
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone Number is required.")]
-        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [RegularExpression(HrValidationRules.PhonePattern, ErrorMessage = HrValidationRules.PhoneMessage)]
         [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "National ID / CNIC is required.")]
-        [RegularExpression(@"^\d{13}$", ErrorMessage = "National ID / CNIC must be exactly 13 numeric digits (e.g., 3520212345678).")]
+        [RegularExpression(HrValidationRules.NationalIdPattern, ErrorMessage = HrValidationRules.NationalIdMessage)]
         public string NationalIdNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Date of Birth is required.")]
         [DataType(DataType.Date)]
         public DateOnly? DateOfBirth { get; set; }
 
-        public Gender Gender { get; set; }
+        [Required(ErrorMessage = "Gender is required.")]
+        public Gender? Gender { get; set; }
 
         [Required(ErrorMessage = "Department is required.")]
         [MaxLength(80)]
@@ -79,13 +81,14 @@ namespace GameHub.Models.ViewModels
         public string? EmploymentAddress { get; set; }
 
         [MaxLength(100, ErrorMessage = "Emergency Contact Name cannot exceed 100 characters.")]
+        [RegularExpression(HrValidationRules.PersonNamePattern, ErrorMessage = HrValidationRules.PersonNameMessage)]
         public string? EmergencyContactName { get; set; }
 
-        [RegularExpression(@"^0\d{10}$", ErrorMessage = "Phone number must start with 0 and contain exactly 11 digits (e.g., 03001234567).")]
+        [RegularExpression(HrValidationRules.PhonePattern, ErrorMessage = HrValidationRules.PhoneMessage)]
         [MaxLength(11, ErrorMessage = "Phone number must contain exactly 11 digits.")]
         public string? EmergencyContactNumber { get; set; }
 
-        [Range(0, 999999999, ErrorMessage = "Basic Salary cannot be negative.")]
+        [Range(0, 999999999.99, ErrorMessage = "Basic Salary must be between 0 and 999,999,999.99.")]
         public decimal? BasicSalary { get; set; }
 
         [MaxLength(2000, ErrorMessage = "Notes cannot exceed 2,000 characters.")]
@@ -125,6 +128,17 @@ namespace GameHub.Models.ViewModels
                 yield return new ValidationResult(
                     "Joining Date cannot be in the future.",
                     new[] { nameof(JoiningDate) });
+            }
+
+            if (DateOfBirth.HasValue && JoiningDate.HasValue)
+            {
+                var eighteenthBirthday = DateOfBirth.Value.AddYears(18);
+                if (JoiningDate.Value < eighteenthBirthday)
+                {
+                    yield return new ValidationResult(
+                        "Joining Date must be on or after the employee's 18th birthday.",
+                        new[] { nameof(JoiningDate) });
+                }
             }
 
             // Phone validation handled by data annotations

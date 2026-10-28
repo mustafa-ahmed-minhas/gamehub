@@ -158,11 +158,41 @@ namespace GameHub.Models.ViewModels
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            if (OfferDate.HasValue && OfferDate.Value > today)
+            {
+                yield return new ValidationResult(
+                    "Offer Issue Date cannot be in the future.",
+                    new[] { nameof(OfferDate) });
+            }
+
+            if (ExpiryDate.HasValue && ExpiryDate.Value < today)
+            {
+                yield return new ValidationResult(
+                    "Offer Expiry Date cannot be in the past.",
+                    new[] { nameof(ExpiryDate) });
+            }
+
             if (OfferDate.HasValue && ExpiryDate.HasValue && ExpiryDate.Value <= OfferDate.Value)
             {
                 yield return new ValidationResult(
                     "Offer Expiry Date must be later than the offer issue date.",
                     new[] { nameof(ExpiryDate) });
+            }
+
+            if (!IsEditMode && ExpiryDate.HasValue && ExpiryDate.Value <= today)
+            {
+                yield return new ValidationResult(
+                    "Offer Expiry Date must be in the future.",
+                    new[] { nameof(ExpiryDate) });
+            }
+
+            if (!IsEditMode && JoiningDate.HasValue && JoiningDate.Value < today)
+            {
+                yield return new ValidationResult(
+                    "Joining Date cannot be in the past.",
+                    new[] { nameof(JoiningDate) });
             }
 
             if (OfferDate.HasValue && JoiningDate.HasValue && JoiningDate.Value < OfferDate.Value)

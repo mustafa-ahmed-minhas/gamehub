@@ -18,11 +18,13 @@ namespace GameHub.Controllers
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly IJobPostingNumberService _jobPostingNumberService;
+        private readonly ILogger<JobPostingsController> _logger;
 
-        public JobPostingsController(ApplicationDbContext dbContext, IJobPostingNumberService jobPostingNumberService)
+        public JobPostingsController(ApplicationDbContext dbContext, IJobPostingNumberService jobPostingNumberService, ILogger<JobPostingsController> logger)
         {
             _dbContext = dbContext;
             _jobPostingNumberService = jobPostingNumberService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -91,7 +93,17 @@ namespace GameHub.Controllers
             posting.IsActive = true;
 
             _dbContext.JobPostings.Add(posting);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to create job posting {Reference}.", posting.ReferenceNumber);
+                AddPostingConstraintError(ex);
+                return View("Form", await PopulateOptionsAsync(model));
+            }
 
             TempData.SetToast("success", "Success", $"Job posting {posting.ReferenceNumber} created successfully.");
             return RedirectToAction(nameof(Details), new { id = posting.Id });
@@ -213,7 +225,16 @@ namespace GameHub.Controllers
             MapToEntity(model, posting, isCreate: false);
             posting.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to update job posting {PostingId}.", id);
+                AddPostingConstraintError(ex);
+                return View("Form", await PopulateOptionsAsync(model));
+            }
 
             TempData.SetToast("success", "Success", $"Job posting {posting.ReferenceNumber} updated successfully.");
             return RedirectToAction(nameof(Details), new { id = posting.Id });
@@ -222,6 +243,37 @@ namespace GameHub.Controllers
         private async Task ValidatePostingAsync(JobPostingFormViewModel model, int? excludeId = null)
         {
             NormalizeForm(model);
+
+            if (!string.IsNullOrWhiteSpace(model.Department) && !HRLists.Departments.Contains(model.Department))
+            {
+                ModelState.AddModelError(nameof(model.Department), "Select a department from the list.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Currency) && !HRLists.Currencies.Contains(model.Currency))
+            {
+                ModelState.AddModelError(nameof(model.Currency), "Select a currency from the list.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.ExperienceRequired) && !HRLists.ExperienceLevels.Contains(model.ExperienceRequired))
+            {
+                ModelState.AddModelError(nameof(model.ExperienceRequired), "Select an experience level from the list.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.MinimumEducation) && !HRLists.EducationLevels.Contains(model.MinimumEducation))
+            {
+                ModelState.AddModelError(nameof(model.MinimumEducation), "Select an education level from the list.");
+            }
+
+            if (model.HiringManagerUserId.HasValue)
+            {
+                var managerExists = await _dbContext.Users.AnyAsync(user =>
+                    user.Id == model.HiringManagerUserId.Value && user.IsActive);
+
+                if (!managerExists)
+                {
+                    ModelState.AddModelError(nameof(model.HiringManagerUserId), "Select an active user as the hiring manager.");
+                }
+            }
 
             if (await _dbContext.JobPostings.AnyAsync(posting =>
                     posting.JobTitle == model.JobTitle
@@ -333,6 +385,22 @@ namespace GameHub.Controllers
         }
 
         private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
+
+        private void AddPostingConstraintError(DbUpdateException ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+
+            if (detail.Contains("IX_JobPostings_ReferenceNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "A conflicting job reference was generated. Please submit the form again.");
+                TempData.SetToast("error", "Please Retry", "A conflicting job reference was generated. Submit the form again.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "The job posting could not be saved due to a data conflict. Please review the details and try again.");
+                TempData.SetToast("error", "Save Failed", "The job posting could not be saved. Please try again.");
+            }
+        }
 
         private bool CanManage() =>
             RolePermissions.TryGetCurrentRole(User, out var role)

@@ -118,7 +118,7 @@
             <h2><i class="bi bi-cash-stack"></i> Compensation</h2>
             <label>
                 <span>Offered Salary *</span>
-                <input asp-for="OfferedSalary" type="number" min="0.01" step="0.01" placeholder="0.00" />
+                <input asp-for="OfferedSalary" type="number" min="0.01" max="999999999.99" step="0.01" placeholder="0.00" />
                 <span asp-validation-for="OfferedSalary"></span>
             </label>
             <label>
@@ -137,19 +137,19 @@
             <h2><i class="bi bi-calendar-event"></i> Key Dates</h2>
             <label>
                 <span>Offer Issue Date *</span>
-                <input asp-for="OfferDate" type="date" />
-                <small class="hr-hint">Defaults to today.</small>
+                <input asp-for="OfferDate" type="date" max="@today.ToString("yyyy-MM-dd")" />
+                <small class="hr-hint">Defaults to today and cannot be later than today.</small>
                 <span asp-validation-for="OfferDate"></span>
             </label>
             <label>
                 <span>Offer Expiry Date *</span>
-                <input asp-for="ExpiryDate" type="date" min="@today.AddDays(1).ToString("yyyy-MM-dd")" />
+                <input asp-for="ExpiryDate" type="date" min="@((Model.IsEditMode ? today : today.AddDays(1)).ToString("yyyy-MM-dd"))" />
                 <small class="hr-hint">Must be later than the issue date.</small>
                 <span asp-validation-for="ExpiryDate"></span>
             </label>
             <label>
                 <span>Joining Date *</span>
-                <input asp-for="JoiningDate" type="date" />
+                <input asp-for="JoiningDate" type="date" min="@(Model.IsEditMode ? null : today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="JoiningDate"></span>
             </label>
             <label>

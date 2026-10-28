@@ -522,7 +522,7 @@
 .sales-cycle-line-grid label {
     display: grid;
     gap: .35rem;
-    grid-column: span 3;
+    grid-column: span 2;
     min-width: 0;
     color: var(--admin-muted);
     font-size: .78rem;
@@ -530,11 +530,19 @@
 }
 
 .sales-cycle-line-grid label.wide {
-    grid-column: span 6;
+    grid-column: span 4;
 }
 
 .sales-cycle-line-grid label.full {
     grid-column: 1 / -1;
+}
+
+.sales-cycle-line-grid .price-meta {
+    grid-column: span 3;
+    font-size: .74rem;
+    color: var(--admin-muted);
+    font-weight: 800;
+    align-self: center;
 }
 
 .sales-cycle-line-grid input,

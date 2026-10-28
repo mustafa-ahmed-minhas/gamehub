@@ -24,6 +24,7 @@ namespace GameHub.Helpers
         public static string Modifier(this SalesQuotationStatus status) => status switch
         {
             SalesQuotationStatus.Draft => Pending,
+            SalesQuotationStatus.Confirmed => Confirmed,
             SalesQuotationStatus.SubmittedForApproval => Pending,
             SalesQuotationStatus.Approved => Active,
             SalesQuotationStatus.AcceptedByCustomer => Confirmed,

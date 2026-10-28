@@ -20,12 +20,14 @@ namespace GameHub.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly ICustomerCodeService _customerCodeService;
         private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<AccountController> _logger;
 
-        public AccountController(ApplicationDbContext dbContext, ICustomerCodeService customerCodeService, IWebHostEnvironment environment)
+        public AccountController(ApplicationDbContext dbContext, ICustomerCodeService customerCodeService, IWebHostEnvironment environment, ILogger<AccountController> logger)
         {
             _dbContext = dbContext;
             _customerCodeService = customerCodeService;
             _environment = environment;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -37,6 +39,8 @@ namespace GameHub.Controllers
                 return RedirectToAction("Index", "MyAccount");
             }
 
+            var settings = await _dbContext.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+            ApplySignupPasswordPolicy(settings);
             return View(new CustomerSignupViewModel());
         }
 
@@ -50,9 +54,7 @@ namespace GameHub.Controllers
 
             if (!ModelState.IsValid)
             {
-                model.Password = string.Empty;
-                model.ConfirmPassword = string.Empty;
-                return View(model);
+                return SignupFailed(model);
             }
 
             var normalizedPhone = NormalizePhone(model.PrimaryPhone);
@@ -64,36 +66,49 @@ namespace GameHub.Controllers
                 if (customer.HasOnlineAccount)
                 {
                     ModelState.AddModelError(string.Empty, "An online account already exists for these details.");
-                    return View(model);
+                    return SignupFailed(model);
                 }
 
                 if (!customer.IsActive || customer.IsBlacklisted)
                 {
                     ModelState.AddModelError(string.Empty, "Your account cannot be created online. Please contact GameHub support.");
-                    return View(model);
+                    return SignupFailed(model);
                 }
 
                 if (!CanSafelyLinkExistingCustomer(customer, model.Email, normalizedPhone))
                 {
-                    ModelState.AddModelError(string.Empty, "Your account cannot be created online. Please contact GameHub support.");
-                    return View(model);
+                    // The signup matched an existing profile on only one identifier. Linking
+                    // would overwrite that profile's other identifier, so report the field
+                    // that does not match instead of failing later inside the database.
+                    if (!string.IsNullOrWhiteSpace(customer.Email) &&
+                        !customer.Email.Equals(model.Email, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ModelState.AddModelError(nameof(model.Email), "This email address belongs to a different GameHub profile. Please contact GameHub support.");
+                    }
+
+                    if (customer.PrimaryPhone != normalizedPhone)
+                    {
+                        ModelState.AddModelError(nameof(model.PrimaryPhone), "This phone number belongs to a different GameHub profile. Please contact GameHub support.");
+                    }
+
+                    return SignupFailed(model);
                 }
 
                 if (!string.IsNullOrWhiteSpace(customer.NationalIdNumber)
                     && !customer.NationalIdNumber.Equals(model.NationalIdNumber, StringComparison.Ordinal))
                 {
                     ModelState.AddModelError(nameof(model.NationalIdNumber), "This CNIC / National ID does not match the existing GameHub profile. Please contact GameHub support.");
-                    return View(model);
+                    return SignupFailed(model);
                 }
 
                 customer.FirstName = model.FirstName;
                 customer.LastName = model.LastName;
                 customer.Email ??= model.Email;
                 customer.PrimaryPhone = customer.PrimaryPhone == normalizedPhone ? customer.PrimaryPhone : normalizedPhone;
-                customer.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? customer.WhatsAppNumber : NormalizePhone(model.WhatsAppNumber);
+                customer.WhatsAppNumber = NormalizePhone(model.WhatsAppNumber);
                 customer.NationalIdNumber ??= model.NationalIdNumber;
                 customer.DateOfBirth ??= model.DateOfBirth;
-                customer.Gender = model.Gender;
+                customer.Gender = model.Gender!.Value;
             }
             else
             {
@@ -112,10 +127,10 @@ namespace GameHub.Controllers
                 customer.LastName = model.LastName;
                 customer.Email = model.Email;
                 customer.PrimaryPhone = normalizedPhone;
-                customer.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? null : NormalizePhone(model.WhatsAppNumber);
+                customer.WhatsAppNumber = NormalizePhone(model.WhatsAppNumber);
                 customer.NationalIdNumber = model.NationalIdNumber;
                 customer.DateOfBirth = model.DateOfBirth;
-                customer.Gender = model.Gender;
+                customer.Gender = model.Gender!.Value;
                 _dbContext.Customers.Add(customer);
             }
 
@@ -133,7 +148,38 @@ namespace GameHub.Controllers
             customer.LockoutEndAt = null;
             customer.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsDuplicateKey(ex))
+            {
+                // A concurrent signup (or a profile that changed after validation) can
+                // still trip a unique index. Translate it into a field-level message
+                // instead of surfacing a 500 to the visitor.
+                _logger.LogWarning(ex, "Customer signup was rejected by a unique constraint.");
+
+                if (HasUniqueIndex(ex, "IX_Customers_Email"))
+                {
+                    ModelState.AddModelError(nameof(model.Email), "An account already exists with this email address.");
+                }
+                else if (HasUniqueIndex(ex, "IX_Customers_NationalIdNumber"))
+                {
+                    ModelState.AddModelError(nameof(model.NationalIdNumber), "This CNIC / National ID is already registered to another GameHub account.");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "We could not create your account because some of these details are already registered. Please try again in a moment.");
+                }
+
+                return SignupFailed(model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Customer signup failed while saving the account.");
+                ModelState.AddModelError(string.Empty, "We could not create your account right now. Please try again in a moment.");
+                return SignupFailed(model);
+            }
 
             var verificationLink = Url.Action(nameof(VerifyEmail), "Account", new { token }, Request.Scheme);
             if (_environment.IsDevelopment())
@@ -422,45 +468,107 @@ namespace GameHub.Controllers
         private async Task ValidateSignupAsync(CustomerSignupViewModel model)
         {
             var settings = await _dbContext.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
-            var minimumLength = Math.Max(settings?.PasswordMinLength ?? 8, 8);
-            if (model.Password.Length < minimumLength)
-            {
-                ModelState.AddModelError(nameof(model.Password), $"Password must be at least {minimumLength} characters.");
-            }
+            ApplySignupPasswordPolicy(settings);
 
-            if (settings?.RequireStrongPassword != false &&
-                (!model.Password.Any(char.IsUpper) ||
-                 !model.Password.Any(char.IsLower) ||
-                 !model.Password.Any(char.IsDigit) ||
-                 !model.Password.Any(ch => !char.IsLetterOrDigit(ch))))
+            // Model binding stores an empty form field as null. Required attributes
+            // report that; the policy checks must not dereference the missing value.
+            if (!string.IsNullOrEmpty(model.Password))
             {
-                ModelState.AddModelError(nameof(model.Password), "Password must include uppercase, lowercase, number and special character.");
+                var minimumLength = Math.Max(settings?.PasswordMinLength ?? 8, 8);
+                if (model.Password.Length < minimumLength)
+                {
+                    ModelState.AddModelError(nameof(model.Password), $"Password must be at least {minimumLength} characters.");
+                }
+
+                if (settings?.RequireStrongPassword != false &&
+                    (!model.Password.Any(char.IsUpper) ||
+                     !model.Password.Any(char.IsLower) ||
+                     !model.Password.Any(char.IsDigit) ||
+                     !model.Password.Any(ch => !char.IsLetterOrDigit(ch))))
+                {
+                    ModelState.AddModelError(nameof(model.Password), "Password must include uppercase, lowercase, number and special character.");
+                }
             }
 
             var normalizedPhone = NormalizePhone(model.PrimaryPhone);
-            var duplicateOnline = await _dbContext.Customers.AnyAsync(item =>
-                item.HasOnlineAccount &&
-                ((item.Email != null && item.Email.ToLower() == model.Email) || item.PrimaryPhone == normalizedPhone));
-            if (duplicateOnline)
+
+            int? emailOwnerId = null;
+            if (!string.IsNullOrWhiteSpace(model.Email))
             {
-                ModelState.AddModelError(string.Empty, "An online account already exists for these details.");
+                var emailOwners = await _dbContext.Customers.AsNoTracking()
+                    .Where(item => item.Email != null && item.Email.ToLower() == model.Email)
+                    .Select(item => new { item.Id, item.HasOnlineAccount })
+                    .ToListAsync();
+
+                if (emailOwners.Any(owner => owner.HasOnlineAccount))
+                {
+                    ModelState.AddModelError(nameof(model.Email), "An online account already exists for this email address.");
+                }
+
+                emailOwnerId = emailOwners.Select(owner => (int?)owner.Id).FirstOrDefault();
             }
 
-            if (!string.IsNullOrWhiteSpace(model.NationalIdNumber))
+            int? phoneOwnerId = null;
+            if (PhonePattern.IsMatch(normalizedPhone))
+            {
+                var phoneOwners = await _dbContext.Customers.AsNoTracking()
+                    .Where(item => item.PrimaryPhone == normalizedPhone)
+                    .Select(item => new { item.Id, item.HasOnlineAccount })
+                    .ToListAsync();
+
+                if (phoneOwners.Any(owner => owner.HasOnlineAccount))
+                {
+                    ModelState.AddModelError(nameof(model.PrimaryPhone), "An online account already exists for this phone number.");
+                }
+
+                phoneOwnerId = phoneOwners.Select(owner => (int?)owner.Id).FirstOrDefault();
+            }
+
+            // The email and phone resolve to different existing profiles. Linking
+            // either row would collide with the other row's unique email on save.
+            if (emailOwnerId.HasValue && phoneOwnerId.HasValue && emailOwnerId.Value != phoneOwnerId.Value)
+            {
+                ModelState.AddModelError(nameof(model.Email), "This email address and phone number are linked to different GameHub profiles. Please contact GameHub support.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.NationalIdNumber) && NationalIdPattern.IsMatch(model.NationalIdNumber))
             {
                 // A different customer row holding the same CNIC would violate the
                 // unique index on save; the row matched by email / phone is fine
                 // because linking only fills the CNIC when it is still empty.
-                var normalizedPhoneForCnic = NormalizePhone(model.PrimaryPhone);
                 var duplicateNationalId = await _dbContext.Customers.AnyAsync(item =>
                     item.NationalIdNumber == model.NationalIdNumber &&
-                    !((item.Email != null && item.Email.ToLower() == model.Email) || item.PrimaryPhone == normalizedPhoneForCnic));
+                    !((item.Email != null && item.Email.ToLower() == model.Email) || item.PrimaryPhone == normalizedPhone));
                 if (duplicateNationalId)
                 {
                     ModelState.AddModelError(nameof(model.NationalIdNumber), "This CNIC / National ID is already registered to another GameHub account.");
                 }
             }
         }
+
+        private IActionResult SignupFailed(CustomerSignupViewModel model)
+        {
+            model.Password = string.Empty;
+            model.ConfirmPassword = string.Empty;
+            return View(model);
+        }
+
+        private void ApplySignupPasswordPolicy(SystemSettings? settings)
+        {
+            ViewData["PasswordMinLength"] = Math.Max(settings?.PasswordMinLength ?? 8, 8);
+            ViewData["RequireStrongPassword"] = settings?.RequireStrongPassword != false;
+        }
+
+        private static bool IsDuplicateKey(DbUpdateException exception)
+        {
+            var message = exception.GetBaseException().Message;
+            return message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("Cannot insert duplicate", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasUniqueIndex(DbUpdateException exception, string indexName)
+            => exception.GetBaseException().Message.Contains(indexName, StringComparison.OrdinalIgnoreCase);
 
         private static bool CanSafelyLinkExistingCustomer(Customer customer, string email, string primaryPhone)
         {
@@ -475,7 +583,7 @@ namespace GameHub.Controllers
             model.LastName = model.LastName?.Trim() ?? string.Empty;
             model.Email = model.Email?.Trim().ToLowerInvariant() ?? string.Empty;
             model.PrimaryPhone = NormalizePhone(model.PrimaryPhone);
-            model.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? null : NormalizePhone(model.WhatsAppNumber);
+            model.WhatsAppNumber = string.IsNullOrWhiteSpace(model.WhatsAppNumber) ? string.Empty : NormalizePhone(model.WhatsAppNumber);
             model.NationalIdNumber = model.NationalIdNumber?.Trim() ?? string.Empty;
         }
 
@@ -488,6 +596,8 @@ namespace GameHub.Controllers
         }
 
         private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^0\d{10}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static readonly System.Text.RegularExpressions.Regex NationalIdPattern = new(@"^\d{13}$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         private string? SafeReturnUrl(string? returnUrl)
         {

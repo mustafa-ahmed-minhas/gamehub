@@ -35,17 +35,20 @@ namespace GameHub.Controllers
         private readonly IOfferNumberService _offerNumberService;
         private readonly IJobApplicationFileService _fileService;
         private readonly ISimplePdfGenerator _pdfGenerator;
+        private readonly ILogger<OffersController> _logger;
 
         public OffersController(
             ApplicationDbContext dbContext,
             IOfferNumberService offerNumberService,
             IJobApplicationFileService fileService,
-            ISimplePdfGenerator pdfGenerator)
+            ISimplePdfGenerator pdfGenerator,
+            ILogger<OffersController> logger)
         {
             _dbContext = dbContext;
             _offerNumberService = offerNumberService;
             _fileService = fileService;
             _pdfGenerator = pdfGenerator;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -166,12 +169,12 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
                 // Guards the race against the filtered unique index (one active
                 // offer per application).
-                ModelState.AddModelError(nameof(model.JobApplicationId),
-                    "An active offer already exists for this candidate. Finish or withdraw the existing offer before creating a new one.");
+                _logger.LogError(ex, "Failed to create job offer for application {ApplicationId}.", model.JobApplicationId);
+                AddOfferConstraintErrors(ex, model);
                 return View("Form", model);
             }
 
@@ -281,10 +284,10 @@ namespace GameHub.Controllers
             {
                 await _dbContext.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
-                ModelState.AddModelError(nameof(model.JobApplicationId),
-                    "An active offer already exists for this candidate.");
+                _logger.LogError(ex, "Failed to update job offer {OfferId}.", id);
+                AddOfferConstraintErrors(ex, model);
                 return View("Form", model);
             }
 
@@ -348,8 +351,10 @@ namespace GameHub.Controllers
             {
                 offer.Status = JobOfferStatus.Expired;
                 offer.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("warning", "Offer Expired", "This offer's expiry date has passed and it was marked as expired.");
+                if (await TrySaveOfferAsync(offer.Id, "expire"))
+                {
+                    TempData.SetToast("warning", "Offer Expired", "This offer's expiry date has passed and it was marked as expired.");
+                }
             }
             else if (offer.Status != JobOfferStatus.Draft)
             {
@@ -369,8 +374,10 @@ namespace GameHub.Controllers
                     application.UpdatedAt = DateTime.UtcNow;
                 }
 
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was issued and is pending acceptance.");
+                if (await TrySaveOfferAsync(offer.Id, "issue"))
+                {
+                    TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was issued and is pending acceptance.");
+                }
             }
 
             return SafeRedirect(returnUrl, offer.Id);
@@ -393,16 +400,20 @@ namespace GameHub.Controllers
             {
                 offer.Status = JobOfferStatus.Expired;
                 offer.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("warning", "Offer Expired", "An expired offer cannot be accepted.");
+                if (await TrySaveOfferAsync(offer.Id, "expire"))
+                {
+                    TempData.SetToast("warning", "Offer Expired", "An expired offer cannot be accepted.");
+                }
             }
             else
             {
                 offer.Status = JobOfferStatus.Accepted;
                 offer.RespondedAt = DateTime.UtcNow;
                 offer.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success", $"{offer.ReferenceNumber} was marked as accepted. You can now create the employee record.");
+                if (await TrySaveOfferAsync(offer.Id, "accept"))
+                {
+                    TempData.SetToast("success", "Success", $"{offer.ReferenceNumber} was marked as accepted. You can now create the employee record.");
+                }
             }
 
             return SafeRedirect(returnUrl, offer.Id);
@@ -425,8 +436,10 @@ namespace GameHub.Controllers
                 offer.Status = JobOfferStatus.Rejected;
                 offer.RespondedAt = DateTime.UtcNow;
                 offer.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was marked as rejected.");
+                if (await TrySaveOfferAsync(offer.Id, "reject"))
+                {
+                    TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was marked as rejected.");
+                }
             }
 
             return SafeRedirect(returnUrl, offer.Id);
@@ -449,8 +462,10 @@ namespace GameHub.Controllers
                 offer.Status = JobOfferStatus.Withdrawn;
                 offer.WithdrawnAt = DateTime.UtcNow;
                 offer.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-                TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was withdrawn.");
+                if (await TrySaveOfferAsync(offer.Id, "withdraw"))
+                {
+                    TempData.SetToast("success", "Success", $"Offer {offer.ReferenceNumber} was withdrawn.");
+                }
             }
 
             return SafeRedirect(returnUrl, offer.Id);
@@ -524,15 +539,26 @@ namespace GameHub.Controllers
 
             var bytes = _pdfGenerator.Generate(OfferLetterComposer.LetterTitle, lines);
 
-            // Replace any previously generated letter. Supporting documents are
-            // untouched.
-            foreach (var existing in offer.Documents.Where(document => document.IsLetter).ToList())
+            // Replace any previously generated letter after the new one is safely
+            // saved, so a failure never removes the current letter.
+            var replacedLetters = offer.Documents.Where(document => document.IsLetter).ToList();
+            foreach (var existing in replacedLetters)
             {
-                await _fileService.DeleteAsync(existing.StoredFileName, DocumentsFolder);
                 _dbContext.JobOfferDocuments.Remove(existing);
             }
 
-            var storedName = await _fileService.SaveBytesAsync(bytes, DocumentsFolder);
+            string storedName;
+            try
+            {
+                storedName = await _fileService.SaveBytesAsync(bytes, DocumentsFolder);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogError(ex, "Failed to store generated offer letter for offer {OfferId}.", offer.Id);
+                TempData.SetToast("error", "Generation Failed", "The offer letter could not be generated. Please try again.");
+                return SafeRedirect(returnUrl, offer.Id);
+            }
+
             _dbContext.JobOfferDocuments.Add(new JobOfferDocument
             {
                 JobOfferId = offer.Id,
@@ -547,7 +573,23 @@ namespace GameHub.Controllers
             });
 
             offer.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to save generated offer letter for offer {OfferId}.", offer.Id);
+                await _fileService.DeleteAsync(storedName, DocumentsFolder);
+                TempData.SetToast("error", "Save Failed", "The offer letter could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, offer.Id);
+            }
+
+            foreach (var existing in replacedLetters)
+            {
+                await DeleteFileQuietlyAsync(existing.StoredFileName);
+            }
 
             TempData.SetToast("success", "Success", "The offer letter was generated.");
             return SafeRedirect(returnUrl, offer.Id);
@@ -614,7 +656,22 @@ namespace GameHub.Controllers
             }
 
             offer.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to save offer documents for offer {OfferId}.", offer.Id);
+                foreach (var (stored, _) in saved)
+                {
+                    await _fileService.DeleteAsync(stored, DocumentsFolder);
+                }
+
+                TempData.SetToast("error", "Save Failed", "The documents could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, offer.Id);
+            }
 
             TempData.SetToast("success", "Success", $"{(saved.Count == 1 ? "1 document was" : $"{saved.Count} documents were")} uploaded.");
             return SafeRedirect(returnUrl, offer.Id);
@@ -632,9 +689,21 @@ namespace GameHub.Controllers
             }
 
             var offerId = document.JobOfferId;
-            await _fileService.DeleteAsync(document.StoredFileName, DocumentsFolder);
+            var storedFileName = document.StoredFileName;
             _dbContext.JobOfferDocuments.Remove(document);
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to delete offer document {DocumentId}.", id);
+                TempData.SetToast("error", "Delete Failed", "The document could not be removed. Please try again.");
+                return SafeRedirect(returnUrl, offerId);
+            }
+
+            await DeleteFileQuietlyAsync(storedFileName);
 
             TempData.SetToast("success", "Success", "The document was removed.");
             return SafeRedirect(returnUrl, offerId);
@@ -730,9 +799,9 @@ namespace GameHub.Controllers
                 return SafeRedirect(returnUrl, offer.Id);
             }
 
-            foreach (var existing in offer.Documents.Where(document => document.IsLetter).ToList())
+            var replacedLetters = offer.Documents.Where(document => document.IsLetter).ToList();
+            foreach (var existing in replacedLetters)
             {
-                await _fileService.DeleteAsync(existing.StoredFileName, DocumentsFolder);
                 _dbContext.JobOfferDocuments.Remove(existing);
             }
 
@@ -750,7 +819,23 @@ namespace GameHub.Controllers
             });
 
             offer.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync();
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to save uploaded offer letter for offer {OfferId}.", offer.Id);
+                await _fileService.DeleteAsync(result.StoredFileName!, DocumentsFolder);
+                TempData.SetToast("error", "Upload Failed", "The offer letter could not be saved. Please try again.");
+                return SafeRedirect(returnUrl, offer.Id);
+            }
+
+            foreach (var existing in replacedLetters)
+            {
+                await DeleteFileQuietlyAsync(existing.StoredFileName);
+            }
 
             TempData.SetToast("success", "Success", "The offer letter was uploaded.");
             return SafeRedirect(returnUrl, offer.Id);
@@ -1059,6 +1144,18 @@ namespace GameHub.Controllers
             {
                 ModelState.AddModelError(nameof(model.ExpiryDate), "Offer Expiry Date cannot be in the past.");
             }
+
+            if (model.ReportingManagerId.HasValue)
+            {
+                var managerExists = await _dbContext.Employees
+                    .AsNoTracking()
+                    .AnyAsync(employee => employee.Id == model.ReportingManagerId.Value && employee.IsActive);
+
+                if (!managerExists)
+                {
+                    ModelState.AddModelError(nameof(model.ReportingManagerId), "Select an active employee as the reporting manager.");
+                }
+            }
         }
 
         private async Task<bool> IsEligibleApplicationAsync(int applicationId, int? excludeOfferId)
@@ -1104,7 +1201,14 @@ namespace GameHub.Controllers
                 offer.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to auto-expire {Count} offer(s).", expiring.Count);
+            }
         }
 
         private async Task<JobOffer?> LoadForActionAsync(int id) =>
@@ -1127,6 +1231,60 @@ namespace GameHub.Controllers
             => !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
                 ? Redirect(returnUrl)
                 : RedirectToAction(nameof(Details), new { id = offerId });
+
+        private async Task<bool> TrySaveOfferAsync(int offerId, string action)
+        {
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Failed to {Action} offer {OfferId}.", action, offerId);
+                TempData.SetToast("error", "Update Failed", "The offer could not be updated. Please try again.");
+                return false;
+            }
+        }
+
+        private void AddOfferConstraintErrors(DbUpdateException ex, OfferFormViewModel model)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+
+            if (detail.Contains("IX_JobOffers_JobApplicationId", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(model.JobApplicationId),
+                    "An active offer already exists for this candidate. Finish or withdraw the existing offer before creating a new one.");
+                TempData.SetToast("error", "Duplicate Offer", "An active offer already exists for this candidate.");
+            }
+            else if (detail.Contains("IX_JobOffers_ReferenceNumber", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(string.Empty, "A conflicting offer reference was generated. Please submit the form again.");
+                TempData.SetToast("error", "Please Retry", "A conflicting offer reference was generated. Submit the form again.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "The offer could not be saved due to a data conflict. Please review the details and try again.");
+                TempData.SetToast("error", "Save Failed", "The offer could not be saved. Please try again.");
+            }
+        }
+
+        private async Task DeleteFileQuietlyAsync(string? storedFileName)
+        {
+            if (string.IsNullOrWhiteSpace(storedFileName))
+            {
+                return;
+            }
+
+            try
+            {
+                await _fileService.DeleteAsync(storedFileName, DocumentsFolder);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Failed to delete offer file {StoredFileName}.", storedFileName);
+            }
+        }
 
         private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
 
