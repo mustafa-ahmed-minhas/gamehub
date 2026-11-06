@@ -4,6 +4,10 @@
     Layout = "_CustomerLayout";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/verify-result.css" asp-append-version="true" />
+}
+
 <section class="account-result">
     <div class="container result-card">
         <i class="bi @(Model ? "bi-patch-check-fill" : "bi-exclamation-triangle-fill")"></i>

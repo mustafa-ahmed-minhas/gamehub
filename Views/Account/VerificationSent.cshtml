@@ -5,24 +5,128 @@
     var devLink = TempData["DevelopmentVerificationLink"]?.ToString();
 }
 
-<section class="account-result">
-    <div class="container result-card">
-        <i class="bi bi-envelope-check"></i>
-        <span class="eyebrow-pill">Verification Required</span>
-        <h1>Check your email</h1>
-        <p>We prepared a verification link for @(email ?? "your account"). You can browse GameHub before verification, but future booking checkout will require a verified email.</p>
-        @if (!string.IsNullOrWhiteSpace(devLink))
-        {
-            <div class="dev-link">
-                <strong>Development verification link</strong>
-                <a href="@devLink">@devLink</a>
+@section Styles {
+    <link rel="stylesheet" href="~/css/verify-email.css" asp-append-version="true" />
+}
+
+<section class="verify-page">
+    <div class="container verify-shell">
+        <article class="verify-card">
+            <header class="verify-head">
+                <div class="verify-head-row">
+                    <span class="verify-mark" aria-hidden="true"><i class="bi bi-envelope-check"></i></span>
+                    <span class="eyebrow-pill"><i class="bi bi-shield-check" aria-hidden="true"></i> Email verification</span>
+                </div>
+
+                <h1>One quick step to unlock bookings</h1>
+                <p class="verify-lede">
+                    We have prepared a secure verification link for your GameHub account.
+                    Confirm your email to complete your profile and keep the booking experience uninterrupted.
+                </p>
+
+                <div class="verify-email">
+                    <i class="bi bi-envelope-at" aria-hidden="true"></i>
+                    <span class="verify-email-address">@(email ?? "your account email")</span>
+                    <span class="verify-email-status">Pending</span>
+                </div>
+            </header>
+
+            <ol class="verify-steps" aria-label="How email verification works">
+                <li>
+                    <span class="verify-step-index" aria-hidden="true">01</span>
+                    <div class="verify-step-body">
+                        <strong>Open the verification email</strong>
+                        <span>Look for the message from GameHub Arena in your inbox. If it is not there yet, check your spam or junk folder.</span>
+                    </div>
+                </li>
+                <li>
+                    <span class="verify-step-index" aria-hidden="true">02</span>
+                    <div class="verify-step-body">
+                        <strong>Select “Verify Email”</strong>
+                        <span>The button in the email is personal to this account and confirms your address in a single click.</span>
+                    </div>
+                </li>
+                <li>
+                    <span class="verify-step-index" aria-hidden="true">03</span>
+                    <div class="verify-step-body">
+                        <strong>Return to GameHub</strong>
+                        <span>Once confirmed, your email status updates automatically and booking checkout becomes fully available.</span>
+                    </div>
+                </li>
+            </ol>
+
+            <div class="verify-actions">
+                @if (!string.IsNullOrWhiteSpace(devLink))
+                {
+                    <a class="btn-premium verify-primary" href="@devLink">
+                        <i class="bi bi-patch-check" aria-hidden="true"></i> Verify Email
+                    </a>
+                }
+                else
+                {
+                    <a class="btn-premium verify-primary" asp-controller="Account" asp-action="Login">
+                        <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Continue to Sign In
+                    </a>
+                }
+                <a class="btn-ghost-light" asp-controller="Courts" asp-action="Index">
+                    <i class="bi bi-grid" aria-hidden="true"></i> Browse Courts
+                </a>
             </div>
-        }
-        <form asp-action="ResendVerification" method="post">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="email" value="@email" />
-            <button class="btn-ghost-light" type="submit"><i class="bi bi-arrow-clockwise"></i> Resend Verification</button>
-            <a class="btn-premium" asp-controller="Courts" asp-action="Index"><i class="bi bi-grid"></i> Browse Courts</a>
-        </form>
+
+            @if (!string.IsNullOrWhiteSpace(devLink))
+            {
+                <p class="verify-dev-note">
+                    <i class="bi bi-code-slash" aria-hidden="true"></i>
+                    Development preview: the button above opens the generated verification link.
+                </p>
+            }
+
+            <form asp-action="ResendVerification" method="post" class="verify-resend">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="email" value="@email" />
+                <span>Didn’t receive the email, or has the link expired?</span>
+                <button type="submit"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Resend verification email</button>
+            </form>
+        </article>
+
+        <aside class="verify-aside" aria-label="Verification details">
+            <div class="verify-panel">
+                <h2>Why verify your email</h2>
+                <div class="verify-assurance">
+                    <div>
+                        <i class="bi bi-calendar2-check" aria-hidden="true"></i>
+                        <div>
+                            <strong>Book with confidence</strong>
+                            <span>Verified accounts can confirm courts and complete checkout without interruption.</span>
+                        </div>
+                    </div>
+                    <div>
+                        <i class="bi bi-key" aria-hidden="true"></i>
+                        <div>
+                            <strong>Keep your account recoverable</strong>
+                            <span>A confirmed address is the fastest route back into your account when you need help.</span>
+                        </div>
+                    </div>
+                    <div>
+                        <i class="bi bi-bell" aria-hidden="true"></i>
+                        <div>
+                            <strong>Stay in the loop</strong>
+                            <span>Receive booking confirmations and important scheduling updates at the right address.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="verify-aside-foot">
+                <strong>Good to know.</strong>
+                Verification links stay active for 24 hours. Requesting a new link replaces the previous one,
+                so always use the most recent email. You can keep browsing GameHub while your email is pending.
+            </div>
+        </aside>
     </div>
+
+    <p class="container verify-footnote">
+        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+        For your security, never share your verification link with anyone.
+    </p>
 </section>
