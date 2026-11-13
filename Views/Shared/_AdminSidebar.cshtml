@@ -24,9 +24,10 @@
     bool MasterDataActive = On("ArenaSetup");
     bool CrmActive = On("Customers") || On("CRM");
     bool SalesActive = On("Sales") || On("SalesOrders") || On("Invoices") || On("Payments");
-    bool OperationsActive = (On("Bookings") && view != "calendar") || On("Memberships");
+    bool ApprovalsActive = On("Bookings") && (action == "Approvals" || action == "Refunds");
+    bool OperationsActive = (On("Bookings") && !ApprovalsActive) || On("Memberships");
     bool HrActive = On("HR") || On("Recruitment") || On("JobPostings") || On("JobApplications") || On("Offers") || On("Employees") || On("Performance") || On("Termination") || On("HRReports");
-    bool AdminActive = On("Users") || On("Settings");
+    bool AdminActive = On("Users") || On("Roles") || On("Settings");
     bool ReportsActive = On("Reports");
 
     string GroupClass(bool active) => active ? "admin-nav-group is-open" : "admin-nav-group";
@@ -120,7 +121,7 @@
             </section>
         }
 
-        @if (Can("Bookings") || Can("Memberships"))
+        @if (Can("Bookings") || Can("Calendar") || Can("Memberships"))
         {
             <section class="@GroupClass(OperationsActive)" data-nav-group>
                 <button type="button" class="admin-nav-group-toggle" data-nav-group-toggle aria-expanded="@(OperationsActive ? "true" : "false")" aria-controls="admin-nav-operations">
@@ -132,12 +133,36 @@
                         @if (Can("Bookings"))
                         {
                             <a class="admin-nav-link @(On("Bookings") && view == "list" ? "active" : "")" asp-controller="Bookings" asp-action="Index" asp-route-view="list"><i class="bi bi-calendar-check"></i><span>Bookings</span></a>
-                            <a class="admin-nav-link @(On("Bookings") && action == "Approvals" ? "active" : "")" asp-controller="Bookings" asp-action="Approvals"><i class="bi bi-hourglass-split"></i><span>Booking Approvals</span><span class="sidebar-count" data-booking-approval-count style="display:@(pendingApprovalCount > 0 ? "inline-flex" : "none");min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#d6a652;color:#11100e;font-size:.68rem;font-weight:900;align-items:center;justify-content:center;margin-left:auto;">@(pendingApprovalCount > 0 ? pendingApprovalCount.ToString() : "")</span></a>
-                            <a class="admin-nav-link @(On("Bookings") && action == "Refunds" ? "active" : "")" asp-controller="Bookings" asp-action="Refunds"><i class="bi bi-cash-coin"></i><span>Refund Management</span></a>
+                        }
+                        @if (Can("Calendar"))
+                        {
+                            <a class="admin-nav-link @(On("Bookings") && view == "calendar" ? "active" : "")" asp-controller="Bookings" asp-action="Index" asp-route-view="calendar"><i class="bi bi-calendar3"></i><span>Booking Calendar</span></a>
                         }
                         @if (Can("Memberships"))
                         {
                             <a class="admin-nav-link @(On("Memberships") ? "active" : "")" asp-controller="Memberships" asp-action="Index"><i class="bi bi-person-badge"></i><span>Memberships</span></a>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+
+        @if (Can("Approvals") || Can("Refunds"))
+        {
+            <section class="@GroupClass(ApprovalsActive)" data-nav-group>
+                <button type="button" class="admin-nav-group-toggle" data-nav-group-toggle aria-expanded="@(ApprovalsActive ? "true" : "false")" aria-controls="admin-nav-approvals">
+                    <span class="admin-nav-group-title">Approvals</span>
+                    <i class="bi bi-chevron-down admin-nav-group-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="admin-nav-group-items" id="admin-nav-approvals">
+                    <div class="admin-nav-group-inner">
+                        @if (Can("Approvals"))
+                        {
+                            <a class="admin-nav-link @(On("Bookings") && action == "Approvals" ? "active" : "")" asp-controller="Bookings" asp-action="Approvals"><i class="bi bi-hourglass-split"></i><span>Booking Approvals</span><span class="sidebar-count" data-booking-approval-count style="display:@(pendingApprovalCount > 0 ? "inline-flex" : "none");min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#d6a652;color:#11100e;font-size:.68rem;font-weight:900;align-items:center;justify-content:center;margin-left:auto;">@(pendingApprovalCount > 0 ? pendingApprovalCount.ToString() : "")</span></a>
+                        }
+                        @if (Can("Refunds"))
+                        {
+                            <a class="admin-nav-link @(On("Bookings") && action == "Refunds" ? "active" : "")" asp-controller="Bookings" asp-action="Refunds"><i class="bi bi-cash-coin"></i><span>Refund Management</span></a>
                         }
                     </div>
                 </div>
@@ -175,7 +200,7 @@
             </section>
         }
 
-        @if (Can("Users") || Can("Settings"))
+        @if (Can("Users") || Can("Roles") || Can("Settings"))
         {
             <section class="@GroupClass(AdminActive)" data-nav-group>
                 <button type="button" class="admin-nav-group-toggle" data-nav-group-toggle aria-expanded="@(AdminActive ? "true" : "false")" aria-controls="admin-nav-administration">
@@ -187,6 +212,10 @@
                         @if (Can("Users"))
                         {
                             <a class="admin-nav-link @(On("Users") ? "active" : "")" asp-controller="Users" asp-action="Index"><i class="bi bi-person-gear"></i><span>Users</span></a>
+                        }
+                        @if (Can("Roles"))
+                        {
+                            <a class="admin-nav-link @(On("Roles") ? "active" : "")" asp-controller="Roles" asp-action="Index"><i class="bi bi-shield-lock"></i><span>Roles</span></a>
                         }
                         @if (Can("Settings"))
                         {

@@ -26,7 +26,7 @@ namespace GameHub.Hubs
     /// outside the CRM; the runtime check below stays the source of truth.
     /// </para>
     /// </summary>
-    [Authorize(Roles = "SuperAdmin,Admin,BookingManager,Receptionist,FinanceManager,Viewer")]
+    [Authorize(Roles = "Admin,CRM")]
     public class CrmNotificationsHub : Hub
     {
         public const string Route = "/hubs/crm-notifications";

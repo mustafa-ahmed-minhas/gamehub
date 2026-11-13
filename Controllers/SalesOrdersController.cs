@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Sales)]
     [ValidateActiveUser]
     public class SalesOrdersController : Controller
     {
@@ -761,12 +761,12 @@ namespace GameHub.Controllers
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private int CurrentUserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
         private bool CanAccessSales() => RolePermissions.CanAccessModule(User, "Sales");
-        private bool CanCreateOrder() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool CanEditDraft() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool CanManageLifecycle() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager;
-        private bool CanApprove() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.FinanceManager;
-        private bool IsSuperAdmin() => RolePermissions.TryGetCurrentRole(User, out var role) && role == UserRole.SuperAdmin;
+        private bool CanCreateOrder() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Sales;
+        private bool CanEditDraft() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Sales;
+        private bool CanManageLifecycle() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Sales;
+        private bool CanApprove() => RolePermissions.IsAdmin(User);
+        private bool IsSuperAdmin() => RolePermissions.IsAdmin(User);
         private bool CanCancelOrder() => CanManageLifecycle();
-        private bool IsReadOnly() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Viewer or UserRole.FinanceManager;
+        private bool IsReadOnly() => false;
     }
 }

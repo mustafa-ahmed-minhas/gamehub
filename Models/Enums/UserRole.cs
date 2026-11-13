@@ -4,28 +4,28 @@ namespace GameHub.Models.Enums
 {
     public enum UserRole
     {
-        [Display(Name = "Super Admin")]
-        SuperAdmin,
-
         [Display(Name = "Admin")]
         Admin,
 
-        [Display(Name = "Booking Manager")]
-        BookingManager,
-
-        [Display(Name = "Court Manager")]
-        CourtManager,
-
-        [Display(Name = "Finance Manager")]
-        FinanceManager,
-
-        [Display(Name = "Staff Manager")]
-        StaffManager,
+        [Display(Name = "Manager")]
+        Manager,
 
         [Display(Name = "Receptionist")]
         Receptionist,
 
-        [Display(Name = "Viewer")]
-        Viewer
+        [Display(Name = "Finance")]
+        Finance,
+
+        [Display(Name = "Sales")]
+        Sales,
+
+        [Display(Name = "CRM")]
+        CRM,
+
+        [Display(Name = "HR")]
+        HR,
+
+        [Display(Name = "Operations")]
+        Operations
     }
 }

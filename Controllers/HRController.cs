@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Hr)]
     [ValidateActiveUser]
     public class HRController : Controller
     {

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Crm)]
     [ValidateActiveUser]
     public class CRMController : Controller
     {
@@ -830,7 +830,7 @@ namespace GameHub.Controllers
                 }
                 else
                 {
-                    var isSalesRole = assignedUser.Role == UserRole.BookingManager;
+                    var isSalesRole = assignedUser.Role == UserRole.Sales;
                     var isActive = assignedUser.IsActive;
                     var keepsExistingOwner = id.HasValue
                         && await _dbContext.Leads.AnyAsync(x => x.Id == id && x.AssignedToUserId == model.AssignedToUserId);
@@ -963,8 +963,8 @@ namespace GameHub.Controllers
         {
             var selectedId = selected ?? 0;
             var users = await _dbContext.Users.AsNoTracking()
-                .Where(x => (x.IsActive && x.Role == UserRole.BookingManager) || x.Id == selectedId)
-                .OrderBy(x => x.IsActive && x.Role == UserRole.BookingManager ? 0 : 1)
+                .Where(x => (x.IsActive && x.Role == UserRole.Sales) || x.Id == selectedId)
+                .OrderBy(x => x.IsActive && x.Role == UserRole.Sales ? 0 : 1)
                 .ThenBy(x => x.FirstName)
                 .Select(x => new { x.Id, x.FirstName, x.LastName, x.Email, x.IsActive, x.Role })
                 .ToListAsync();
@@ -979,7 +979,7 @@ namespace GameHub.Controllers
 
             return users.Select(x =>
             {
-                var isEligible = x.IsActive && x.Role == UserRole.BookingManager;
+                var isEligible = x.IsActive && x.Role == UserRole.Sales;
                 var username = string.IsNullOrWhiteSpace(x.Email) ? $"{x.FirstName}.{x.LastName}" : x.Email;
                 var label = $"{x.Id} | {username} | [Sales]" + (isEligible ? string.Empty : " (inactive)");
                 return new SelectListItem(label, x.Id.ToString(), x.Id == selectedId);
@@ -1062,11 +1062,11 @@ namespace GameHub.Controllers
             }
         }
 
-        private bool CanCreateLeads() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool CanManageLeads() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager;
-        private bool CanManageOpportunities() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager;
-        private bool CanCreateQuotation() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool IsReadOnlyRole() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Viewer or UserRole.FinanceManager;
+        private bool CanCreateLeads() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.CRM;
+        private bool CanManageLeads() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.CRM;
+        private bool CanManageOpportunities() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.CRM;
+        private bool CanCreateQuotation() => RolePermissions.IsAdmin(User);
+        private bool IsReadOnlyRole() => false;
         private static string NormalizeTab(string? tab) => tab?.ToLowerInvariant() is "leads" or "opportunities" ? tab!.ToLowerInvariant() : "overview";
         private static bool HasContact(Lead lead) => LeadInquiryRules.HasContact(lead.Email, lead.Phone, lead.WhatsAppNumber);
         private static bool HasContact(LeadFormViewModel model) => LeadInquiryRules.HasContact(model.Email, model.Phone, model.WhatsAppNumber);

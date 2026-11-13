@@ -1,0 +1,81 @@
+@using GameHub.Models.ViewModels
+@model RoleDashboardViewModel
+@{
+    ViewData["Title"] = Model.RoleName + " Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<section class="dashboard-page">
+    <div class="dashboard-header admin-reveal">
+        <div>
+            <span class="admin-label">@Model.RoleName Workspace</span>
+            <h1>@Model.Greeting, @Model.FirstName</h1>
+            <p>@Model.Subtitle</p>
+            <div class="operational-status"><span></span> @Model.Headline</div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        @foreach (var kpi in Model.Kpis)
+        {
+            <article class="kpi-widget admin-reveal">
+                <div class="kpi-topline">
+                    <span class="kpi-icon"><i class="bi @kpi.Icon"></i></span>
+                </div>
+                <h2>@kpi.Value</h2>
+                <p>@kpi.Label</p>
+                <div class="kpi-bottom"><span>@kpi.Hint</span></div>
+            </article>
+        }
+    </div>
+
+    <div class="dashboard-grid lower-row">
+        <article class="admin-card occupancy-card admin-reveal">
+            <div class="card-heading">
+                <div>
+                    <h2>@Model.PanelTitle</h2>
+                    <p>@Model.PanelSubtitle</p>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.PanelLinkLabel))
+                {
+                    <a href="@Url.Action(Model.PanelAction, Model.PanelController)" class="text-action">@Model.PanelLinkLabel</a>
+                }
+            </div>
+            <div class="court-list">
+                @if (Model.Rows.Count > 0)
+                {
+                    @foreach (var row in Model.Rows)
+                    {
+                        <div class="court-row">
+                            <div>
+                                <strong><i class="bi @row.Icon"></i> @row.Title</strong>
+                                <span>@row.Subtitle</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;justify-content:flex-end;">
+                                @if (!string.IsNullOrWhiteSpace(row.Meta))
+                                {
+                                    <em style="font-style:normal;color:var(--admin-muted);font-size:.8rem;">@row.Meta</em>
+                                }
+                                <span class="status-badge @row.BadgeClass">@row.Badge</span>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p style="text-align:center;color:var(--admin-muted);padding:2rem 0;">@Model.EmptyState</p>
+                }
+            </div>
+        </article>
+
+        <article class="admin-card quick-actions-card admin-reveal">
+            <div class="card-heading"><div><h2>Quick Actions</h2><p>Your modules</p></div></div>
+            <div class="quick-actions-grid">
+                @foreach (var action in Model.QuickActions)
+                {
+                    <a href="@Url.Action(action.Action, action.Controller)" title="@action.Description"><i class="bi @action.Icon"></i><span>@action.Label</span></a>
+                }
+            </div>
+        </article>
+    </div>
+</section>

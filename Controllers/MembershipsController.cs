@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Memberships)]
     [ValidateActiveUser]
     public class MembershipsController : Controller
     {
@@ -340,7 +340,7 @@ namespace GameHub.Controllers
         {
             if (await _dbContext.MembershipPlans.AnyAsync(x => x.Code == model.Code && (!id.HasValue || x.Id != id.Value))) ModelState.AddModelError(nameof(model.Code), "Plan code already exists.");
             var settings = await GetSettingsAsync();
-            if (model.PriorityBookingDays > settings.AdvanceBookingDays && !User.IsInRole(UserRole.SuperAdmin.ToString())) ModelState.AddModelError(nameof(model.PriorityBookingDays), "Priority booking days cannot exceed system advance booking days.");
+            if (model.PriorityBookingDays > settings.AdvanceBookingDays && !RolePermissions.IsAdmin(User)) ModelState.AddModelError(nameof(model.PriorityBookingDays), "Priority booking days cannot exceed system advance booking days.");
         }
 
         private async Task ValidateMembershipAsync(CustomerMembershipFormViewModel model, int? id = null)
@@ -377,7 +377,7 @@ namespace GameHub.Controllers
         private async Task SyncExpiredMembershipsAsync() { var today = DateOnly.FromDateTime(DateTime.UtcNow); var expired = await _dbContext.CustomerMemberships.Where(x => x.IsActive && x.Status == MembershipStatus.Active && x.ExpiryDate < today).ToListAsync(); foreach (var item in expired) { item.Status = MembershipStatus.Expired; item.IsActive = false; item.UpdatedAt = DateTime.UtcNow; } if (expired.Any()) { await _dbContext.SaveChangesAsync(); foreach (var customerId in expired.Select(x => x.CustomerId).Distinct()) await SyncCustomerSummaryAsync(customerId); } }
         private async Task SyncCustomerSummaryAsync(int customerId) { var customer = await _dbContext.Customers.FindAsync(customerId); if (customer == null) return; var active = await _dbContext.CustomerMemberships.Where(x => x.CustomerId == customerId && x.IsActive && x.Status == MembershipStatus.Active && x.ExpiryDate >= DateOnly.FromDateTime(DateTime.UtcNow)).OrderByDescending(x => x.ExpiryDate).FirstOrDefaultAsync(); customer.IsMember = active != null; customer.MembershipNumber = active?.MembershipNumber; customer.MembershipStartDate = active?.StartDate; customer.MembershipExpiryDate = active?.ExpiryDate; customer.UpdatedAt = DateTime.UtcNow; await _dbContext.SaveChangesAsync(); }
         private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
-        private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist or UserRole.FinanceManager;
+        private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Receptionist;
         private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private static List<string> SplitCsv(string? value) => string.IsNullOrWhiteSpace(value) ? new List<string>() : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     }

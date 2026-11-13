@@ -129,15 +129,15 @@
     {
         return role switch
         {
-            UserRole.SuperAdmin => "This user will have complete access to all ERP modules.",
-            UserRole.Admin => "This user will have general administrative access across the ERP.",
-            UserRole.BookingManager => "This user will manage bookings, schedules, and booking operations.",
-            UserRole.CourtManager => "This user will manage courts, grounds, and facility availability.",
-            UserRole.FinanceManager => "This user will manage payments and financial records.",
-            UserRole.StaffManager => "This user will manage staff records and attendance.",
-            UserRole.Receptionist => "This user will handle bookings, customers, and front-desk operations.",
-            UserRole.Viewer => "This user will have read-only access.",
-            _ => "This user will have limited ERP access."
+            UserRole.Admin => "This user has full access to all ERP modules and administration.",
+            UserRole.Manager => "This user only reviews and actions booking approvals and refunds.",
+            UserRole.Receptionist => "This user handles customers, bookings, memberships and front-desk operations.",
+            UserRole.Finance => "This user manages payments, invoices, refunds and financial records.",
+            UserRole.Sales => "This user runs the full sales cycle: quotations, sales orders and invoices.",
+            UserRole.CRM => "This user manages customers, leads, opportunities and follow-ups.",
+            UserRole.HR => "This user manages recruitment, employees, performance and HR reporting.",
+            UserRole.Operations => "This user manages bookings and court operations.",
+            _ => "This user has limited ERP access."
         };
     }
 }

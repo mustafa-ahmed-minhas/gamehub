@@ -70,17 +70,25 @@
         let emailAvailable = true;
 
         const roleSummaries = {
-            Receptionist: "This user will handle bookings, customers, and front-desk operations.",
-            BookingManager: "This user will manage leads, opportunities, and sales pipeline.",
-            FinanceManager: "This user will manage payments and financial records.",
-            CourtManager: "This user will manage courts, facilities, and operations."
+            Admin: "This user will have full access to every ERP module.",
+            Manager: "This user will only review and action booking approvals and refunds.",
+            Receptionist: "This user will handle customers, bookings, memberships and front-desk operations.",
+            Finance: "This user will manage payments, invoices, refunds and financial records.",
+            Sales: "This user will run the complete sales cycle: quotations, sales orders and invoices.",
+            CRM: "This user will manage customers, leads, opportunities and follow-ups.",
+            HR: "This user will manage recruitment, employees, performance and HR reporting.",
+            Operations: "This user will manage bookings and court operations."
         };
 
         const displayRoleNames = {
+            Admin: "Admin",
+            Manager: "Manager",
             Receptionist: "Receptionist",
-            BookingManager: "Sales",
-            FinanceManager: "Finance",
-            CourtManager: "Operations"
+            Finance: "Finance",
+            Sales: "Sales",
+            CRM: "CRM",
+            HR: "HR",
+            Operations: "Operations"
         };
 
         const updatePreview = () => {
@@ -88,7 +96,7 @@
             const initials = fullName === "New User"
                 ? "NU"
                 : fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-            const selectedRole = role?.value || "";
+            const selectedRole = role?.value || formPage.querySelector("input[name='Role']")?.value || "";
             const isActive = status?.checked ?? true;
 
             formPage.querySelector("[data-preview-initials]").textContent = initials;

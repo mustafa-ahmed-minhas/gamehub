@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin)]
+    [ModuleAuthorize(RolePermissions.Modules.Users)]
     [ValidateActiveUser]
     public class UsersController : Controller
     {
@@ -46,7 +46,7 @@ namespace GameHub.Controllers
             var totalUsers = await allUsers.CountAsync();
             var activeUsers = await allUsers.CountAsync(user => user.IsActive);
             var inactiveUsers = await allUsers.CountAsync(user => !user.IsActive);
-            var adminLevelUsers = await allUsers.CountAsync(user => user.Role == UserRole.SuperAdmin || user.Role == UserRole.Admin);
+            var adminLevelUsers = await allUsers.CountAsync(user => user.Role == UserRole.Admin);
 
             var query = allUsers;
 
@@ -265,7 +265,8 @@ namespace GameHub.Controllers
                 Designation = user.Designation,
                 Role = user.Role,
                 IsActive = user.IsActive,
-                ExistingProfileImageUrl = user.ProfileImageUrl
+                ExistingProfileImageUrl = user.ProfileImageUrl,
+                IsSystemAdmin = user.Role == UserRole.Admin
             };
 
             return View("Form", model);
@@ -282,11 +283,25 @@ namespace GameHub.Controllers
 
             NormalizeForm(model);
             ApplyNormalizedValidation(model);
-            if (!UserFormViewModel.AllowedRoles.Any(r => r.Role == model.Role))
+
+            var existingUser = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id);
+            if (existingUser == null)
+            {
+                TempData.SetToast("error", "Something Went Wrong", "User not found.");
+                return NotFound();
+            }
+
+            var isSystemAdmin = existingUser.Role == UserRole.Admin;
+            if (isSystemAdmin)
+            {
+                // The built-in Admin account keeps its role permanently.
+                model.IsSystemAdmin = true;
+                model.Role = UserRole.Admin;
+            }
+            else if (!UserFormViewModel.AllowedRoles.Any(r => r.Role == model.Role))
             {
                 ModelState.AddModelError(nameof(model.Role), "Please select a valid role.");
             }
-
             if (await EmailExistsAsync(model.Email, id))
             {
                 ModelState.AddModelError(nameof(model.Email), "Email address is already in use.");
@@ -314,10 +329,10 @@ namespace GameHub.Controllers
                 return NotFound();
             }
 
-            if (IsFinalActiveSuperAdmin(user) && (model.Role != UserRole.SuperAdmin || !model.IsActive))
+            if (isSystemAdmin && !model.IsActive)
             {
-                ModelState.AddModelError(string.Empty, "The last active Super Admin cannot be deactivated or moved to another role.");
-                TempData.SetToast("warning", "Attention Required", "The last active Super Admin cannot be deactivated.");
+                ModelState.AddModelError(string.Empty, "The built-in Admin account cannot be deactivated.");
+                TempData.SetToast("warning", "Attention Required", "The built-in Admin account cannot be deactivated.");
                 return View("Form", model);
             }
 
@@ -440,13 +455,9 @@ namespace GameHub.Controllers
                 return Json(new { success = false, message = "You cannot deactivate your own account while signed in." });
             }
 
-            if (user.IsActive && user.Role == UserRole.SuperAdmin)
+            if (user.IsActive && user.Role == UserRole.Admin)
             {
-                var activeSuperAdmins = await _dbContext.Users.CountAsync(item => item.Role == UserRole.SuperAdmin && item.IsActive);
-                if (activeSuperAdmins <= 1)
-                {
-                    return Json(new { success = false, message = "The last active Super Admin cannot be deactivated" });
-                }
+                return Json(new { success = false, message = "The built-in Admin account cannot be deactivated" });
             }
 
             user.IsActive = !user.IsActive;
@@ -629,16 +640,6 @@ namespace GameHub.Controllers
         {
             return int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) &&
                    currentUserId == userId;
-        }
-
-        private bool IsFinalActiveSuperAdmin(User user)
-        {
-            if (!user.IsActive || user.Role != UserRole.SuperAdmin)
-            {
-                return false;
-            }
-
-            return _dbContext.Users.Count(item => item.Role == UserRole.SuperAdmin && item.IsActive) <= 1;
         }
     }
 }

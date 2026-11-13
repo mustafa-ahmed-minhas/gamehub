@@ -25,7 +25,7 @@ builder.Services
         options.SlidingExpiration = true;
         options.LoginPath = "/Auth/Login";
         options.LogoutPath = "/Auth/Logout";
-        options.AccessDeniedPath = "/Error/NotFound";
+        options.AccessDeniedPath = "/Error/AccessDenied";
     })
     .AddCookie(AuthConstants.CustomerScheme, options =>
     {

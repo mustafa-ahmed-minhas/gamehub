@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Invoices)]
     [ValidateActiveUser]
     public class InvoicesController : Controller
     {
@@ -91,6 +91,6 @@ namespace GameHub.Controllers
         private async Task Activity(SalesInvoice i, ApprovalAction type,string text) { _db.DocumentActivities.Add(new DocumentActivity { DocumentType=DocumentType.SalesInvoice,DocumentId=i.Id,ActivityType=type,Description=text,PerformedByUserId=UserId(),PerformedAt=DateTime.UtcNow });await Task.CompletedTask; }
         private async Task SynchronizeOverdueAsync() { var today=DateOnly.FromDateTime(DateTime.UtcNow);var list=await _db.SalesInvoices.Where(x=>x.IsActive&&(x.Status==InvoiceStatus.Issued||x.Status==InvoiceStatus.PartiallyPaid)&&x.DueDate<today&&x.OutstandingAmount>0).ToListAsync(); foreach(var x in list)x.Status=InvoiceStatus.Overdue; if(list.Any())await _db.SaveChangesAsync(); }
         private static void Normalize(InvoiceFormViewModel m) { m.Subject=m.Subject?.Trim();m.PaymentTerms=m.PaymentTerms?.Trim()??"";foreach(var x in m.Items){x.Description=x.Description?.Trim()??"";x.UnitOfMeasure=string.IsNullOrWhiteSpace(x.UnitOfMeasure)?"Unit":x.UnitOfMeasure.Trim();} }
-        private int UserId()=>int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var id)?id:0; private bool CanView()=>RolePermissions.CanAccessModule(User,"Sales"); private bool CanCreate()=>RolePermissions.TryGetCurrentRole(User,out var r)&&r is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist; private bool CanApprove()=>RolePermissions.TryGetCurrentRole(User,out var r)&&r is UserRole.SuperAdmin or UserRole.Admin or UserRole.FinanceManager; private bool Super()=>RolePermissions.TryGetCurrentRole(User,out var r)&&r==UserRole.SuperAdmin;
+        private int UserId()=>int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var id)?id:0; private bool CanView()=>RolePermissions.CanAccessModule(User,RolePermissions.Modules.Invoices); private bool CanCreate()=>RolePermissions.TryGetCurrentRole(User,out var r)&&r is UserRole.Admin or UserRole.Sales or UserRole.Finance; private bool CanApprove()=>RolePermissions.TryGetCurrentRole(User,out var r)&&r is UserRole.Admin or UserRole.Finance; private bool Super()=>RolePermissions.IsAdmin(User);
     }
 }

@@ -20,7 +20,7 @@ namespace GameHub.Controllers
     /// mirror the statuses and workflows of the source screens, and one filter +
     /// export pipeline is shared by all four detail reports.
     /// </summary>
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Hr)]
     [ValidateActiveUser]
     public class HRReportsController : Controller
     {

@@ -17,7 +17,7 @@ namespace GameHub.Controllers
     /// creation and editing live in their existing controllers and are
     /// surfaced from here.
     /// </summary>
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Hr)]
     [ValidateActiveUser]
     public class RecruitmentController : Controller
     {
@@ -247,7 +247,7 @@ namespace GameHub.Controllers
 
         private bool CanManage() =>
             RolePermissions.TryGetCurrentRole(User, out var role)
-            && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.StaffManager;
+            && role is UserRole.Admin or UserRole.HR;
 
         private static string Initials(string name)
         {

@@ -14,20 +14,20 @@ namespace GameHub.Data
 
             if (!await dbContext.Users.AnyAsync())
             {
-                // One development test user per application role (UserRole). Every
-                // account shares the same password so each role can be exercised
-                // end-to-end. The SuperAdmin keeps the original admin@gamehub.pk.
+                // One development user per RBAC role. Every account shares the same
+                // password so each role can be exercised end-to-end. The single
+                // built-in Admin keeps the original admin@gamehub.com login.
                 const string seedPassword = "Admin@123";
                 var seedUsers = new[]
                 {
-                    new { First = "Mustafa", Last = "Ahmed",    Email = "admin@gamehub.pk",            Phone = "03001234000", Role = UserRole.SuperAdmin },
+                    new { First = "Zahid",  Last = "Hussain",   Email = "admin@gamehub.pk",            Phone = "03001234000", Role = UserRole.Manager },
                     new { First = "Ayesha",  Last = "Siddiqui", Email = "admin@gamehub.com",           Phone = "03001234001", Role = UserRole.Admin },
-                    new { First = "Hamza",   Last = "Tariq",    Email = "booking.manager@gamehub.com", Phone = "03001234002", Role = UserRole.BookingManager },
-                    new { First = "Usman",   Last = "Ghani",    Email = "court.manager@gamehub.com",   Phone = "03001234003", Role = UserRole.CourtManager },
-                    new { First = "Fatima",  Last = "Noor",     Email = "finance.manager@gamehub.com", Phone = "03001234004", Role = UserRole.FinanceManager },
-                    new { First = "Kamran",  Last = "Aslam",    Email = "staff.manager@gamehub.com",   Phone = "03001234005", Role = UserRole.StaffManager },
+                    new { First = "Hamza",   Last = "Tariq",    Email = "booking.manager@gamehub.com", Phone = "03001234002", Role = UserRole.Sales },
+                    new { First = "Usman",   Last = "Ghani",    Email = "court.manager@gamehub.com",   Phone = "03001234003", Role = UserRole.Operations },
+                    new { First = "Fatima",  Last = "Noor",     Email = "finance.manager@gamehub.com", Phone = "03001234004", Role = UserRole.Finance },
+                    new { First = "Kamran",  Last = "Aslam",    Email = "staff.manager@gamehub.com",   Phone = "03001234005", Role = UserRole.HR },
                     new { First = "Sana",    Last = "Iqbal",    Email = "receptionist@gamehub.com",    Phone = "03001234006", Role = UserRole.Receptionist },
-                    new { First = "Tariq",   Last = "Jameel",   Email = "viewer@gamehub.com",          Phone = "03001234007", Role = UserRole.Viewer }
+                    new { First = "Tariq",   Last = "Jameel",   Email = "viewer@gamehub.com",          Phone = "03001234007", Role = UserRole.CRM }
                 };
 
                 foreach (var seedUser in seedUsers)
@@ -935,12 +935,7 @@ namespace GameHub.Data
                 new Sport { Name = "Football", Code = "FTB", Description = "Full-size and small-sided football turf.", IconClass = "bi-trophy", AccentColor = "#4f7aa8", DefaultDurationMinutes = 90, DisplayOrder = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Sport { Name = "Badminton", Code = "BDM", Description = "Indoor badminton courts.", IconClass = "bi-feather", AccentColor = "#2ba061", DefaultDurationMinutes = 60, DisplayOrder = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Sport { Name = "Padel", Code = "PAD", Description = "Glass-wall padel courts.", IconClass = "bi-dribbble", AccentColor = "#d6a950", DefaultDurationMinutes = 60, DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Tennis", Code = "TNS", Description = "Hard and clay tennis courts.", IconClass = "bi-tennisball", AccentColor = "#6c757d", DefaultDurationMinutes = 90, DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Squash", Code = "SQU", Description = "Indoor squash courts.", IconClass = "bi-squash", AccentColor = "#6f42c1", DefaultDurationMinutes = 45, DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Table Tennis", Code = "TTN", Description = "Multi-table table tennis zone.", IconClass = "bi-table", AccentColor = "#20c997", DefaultDurationMinutes = 30, DisplayOrder = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Basketball", Code = "BKB", Description = "Outdoor basketball court.", IconClass = "bi-basketball", AccentColor = "#0d6efd", DefaultDurationMinutes = 60, DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Volleyball", Code = "VOL", Description = "Sand and indoor volleyball.", IconClass = "bi-volleyball", AccentColor = "#fd7e14", DefaultDurationMinutes = 60, DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Sport { Name = "Swimming", Code = "SWM", Description = "Indoor swimming lanes.", IconClass = "bi-swimming", AccentColor = "#0dcaf0", DefaultDurationMinutes = 60, DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow }
+                new Sport { Name = "Tennis", Code = "TNS", Description = "Hard and clay tennis courts.", IconClass = "bi-tennisball", AccentColor = "#6c757d", DefaultDurationMinutes = 90, DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow }
             };
 
             foreach (var sport in sports)
@@ -963,9 +958,6 @@ namespace GameHub.Data
                 new Facility { Name = "South Block", Code = "BLK-S", Type = FacilityType.Block, LocationLabel = "South Wing", DisplayOrder = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Facility { Name = "East Pavilion", Code = "EAS-P", Type = FacilityType.Mixed, LocationLabel = "Pavilion Block", DisplayOrder = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Facility { Name = "West Complex", Code = "WES-C", Type = FacilityType.Outdoor, LocationLabel = "West Grounds", DisplayOrder = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Facility { Name = "Central Fitness Hub", Code = "CTR-H", Type = FacilityType.Indoor, LocationLabel = "Central Block", DisplayOrder = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Facility { Name = "Premium Clubhouse", Code = "PRM-C", Type = FacilityType.Mixed, LocationLabel = "Clubhouse", DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Facility { Name = "Riverside Grounds", Code = "RIV-G", Type = FacilityType.Outdoor, LocationLabel = "Riverside", DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Facility { Name = "Summit Arena", Code = "SUM-A", Type = FacilityType.Indoor, LocationLabel = "Summit Tower", DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow }
             };
 
@@ -996,11 +988,7 @@ namespace GameHub.Data
                 new Court { Name = "Padel Court Glass 01", Code = "PAD-G1", SportId = sports["PAD"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Court { Name = "Padel Court Glass 02", Code = "PAD-G2", SportId = sports["PAD"].Id, FacilityId = facilities["OUT-B"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 9, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new Court { Name = "Tennis Court Hard 01", Code = "TNS-H1", SportId = sports["TNS"].Id, FacilityId = facilities["SUM-A"].Id, Status = CourtStatus.Available, Capacity = 4, DisplayOrder = 10, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Court { Name = "Tennis Court Clay 01", Code = "TNS-C1", SportId = sports["TNS"].Id, FacilityId = facilities["SUM-A"].Id, Status = CourtStatus.Maintenance, Capacity = 4, DisplayOrder = 11, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Court { Name = "Squash Court Glass 01", Code = "SQU-G1", SportId = sports["SQU"].Id, FacilityId = facilities["CTR-H"].Id, Status = CourtStatus.Available, Capacity = 2, DisplayOrder = 12, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Court { Name = "Squash Court Glass 02", Code = "SQU-G2", SportId = sports["SQU"].Id, FacilityId = facilities["CTR-H"].Id, Status = CourtStatus.Available, Capacity = 2, DisplayOrder = 13, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Court { Name = "Table Tennis Zone 01", Code = "TTN-M1", SportId = sports["TTN"].Id, FacilityId = facilities["PRM-C"].Id, Status = CourtStatus.Available, Capacity = 8, DisplayOrder = 14, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new Court { Name = "Basketball Court Riverside 01", Code = "BKB-R1", SportId = sports["BKB"].Id, FacilityId = facilities["RIV-G"].Id, Status = CourtStatus.Available, Capacity = 12, DisplayOrder = 15, IsActive = true, CreatedAt = DateTime.UtcNow }
+                new Court { Name = "Tennis Court Clay 01", Code = "TNS-C1", SportId = sports["TNS"].Id, FacilityId = facilities["SUM-A"].Id, Status = CourtStatus.Maintenance, Capacity = 4, DisplayOrder = 11, IsActive = true, CreatedAt = DateTime.UtcNow }
             };
 
             foreach (var court in courts)
@@ -1037,13 +1025,7 @@ namespace GameHub.Data
                 new CourtPricing { CourtId = courts["PAD-G2"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 60, Price = 1500, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new CourtPricing { CourtId = courts["PAD-G2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 2500, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
                 new CourtPricing { CourtId = courts["TNS-H1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 90, Price = 1800, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["TNS-H1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 90, Price = 3000, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["SQU-G1"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 45, Price = 600, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["SQU-G1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 45, Price = 1100, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["SQU-G2"].Id, Name = "Day Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(18, 0), DurationMinutes = 45, Price = 600, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["SQU-G2"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 45, Price = 1100, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["TTN-M1"].Id, Name = "Hourly Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 30, Price = 400, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow },
-                new CourtPricing { CourtId = courts["BKB-R1"].Id, Name = "Hourly Rate", DayOfWeek = null, StartTime = new TimeOnly(6, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 60, Price = 1000, IsPeakRate = false, IsActive = true, CreatedAt = DateTime.UtcNow }
+                new CourtPricing { CourtId = courts["TNS-H1"].Id, Name = "Evening Peak Rate", DayOfWeek = null, StartTime = new TimeOnly(18, 0), EndTime = new TimeOnly(23, 0), DurationMinutes = 90, Price = 3000, IsPeakRate = true, IsActive = true, CreatedAt = DateTime.UtcNow }
             };
 
             foreach (var pricing in pricings)
@@ -1125,10 +1107,10 @@ namespace GameHub.Data
                 {
                     CustomerCode = "CUST-000002",
                     FirstName = "Fatima",
-                    LastName = "Ahmed",
+                    LastName = "Zafar",
                     Gender = Gender.Female,
                     PrimaryPhone = "03012233445",
-                    Email = "fatima.ahmed@islabc.com",
+                    Email = "fatima.zafar@islabc.com",
                     NationalIdNumber = "6110122334455",
                     City = "Islamabad",
                     Country = "Pakistan",
@@ -1363,7 +1345,7 @@ namespace GameHub.Data
                     CustomerType = CustomerType.Student,
                     CustomerSource = CustomerSource.Website,
                     PreferredContactMethod = PreferredContactMethod.SMS,
-                    PreferredSportCodes = "TNS,SQU",
+                    PreferredSportCodes = "TNS",
                     LoyaltyPoints = 100,
                     ReceiveBookingReminders = true,
                     IsActive = true,
@@ -1372,11 +1354,11 @@ namespace GameHub.Data
                 new Customer
                 {
                     CustomerCode = "CUST-000013",
-                    FirstName = "Ahmed",
+                    FirstName = "Hamza",
                     LastName = "Raza",
                     Gender = Gender.Male,
                     PrimaryPhone = "03123344556",
-                    Email = "ahmed.raza@lahore.pk",
+                    Email = "hamza.raza@lahore.pk",
                     NationalIdNumber = "3520233445566",
                     City = "Lahore",
                     Country = "Pakistan",
@@ -1459,17 +1441,16 @@ namespace GameHub.Data
                 {
                     CustomerCode = "CUST-000017",
                     FirstName = "Bilal",
-                    LastName = "Ahmed",
+                    LastName = "Farooq",
                     Gender = Gender.Male,
                     PrimaryPhone = "03167788990",
-                    Email = "bilal.ahmed@peshawar.net",
+                    Email = "bilal.farooq@peshawar.net",
                     NationalIdNumber = "1730177889900",
                     City = "Peshawar",
                     Country = "Pakistan",
                     CustomerType = CustomerType.Student,
                     CustomerSource = CustomerSource.PhoneCall,
                     PreferredContactMethod = PreferredContactMethod.WhatsApp,
-                    PreferredSportCodes = "SQU,TTN",
                     LoyaltyPoints = 90,
                     ReceiveBookingReminders = true,
                     IsActive = true,
@@ -1489,7 +1470,7 @@ namespace GameHub.Data
                     CustomerType = CustomerType.VIP,
                     CustomerSource = CustomerSource.SocialMedia,
                     PreferredContactMethod = PreferredContactMethod.WhatsApp,
-                    PreferredSportCodes = "PAD,VOL",
+                    PreferredSportCodes = "PAD",
                     IsMember = true,
                     MembershipNumber = "MEM-VIP-005",
                     MembershipStartDate = DateOnly.FromDateTime(now.AddMonths(-2)),

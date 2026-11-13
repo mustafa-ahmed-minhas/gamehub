@@ -21,7 +21,7 @@ namespace GameHub.Controllers
     /// Workflow: Open -> UnderReview -> ImprovementPlan / Warning -> Resolved
     /// -> Closed. Every transition is validated server-side.
     /// </summary>
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Hr)]
     [ValidateActiveUser]
     public class PerformanceController : Controller
     {
@@ -1108,7 +1108,7 @@ namespace GameHub.Controllers
 
             model.HrUserOptions = await _dbContext.Users.AsNoTracking()
                 .Where(user => user.IsActive
-                    && (user.Role == UserRole.SuperAdmin || user.Role == UserRole.Admin || user.Role == UserRole.StaffManager))
+                    && (user.Role == UserRole.Admin || user.Role == UserRole.HR))
                 .OrderBy(user => user.FirstName)
                 .ThenBy(user => user.LastName)
                 .Select(user => new SelectListItem
@@ -1211,7 +1211,7 @@ namespace GameHub.Controllers
                 var hrUserIsValid = await _dbContext.Users.AsNoTracking().AnyAsync(user =>
                     user.Id == model.AssignedHrUserId.Value
                     && user.IsActive
-                    && (user.Role == UserRole.SuperAdmin || user.Role == UserRole.Admin || user.Role == UserRole.StaffManager));
+                    && (user.Role == UserRole.Admin || user.Role == UserRole.HR));
 
                 if (!hrUserIsValid)
                 {
@@ -1404,7 +1404,7 @@ namespace GameHub.Controllers
 
         private bool CanManage() =>
             RolePermissions.TryGetCurrentRole(User, out var role)
-            && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.StaffManager;
+            && role is UserRole.Admin or UserRole.HR;
 
         private int CurrentUserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 

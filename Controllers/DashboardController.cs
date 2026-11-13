@@ -9,15 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(
-        UserRole.SuperAdmin,
-        UserRole.Admin,
-        UserRole.BookingManager,
-        UserRole.CourtManager,
-        UserRole.FinanceManager,
-        UserRole.StaffManager,
-        UserRole.Receptionist,
-        UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Dashboard)]
     [ValidateActiveUser]
     public class DashboardController : Controller
     {
@@ -25,6 +17,18 @@ namespace GameHub.Controllers
         public DashboardController(ApplicationDbContext db) => _db = db;
 
         public async Task<IActionResult> Index()
+        {
+            if (!RolePermissions.TryGetCurrentRole(User, out var role))
+            {
+                return new ForbidResult(AuthConstants.Scheme);
+            }
+
+            return role == UserRole.Admin
+                ? await BuildAdminDashboardAsync()
+                : await BuildRoleDashboardAsync(role);
+        }
+
+        private async Task<IActionResult> BuildAdminDashboardAsync()
         {
             var now = DateTime.UtcNow;
             var today = DateOnly.FromDateTime(now);
@@ -278,7 +282,391 @@ namespace GameHub.Controllers
             model.AttentionItems = await BuildAttentionAsync();
             model.QuickActions = BuildQuickActions();
 
-            return View(model);
+            return View("Index", model);
+        }
+
+        /// <summary>
+        /// Builds the dashboard for every non-Admin role. Each branch queries only
+        /// the modules that role is allowed to open, so a role dashboard can never
+        /// surface another department's data.
+        /// </summary>
+        private async Task<IActionResult> BuildRoleDashboardAsync(UserRole role)
+        {
+            var now = DateTime.UtcNow;
+            var today = DateOnly.FromDateTime(now);
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var settings = await _db.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+            var firstName = User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? "User";
+            var hour = DateTime.Now.Hour;
+
+            var model = new RoleDashboardViewModel
+            {
+                Role = role,
+                RoleName = role.GetDisplayName(),
+                Greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening",
+                FirstName = firstName,
+                CurrencySymbol = settings?.CurrencySymbol ?? "Rs",
+                Subtitle = $"Everything here is scoped to the {role.GetDisplayName()} role."
+            };
+
+            switch (role)
+            {
+                case UserRole.Manager:
+                {
+                    model.Headline = "Approvals Workspace";
+                    model.PanelTitle = "Pending Booking Approvals";
+                    model.PanelSubtitle = "Oldest requests first";
+                    model.PanelLinkLabel = "Open Approvals";
+                    model.PanelController = "Bookings";
+                    model.PanelAction = "Approvals";
+                    model.EmptyState = "No bookings are waiting for approval.";
+
+                    var pendingApprovals = await _db.Bookings.AsNoTracking()
+                        .CountAsync(b => b.IsActive && b.Status == BookingStatus.PendingApproval);
+                    var pendingRefunds = await _db.PaymentRefunds.AsNoTracking()
+                        .CountAsync(r => r.Status == RefundStatus.Pending || r.Status == RefundStatus.Processing);
+                    var decisionsThisMonth = await _db.DocumentApprovals.AsNoTracking()
+                        .CountAsync(a => a.ActionAt >= monthStart);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Pending Bookings", Value = pendingApprovals.ToString("N0"), Hint = "Awaiting your decision", Icon = "bi-hourglass-split" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Pending Refunds", Value = pendingRefunds.ToString("N0"), Hint = "Refund requests in queue", Icon = "bi-cash-coin" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Decisions This Month", Value = decisionsThisMonth.ToString("N0"), Hint = "Recorded approval actions", Icon = "bi-clipboard-check" });
+
+                    var pending = await _db.Bookings.AsNoTracking()
+                        .Include(b => b.Customer)
+                        .Include(b => b.Court)
+                        .Where(b => b.IsActive && b.Status == BookingStatus.PendingApproval)
+                        .OrderBy(b => b.BookingDate).ThenBy(b => b.StartTime)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = pending.Select(b => new RoleDashboardRow
+                    {
+                        Icon = "bi-calendar2-check",
+                        Title = $"{b.BookingNumber} · {b.Customer?.FirstName} {b.Customer?.LastName}".Trim(),
+                        Subtitle = $"{b.Court?.Name} · {b.BookingDate:dd MMM yyyy} {b.StartTime:hh:mm tt}",
+                        Meta = $"{model.CurrencySymbol} {b.TotalAmount:N0}",
+                        Badge = "Awaiting approval",
+                        BadgeClass = "pending"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Booking Approvals", Description = "Review pending booking requests", Controller = "Bookings", Action = "Approvals", Icon = "bi-hourglass-split" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Refund Management", Description = "Review pending refunds", Controller = "Bookings", Action = "Refunds", Icon = "bi-cash-coin" });
+                    break;
+                }
+
+                case UserRole.Receptionist:
+                {
+                    model.Headline = "Front Desk";
+                    model.PanelTitle = "Today's Bookings";
+                    model.PanelSubtitle = "Chronological front-desk schedule";
+                    model.PanelLinkLabel = "Open Bookings";
+                    model.PanelController = "Bookings";
+                    model.PanelAction = "Index";
+                    model.EmptyState = "No bookings are scheduled for today.";
+
+                    var todaysBookings = await _db.Bookings.AsNoTracking()
+                        .CountAsync(b => b.BookingDate == today && b.IsActive
+                            && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow);
+                    var checkedIn = await _db.Bookings.AsNoTracking()
+                        .CountAsync(b => b.BookingDate == today && b.IsActive
+                            && (b.Status == BookingStatus.CheckedIn || b.Status == BookingStatus.InProgress || b.Status == BookingStatus.Completed));
+                    var activeMemberships = await _db.CustomerMemberships.AsNoTracking()
+                        .CountAsync(m => m.Status == MembershipStatus.Active);
+                    var activeCustomers = await _db.Customers.AsNoTracking()
+                        .CountAsync(c => c.IsActive);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Today's Bookings", Value = todaysBookings.ToString("N0"), Hint = "Scheduled for today", Icon = "bi-calendar-check" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Checked In", Value = checkedIn.ToString("N0"), Hint = "Arrived or in play", Icon = "bi-box-arrow-in-right" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Active Memberships", Value = activeMemberships.ToString("N0"), Hint = "Members currently active", Icon = "bi-person-badge" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Customers", Value = activeCustomers.ToString("N0"), Hint = "Active customer records", Icon = "bi-people" });
+
+                    var schedule = await _db.Bookings.AsNoTracking()
+                        .Include(b => b.Customer)
+                        .Include(b => b.Court)
+                        .Where(b => b.BookingDate == today && b.IsActive
+                            && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow)
+                        .OrderBy(b => b.StartTime)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = schedule.Select(b => new RoleDashboardRow
+                    {
+                        Icon = "bi-clock",
+                        Title = $"{b.StartTime:hh:mm tt} · {b.Customer?.FirstName} {b.Customer?.LastName}".Trim(),
+                        Subtitle = $"{b.Court?.Name} · {b.DurationMinutes} min",
+                        Meta = b.PaidAmount > 0 ? $"Paid {model.CurrencySymbol} {b.PaidAmount:N0}" : "Payment pending",
+                        Badge = b.Status.GetDisplayName(),
+                        BadgeClass = b.Status.ToString().ToLowerInvariant()
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "New Booking", Description = "Create a front-desk booking", Controller = "Bookings", Action = "Create", Icon = "bi-plus-lg" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Bookings", Description = "Manage the booking list", Controller = "Bookings", Action = "Index", Icon = "bi-calendar-check" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Memberships", Description = "Memberships and renewals", Controller = "Memberships", Action = "Index", Icon = "bi-person-badge" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Customers", Description = "Customer records", Controller = "Customers", Action = "Index", Icon = "bi-people" });
+                    break;
+                }
+
+                case UserRole.Finance:
+                {
+                    model.Headline = "Finance Overview";
+                    model.PanelTitle = "Recent Payments";
+                    model.PanelSubtitle = "Latest successful collections";
+                    model.PanelLinkLabel = "Open Payments";
+                    model.PanelController = "Payments";
+                    model.PanelAction = "Index";
+                    model.EmptyState = "No payments have been recorded yet.";
+
+                    var revenueToday = await _db.PaymentTransactions.AsNoTracking()
+                        .Where(x => x.Status == PaymentTransactionStatus.Succeeded && x.CompletedAt != null && x.CompletedAt.Value.Date == now.Date)
+                        .SumAsync(x => (decimal?)x.Amount) ?? 0;
+                    var revenueMonth = await _db.PaymentTransactions.AsNoTracking()
+                        .Where(x => x.Status == PaymentTransactionStatus.Succeeded && x.CompletedAt != null && x.CompletedAt.Value >= monthStart)
+                        .SumAsync(x => (decimal?)x.Amount) ?? 0;
+                    var outstanding = await _db.SalesInvoices.AsNoTracking()
+                        .Where(i => i.OutstandingAmount > 0
+                            && i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Cancelled && i.Status != InvoiceStatus.Void)
+                        .SumAsync(i => (decimal?)i.OutstandingAmount) ?? 0;
+                    var outstandingCount = await _db.SalesInvoices.AsNoTracking()
+                        .CountAsync(i => i.OutstandingAmount > 0
+                            && i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Cancelled && i.Status != InvoiceStatus.Void);
+                    var pendingRefunds = await _db.PaymentRefunds.AsNoTracking()
+                        .CountAsync(r => r.Status == RefundStatus.Pending || r.Status == RefundStatus.Processing);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Collected Today", Value = $"{model.CurrencySymbol} {revenueToday:N0}", Hint = "Successful payments", Icon = "bi-cash-stack" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "This Month", Value = $"{model.CurrencySymbol} {revenueMonth:N0}", Hint = "Month-to-date collections", Icon = "bi-graph-up" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Outstanding", Value = $"{model.CurrencySymbol} {outstanding:N0}", Hint = $"{outstandingCount} unpaid invoice(s)", Icon = "bi-receipt" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Pending Refunds", Value = pendingRefunds.ToString("N0"), Hint = "Refund requests in queue", Icon = "bi-arrow-counterclockwise" });
+
+                    var payments = await _db.PaymentTransactions.AsNoTracking()
+                        .Include(x => x.Customer)
+                        .Where(x => x.Status == PaymentTransactionStatus.Succeeded && x.CompletedAt != null)
+                        .OrderByDescending(x => x.CompletedAt)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = payments.Select(p => new RoleDashboardRow
+                    {
+                        Icon = "bi-wallet2",
+                        Title = $"{p.CurrencySymbol} {p.Amount:N0} · {p.Customer?.FirstName} {p.Customer?.LastName}".Trim(),
+                        Subtitle = $"{p.TransactionNumber} · {p.PaymentMethod.GetDisplayName()}",
+                        Meta = p.CompletedAt?.ToLocalTime().ToString("dd MMM, hh:mm tt") ?? string.Empty,
+                        Badge = p.Status.GetDisplayName(),
+                        BadgeClass = "paid"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Payments", Description = "Record and reconcile payments", Controller = "Payments", Action = "Index", Icon = "bi-wallet2" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Invoices", Description = "Review sales invoices", Controller = "Invoices", Action = "Index", Icon = "bi-receipt" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Refund Management", Description = "Process refund requests", Controller = "Bookings", Action = "Refunds", Icon = "bi-cash-coin" });
+                    break;
+                }
+
+                case UserRole.Sales:
+                {
+                    model.Headline = "Sales Cycle";
+                    model.PanelTitle = "Latest Quotations";
+                    model.PanelSubtitle = "Most recent sales documents";
+                    model.PanelLinkLabel = "Open Sales";
+                    model.PanelController = "Sales";
+                    model.PanelAction = "Index";
+                    model.EmptyState = "No quotations yet. Start a quotation to begin the sales cycle.";
+
+                    var openQuotationStatuses = new[]
+                    {
+                        SalesQuotationStatus.Draft, SalesQuotationStatus.Confirmed, SalesQuotationStatus.SubmittedForApproval,
+                        SalesQuotationStatus.Approved, SalesQuotationStatus.AcceptedByCustomer, SalesQuotationStatus.RevisedDraft
+                    };
+                    var openOrderStatuses = new[]
+                    {
+                        SalesOrderStatus.Draft, SalesOrderStatus.SubmittedForApproval, SalesOrderStatus.Approved,
+                        SalesOrderStatus.RevisedDraft, SalesOrderStatus.Confirmed, SalesOrderStatus.InProgress, SalesOrderStatus.ReadyForInvoice
+                    };
+
+                    var openQuotations = await _db.SalesQuotations.AsNoTracking()
+                        .CountAsync(q => q.IsActive && openQuotationStatuses.Contains(q.Status));
+                    var openOrders = await _db.SalesOrders.AsNoTracking()
+                        .CountAsync(o => openOrderStatuses.Contains(o.Status));
+                    var pipelineValue = await _db.SalesQuotations.AsNoTracking()
+                        .Where(q => q.IsActive && openQuotationStatuses.Contains(q.Status))
+                        .SumAsync(q => (decimal?)q.GrandTotal) ?? 0;
+                    var unpaidInvoices = await _db.SalesInvoices.AsNoTracking()
+                        .CountAsync(i => i.OutstandingAmount > 0
+                            && i.Status != InvoiceStatus.Draft && i.Status != InvoiceStatus.Cancelled && i.Status != InvoiceStatus.Void);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Open Quotations", Value = openQuotations.ToString("N0"), Hint = "Quotations in progress", Icon = "bi-file-earmark-text" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Open Orders", Value = openOrders.ToString("N0"), Hint = "Orders not yet closed", Icon = "bi-bag-check" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Pipeline Value", Value = $"{model.CurrencySymbol} {pipelineValue:N0}", Hint = "Open quotation value", Icon = "bi-graph-up-arrow" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Invoices Due", Value = unpaidInvoices.ToString("N0"), Hint = "Awaiting payment", Icon = "bi-receipt" });
+
+                    var quotations = await _db.SalesQuotations.AsNoTracking()
+                        .Include(q => q.Customer)
+                        .Where(q => q.IsActive)
+                        .OrderByDescending(q => q.CreatedAt)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = quotations.Select(q => new RoleDashboardRow
+                    {
+                        Icon = "bi-file-earmark-text",
+                        Title = $"{q.QuotationNumber} · {q.Customer?.FirstName} {q.Customer?.LastName}".Trim(),
+                        Subtitle = $"{q.QuotationDate:dd MMM yyyy} · valid until {q.ValidUntil:dd MMM yyyy}",
+                        Meta = $"{q.CurrencySymbol} {q.GrandTotal:N0}",
+                        Badge = q.Status.GetDisplayName(),
+                        BadgeClass = q.Status is SalesQuotationStatus.Rejected or SalesQuotationStatus.Cancelled or SalesQuotationStatus.Expired ? "cancelled" : "pending"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Quotations", Description = "Create and track quotations", Controller = "Sales", Action = "Index", Icon = "bi-file-earmark-text" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Sales Orders", Description = "Manage confirmed orders", Controller = "SalesOrders", Action = "Index", Icon = "bi-bag-check" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Invoices", Description = "Invoices from sales orders", Controller = "Invoices", Action = "Index", Icon = "bi-receipt" });
+                    break;
+                }
+
+                case UserRole.CRM:
+                {
+                    model.Headline = "Customer Relationship Desk";
+                    model.PanelTitle = "Follow-ups Due";
+                    model.PanelSubtitle = "Leads with the nearest follow-up";
+                    model.PanelLinkLabel = "Open Follow-ups";
+                    model.PanelController = "CRM";
+                    model.PanelAction = "FollowUps";
+                    model.EmptyState = "No follow-ups are scheduled.";
+
+                    var activeCustomers = await _db.Customers.AsNoTracking().CountAsync(c => c.IsActive);
+                    var newCustomers = await _db.Customers.AsNoTracking().CountAsync(c => c.IsActive && c.CreatedAt >= monthStart);
+                    var openLeadStatuses = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified };
+                    var openLeads = await _db.Leads.AsNoTracking()
+                        .CountAsync(l => l.IsActive && openLeadStatuses.Contains(l.Status));
+                    var followUpsDue = await _db.Leads.AsNoTracking()
+                        .CountAsync(l => l.IsActive && l.NextFollowUpAt != null && l.NextFollowUpAt <= now);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Active Customers", Value = activeCustomers.ToString("N0"), Hint = "Customer records", Icon = "bi-people" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "New This Month", Value = newCustomers.ToString("N0"), Hint = "Recently added customers", Icon = "bi-person-plus" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Open Leads", Value = openLeads.ToString("N0"), Hint = "Leads in progress", Icon = "bi-person-lines-fill" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Follow-ups Due", Value = followUpsDue.ToString("N0"), Hint = "At or past due", Icon = "bi-alarm" });
+
+                    var leads = await _db.Leads.AsNoTracking()
+                        .Where(l => l.IsActive && l.NextFollowUpAt != null)
+                        .OrderBy(l => l.NextFollowUpAt)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = leads.Select(l => new RoleDashboardRow
+                    {
+                        Icon = "bi-person-lines-fill",
+                        Title = $"{l.LeadNumber} · {l.CustomerName}",
+                        Subtitle = l.InquirySubject ?? l.Source.GetDisplayName(),
+                        Meta = l.NextFollowUpAt?.ToLocalTime().ToString("dd MMM, hh:mm tt") ?? string.Empty,
+                        Badge = l.Status.GetDisplayName(),
+                        BadgeClass = l.NextFollowUpAt <= now ? "pending" : "confirmed"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Customers", Description = "Customer records", Controller = "Customers", Action = "Index", Icon = "bi-people" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Leads", Description = "Manage the lead pipeline", Controller = "CRM", Action = "Index", Icon = "bi-person-lines-fill" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Follow-ups", Description = "Scheduled customer follow-ups", Controller = "CRM", Action = "FollowUps", Icon = "bi-alarm" });
+                    break;
+                }
+
+                case UserRole.HR:
+                {
+                    model.Headline = "People Operations";
+                    model.PanelTitle = "Recent Applications";
+                    model.PanelSubtitle = "Latest recruitment activity";
+                    model.PanelLinkLabel = "Open Recruitment";
+                    model.PanelController = "Recruitment";
+                    model.PanelAction = "Index";
+                    model.EmptyState = "No job applications have been received yet.";
+
+                    var activeEmployees = await _db.Employees.AsNoTracking()
+                        .CountAsync(e => e.IsActive && e.EmploymentStatus == EmploymentStatus.Active);
+                    var openPostings = await _db.JobPostings.AsNoTracking()
+                        .CountAsync(p => p.Status == JobPostingStatus.Open);
+                    var activeApplicationStatuses = new[]
+                    {
+                        JobApplicationStatus.Submitted, JobApplicationStatus.Screening, JobApplicationStatus.Shortlisted,
+                        JobApplicationStatus.Interview, JobApplicationStatus.Offer
+                    };
+                    var activeApplications = await _db.JobApplications.AsNoTracking()
+                        .CountAsync(a => activeApplicationStatuses.Contains(a.Status));
+                    var pendingTerminations = await _db.TerminationRequests.AsNoTracking()
+                        .CountAsync(t => t.IsActive && t.Status == TerminationStatus.PendingApproval);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Active Employees", Value = activeEmployees.ToString("N0"), Hint = "Currently employed", Icon = "bi-person-vcard" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Open Postings", Value = openPostings.ToString("N0"), Hint = "Accepting applications", Icon = "bi-journal-text" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Applications", Value = activeApplications.ToString("N0"), Hint = "In the hiring pipeline", Icon = "bi-inbox" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Pending Terminations", Value = pendingTerminations.ToString("N0"), Hint = "Awaiting approval", Icon = "bi-box-arrow-right" });
+
+                    var applications = await _db.JobApplications.AsNoTracking()
+                        .Include(a => a.JobPosting)
+                        .OrderByDescending(a => a.ApplicationDate)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = applications.Select(a => new RoleDashboardRow
+                    {
+                        Icon = "bi-file-earmark-person",
+                        Title = $"{a.ApplicationNumber} · {a.FirstName} {a.LastName}",
+                        Subtitle = a.JobPosting?.JobTitle ?? "Application",
+                        Meta = a.ApplicationDate.ToString("dd MMM yyyy"),
+                        Badge = a.Status.GetDisplayName(),
+                        BadgeClass = a.Status is JobApplicationStatus.Rejected ? "cancelled" : "pending"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "HR Dashboard", Description = "People operations overview", Controller = "HR", Action = "Index", Icon = "bi-people-fill" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Employees", Description = "Employee records", Controller = "Employees", Action = "Index", Icon = "bi-person-vcard" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Recruitment", Description = "Postings and applications", Controller = "Recruitment", Action = "Index", Icon = "bi-person-plus" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "HR Reports", Description = "HR reporting", Controller = "HRReports", Action = "Index", Icon = "bi-bar-chart-line" });
+                    break;
+                }
+
+                case UserRole.Operations:
+                {
+                    model.Headline = "Operations Floor";
+                    model.PanelTitle = "Court Status";
+                    model.PanelSubtitle = "Live operational state";
+                    model.PanelLinkLabel = "Open Bookings";
+                    model.PanelController = "Bookings";
+                    model.PanelAction = "Index";
+                    model.EmptyState = "No courts are configured.";
+
+                    var todaysBookings = await _db.Bookings.AsNoTracking()
+                        .CountAsync(b => b.BookingDate == today && b.IsActive
+                            && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow);
+                    var activeCourts = await _db.Courts.AsNoTracking().CountAsync(c => c.IsActive);
+                    var availableCourts = await _db.Courts.AsNoTracking()
+                        .CountAsync(c => c.IsActive && c.Status == CourtStatus.Available);
+                    var maintenanceCourts = await _db.Courts.AsNoTracking()
+                        .CountAsync(c => c.IsActive && c.Status == CourtStatus.Maintenance);
+
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Today's Bookings", Value = todaysBookings.ToString("N0"), Hint = "On the operational schedule", Icon = "bi-calendar-check" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Courts Available", Value = $"{availableCourts} / {activeCourts}", Hint = "Ready for play", Icon = "bi-grid-3x3-gap" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "In Use", Value = (activeCourts - availableCourts - maintenanceCourts).ToString("N0"), Hint = "Occupied or reserved", Icon = "bi-activity" });
+                    model.Kpis.Add(new RoleDashboardKpi { Label = "Maintenance", Value = maintenanceCourts.ToString("N0"), Hint = "Out of service", Icon = "bi-tools" });
+
+                    var courts = await _db.Courts.AsNoTracking()
+                        .Include(c => c.Sport)
+                        .Where(c => c.IsActive)
+                        .OrderBy(c => c.Name)
+                        .Take(8)
+                        .ToListAsync();
+
+                    model.Rows = courts.Select(c => new RoleDashboardRow
+                    {
+                        Icon = string.IsNullOrWhiteSpace(c.Sport?.IconClass) ? "bi-grid-3x3-gap" : c.Sport!.IconClass!,
+                        Title = c.Name,
+                        Subtitle = c.Sport?.Name ?? "Court",
+                        Meta = string.Empty,
+                        Badge = c.Status.GetDisplayName(),
+                        BadgeClass = c.Status == CourtStatus.Available ? "confirmed" : c.Status == CourtStatus.Maintenance || c.Status == CourtStatus.Closed ? "cancelled" : "pending"
+                    }).ToList();
+
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "Bookings", Description = "Operational booking list", Controller = "Bookings", Action = "Index", Icon = "bi-calendar-check" });
+                    model.QuickActions.Add(new RoleDashboardAction { Label = "New Booking", Description = "Add a booking to the schedule", Controller = "Bookings", Action = "Create", Icon = "bi-plus-lg" });
+                    break;
+                }
+            }
+
+            return View("Role", model);
         }
 
         private async Task<List<DashboardActivityItem>> BuildRecentActivityAsync(DateTime now)
@@ -409,7 +797,7 @@ namespace GameHub.Controllers
                 actions.Add(new DashboardQuickAction { Icon = "bi-person-plus", Label = "Register Customer", Url = Url.Action("Index", "Customers") ?? "#" });
             if (RolePermissions.CanAccessModule(user, "Payments"))
                 actions.Add(new DashboardQuickAction { Icon = "bi-wallet2", Label = "Add Payment", Url = Url.Action("Index", "Payments") ?? "#" });
-            if (RolePermissions.CanAccessModule(user, "ArenaSetup"))
+            if (RolePermissions.CanAccessModule(user, RolePermissions.Modules.MasterData))
             {
                 actions.Add(new DashboardQuickAction { Icon = "bi-lock", Label = "Block Court", Url = Url.Action("Index", "ArenaSetup", new { tab = "courts" }) ?? "#" });
                 actions.Add(new DashboardQuickAction { Icon = "bi-tools", Label = "Schedule Maintenance", Url = Url.Action("Index", "ArenaSetup", new { tab = "courts" }) ?? "#" });

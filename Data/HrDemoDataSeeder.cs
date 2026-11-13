@@ -32,8 +32,9 @@ namespace GameHub.Data
                 Now = now,
                 Today = DateOnly.FromDateTime(now),
                 HrUserId = await ResolveUserIdAsync(db, UserRole.Admin, cancellationToken)
-                           ?? await ResolveUserIdAsync(db, UserRole.SuperAdmin, cancellationToken),
-                ApproverId = await ResolveUserIdAsync(db, UserRole.SuperAdmin, cancellationToken),
+                           ?? await ResolveUserIdAsync(db, UserRole.HR, cancellationToken),
+                ApproverId = await ResolveUserIdAsync(db, UserRole.Admin, cancellationToken)
+                             ?? await ResolveUserIdAsync(db, UserRole.Manager, cancellationToken),
                 EmployeeNumbers = new Sequence(await NextSequenceAsync(db.Employees.Select(employee => employee.EmployeeNumber), "EMP-", cancellationToken)),
                 PostingNumbers = new Sequence(await NextSequenceAsync(db.JobPostings.Select(posting => posting.ReferenceNumber), "JOB-", cancellationToken)),
                 ApplicationNumbers = new Sequence(await NextSequenceAsync(db.JobApplications.Select(application => application.ApplicationNumber), "APP-", cancellationToken)),

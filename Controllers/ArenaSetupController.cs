@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.CourtManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.MasterData)]
     [ValidateActiveUser]
     public class ArenaSetupController : Controller
     {
@@ -550,7 +550,7 @@ namespace GameHub.Controllers
             return q.Where(x => EF.Property<bool>(x, "IsActive") == active);
         }
 
-        private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role != UserRole.Viewer;
+        private bool CanManage() => RolePermissions.IsAdmin(User);
         private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
         private static int Pages(int total, int size) => total == 0 ? 1 : (int)Math.Ceiling(total / (double)size);
 

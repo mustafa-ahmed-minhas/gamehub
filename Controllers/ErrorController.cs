@@ -19,5 +19,12 @@ namespace GameHub.Controllers
             Response.StatusCode = StatusCodes.Status404NotFound;
             return View();
         }
+
+        [Route("Error/AccessDenied")]
+        public IActionResult AccessDenied()
+        {
+            Response.StatusCode = StatusCodes.Status403Forbidden;
+            return View();
+        }
     }
 }

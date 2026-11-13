@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.CourtManager, UserRole.FinanceManager, UserRole.Viewer)]
+    [GameHubAuthorize]
     [ValidateActiveUser]
     public class BookingsController : Controller
     {
@@ -47,6 +47,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Index(string view = "list", string? search = null, int? sportId = null, int? facilityId = null, int? courtId = null, int? customerId = null, BookingStatus? status = null, PaymentStatus? paymentStatus = null, BookingSource? source = null, DateOnly? dateFrom = null, DateOnly? dateTo = null, string sortBy = "status", string sortDirection = "desc", int page = 1, int pageSize = 10)
         {
             page = Math.Max(1, page);
@@ -207,6 +208,7 @@ namespace GameHub.Controllers
         /// both resolve to the same customer.
         /// </summary>
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> SearchCustomers(string? query)
         {
             if (!CanManage()) return Json(new { success = false, message = "You do not have permission to search customers." });
@@ -260,6 +262,7 @@ namespace GameHub.Controllers
             value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_").Replace("[", "\\[");
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Create()
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -281,6 +284,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Create(BookingFormViewModel model)
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -335,6 +339,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Edit(int id)
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -349,6 +354,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Edit(int id, BookingFormViewModel model)
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -410,6 +416,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Details(int id)
         {
             var booking = await _dbContext.Bookings.AsNoTracking()
@@ -422,9 +429,10 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> CustomerRequests()
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
             var requests = await _dbContext.CustomerBookingRequests.AsNoTracking()
                 .Include(x => x.Customer)
                 .Include(x => x.Booking).ThenInclude(x => x.Court)
@@ -435,9 +443,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> ApproveCustomerRequest(int id, string? response)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
             var request = await _dbContext.CustomerBookingRequests.Include(x => x.Booking).FirstOrDefaultAsync(x => x.Id == id);
             if (request == null) return NotFound();
             request.Status = CustomerBookingRequestStatus.Approved;
@@ -491,9 +500,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> RejectCustomerRequest(int id, string? response)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
             var request = await _dbContext.CustomerBookingRequests.FirstOrDefaultAsync(x => x.Id == id);
             if (request == null) return NotFound();
             request.Status = CustomerBookingRequestStatus.Rejected;
@@ -507,9 +517,10 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> Approvals(string? search = null, int? sportId = null, int? facilityId = null, int? courtId = null, int? customerId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null, string sortBy = "date_asc", int page = 1, int pageSize = 25)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
 
             page = Math.Max(1, page);
             pageSize = new[] { 10, 25, 50 }.Contains(pageSize) ? pageSize : 25;
@@ -703,9 +714,10 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Refunds)]
         public async Task<IActionResult> Refunds(string? search = null, RefundStatus? status = null, RefundMethod? method = null, RefundReason? reason = null, DateOnly? dateFrom = null, DateOnly? dateTo = null, string sortBy = "newest", int page = 1, int pageSize = 25)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanRefund()) return RedirectToAction("NotFound", "Error");
 
             page = Math.Max(1, page);
             pageSize = new[] { 10, 25, 50 }.Contains(pageSize) ? pageSize : 25;
@@ -881,9 +893,10 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Refunds)]
         public async Task<IActionResult> RefundDetails(int id)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanRefund()) return RedirectToAction("NotFound", "Error");
 
             var refund = await _dbContext.PaymentRefunds
                 .Include(x => x.Booking)
@@ -942,9 +955,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Refunds)]
         public async Task<IActionResult> ProcessManualRefund(int id, string? gatewayRefundReference)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanRefund()) return RedirectToAction("NotFound", "Error");
 
             try
             {
@@ -960,9 +974,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Refunds)]
         public async Task<IActionResult> RetryRefund(int id)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanRefund()) return RedirectToAction("NotFound", "Error");
 
             try
             {
@@ -985,9 +1000,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> ApproveBooking(int id, string? comments)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
 
             var booking = await _dbContext.Bookings
                 .Include(x => x.Customer)
@@ -1239,9 +1255,10 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Approvals)]
         public async Task<IActionResult> RejectBooking(int id, string rejectionReason)
         {
-            if (!CanManage()) return RedirectToAction("NotFound", "Error");
+            if (!CanApprove()) return RedirectToAction("NotFound", "Error");
 
             if (string.IsNullOrWhiteSpace(rejectionReason) || rejectionReason.Trim().Length < 10)
             {
@@ -1393,6 +1410,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Reschedule(int id)
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -1404,6 +1422,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Reschedule(int id, BookingFormViewModel model, string rescheduleReason)
         {
             if (!CanManage()) return RedirectToAction("NotFound", "Error");
@@ -1453,6 +1472,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Confirm(int id)
         {
             var booking = await LoadBookingForActionAsync(id);
@@ -1468,6 +1488,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Cancel(int id, string reason)
         {
             var booking = await LoadBookingForActionAsync(id);
@@ -1482,12 +1503,15 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> CheckIn(int id) => await ChangeStatusAsync(id, BookingStatus.Confirmed, BookingStatus.CheckedIn, "Booking checked in successfully.", requireToday: true, setCheckedIn: true);
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> StartBooking(int id) => await ChangeStatusAsync(id, BookingStatus.CheckedIn, BookingStatus.InProgress, "Booking marked in progress.");
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> Complete(int id)
         {
             var booking = await LoadBookingForActionAsync(id);
@@ -1503,6 +1527,7 @@ namespace GameHub.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> MarkNoShow(int id)
         {
             var booking = await LoadBookingForActionAsync(id);
@@ -1517,6 +1542,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> GetCustomerSummary(int customerId)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view customer details.");
@@ -1527,6 +1553,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> GetMembershipSummary(int customerId, int sportId, bool isPeakRate = false)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view membership details.");
@@ -1538,6 +1565,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> GetFacilitiesBySport(int sportId)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view arena setup.");
@@ -1546,6 +1574,7 @@ namespace GameHub.Controllers
         }
 
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> GetCourts(int sportId, int facilityId)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view arena setup.");
@@ -1558,6 +1587,7 @@ namespace GameHub.Controllers
         /// court's own schedule (master data) - the client can never dictate the duration.
         /// </summary>
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> GetAvailableSlots(int courtId, DateOnly bookingDate, int? durationMinutes = null, int? bookingId = null)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view availability.");
@@ -1570,6 +1600,7 @@ namespace GameHub.Controllers
         /// any total sent by the browser is ignored.
         /// </summary>
         [HttpGet]
+        [ModuleAuthorize(RolePermissions.Modules.Bookings)]
         public async Task<IActionResult> CalculatePrice(int customerId, int sportId, int courtId, DateOnly bookingDate, TimeOnly startTime, int? durationMinutes = null, decimal manualDiscountAmount = 0, decimal paidAmount = 0, int? bookingId = null)
         {
             if (!CanManage()) return JsonFail("You do not have permission to view pricing.");
@@ -2108,9 +2139,11 @@ namespace GameHub.Controllers
         private void NormalizeForm(BookingFormViewModel model) { model.EndTime = model.StartTime.AddMinutes(model.DurationMinutes); model.CustomerNotes = Clean(model.CustomerNotes); model.InternalNotes = Clean(model.InternalNotes); model.SpecialRequest = Clean(model.SpecialRequest); model.ReferenceNumber = Clean(model.ReferenceNumber); model.IsWalkIn = model.IsWalkIn || model.Source == BookingSource.WalkIn; }
         private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
         private static bool CanEdit(BookingStatus status) => status is BookingStatus.Draft or BookingStatus.Pending or BookingStatus.Confirmed;
-        private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool CanOperate() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist or UserRole.CourtManager or UserRole.FinanceManager;
-        private bool CanManualDiscount() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin;
+        private bool CanManage() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Receptionist or UserRole.Operations;
+        private bool CanOperate() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Receptionist or UserRole.Operations;
+        private bool CanManualDiscount() => RolePermissions.TryGetCurrentRole(User, out var role) && role == UserRole.Admin;
+        private bool CanApprove() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Manager;
+        private bool CanRefund() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Manager or UserRole.Finance;
         private int CurrentUserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
         private JsonResult JsonOk(string message) => Json(new { success = true, message });
         private JsonResult JsonFail(string message) => Json(new { success = false, message });

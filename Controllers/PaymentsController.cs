@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.FinanceManager, UserRole.Receptionist, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Payments)]
     [ValidateActiveUser]
     public class PaymentsController : Controller
     {
@@ -96,6 +96,6 @@ namespace GameHub.Controllers
         private static bool RequiresReference(InvoicePaymentMethod method) => method is InvoicePaymentMethod.CreditCard or InvoicePaymentMethod.DebitCard or InvoicePaymentMethod.BankTransfer or InvoicePaymentMethod.OnlinePayment;
         private int UserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
         private bool CanView() => RolePermissions.CanAccessModule(User, "Payments");
-        private bool CanRecord() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.FinanceManager;
+        private bool CanRecord() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Finance;
     }
 }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.StaffManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Hr)]
     [ValidateActiveUser]
     public class JobApplicationsController : Controller
     {
@@ -1006,7 +1006,7 @@ namespace GameHub.Controllers
 
         private bool CanManage() =>
             RolePermissions.TryGetCurrentRole(User, out var role)
-            && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.StaffManager;
+            && role is UserRole.Admin or UserRole.HR;
 
         /// <summary>
         /// CVs contain sensitive applicant information and are only exposed to HR management roles.

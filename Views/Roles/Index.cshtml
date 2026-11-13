@@ -1,0 +1,67 @@
+@using GameHub.Models.ViewModels
+@model RoleMatrixViewModel
+@{
+    ViewData["Title"] = "Roles & Permissions";
+    Layout = "_AdminLayout";
+}
+
+<section class="dashboard-page">
+    <div class="dashboard-header admin-reveal">
+        <div>
+            <span class="admin-label">System Administration</span>
+            <h1>Roles &amp; Permissions</h1>
+            <p>Every role in GameHub and exactly which modules it can open. Permission checks across controllers and navigation read from this same matrix.</p>
+        </div>
+        <a class="admin-secondary-button" asp-controller="Users" asp-action="Index"><i class="bi bi-person-gear"></i> Manage Users</a>
+    </div>
+
+    <div class="kpi-grid">
+        @foreach (var role in Model.Roles)
+        {
+            <article class="kpi-widget admin-reveal">
+                <div class="kpi-topline">
+                    <span class="kpi-icon"><i class="bi @(role.IsSystemAdmin ? "bi-shield-lock" : "bi-person-badge")"></i></span>
+                    @if (role.IsSystemAdmin)
+                    {
+                        <span class="trend-pill neutral">System</span>
+                    }
+                </div>
+                <h2>@role.DisplayName</h2>
+                <p>@role.AllowedModules.Count module(s)</p>
+                <div class="kpi-bottom"><span>@role.UserCount user(s) assigned</span></div>
+            </article>
+        }
+    </div>
+
+    <div class="dashboard-grid lower-row">
+        @foreach (var role in Model.Roles)
+        {
+            <article class="admin-card admin-reveal">
+                <div class="card-heading">
+                    <div>
+                        <h2>@role.DisplayName</h2>
+                        <p>@role.Scope</p>
+                    </div>
+                    <span class="role-badge">@role.UserCount user(s)</span>
+                </div>
+                <div class="quick-actions-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));">
+                    @foreach (var module in Model.Catalog)
+                    {
+                        var allowed = role.AllowedModules.Contains(module.Key);
+                        <span title="@module.Description"
+                              style="display:flex;align-items:center;gap:.5rem;padding:.6rem .75rem;border-radius:12px;border:1px solid var(--admin-border,#2a2a2a);opacity:@(allowed ? "1" : ".38");">
+                            <i class="bi @(allowed ? "bi-check-circle-fill" : "bi-dash-circle")"></i>
+                            <span>@module.Name</span>
+                        </span>
+                    }
+                </div>
+                @if (role.IsSystemAdmin)
+                {
+                    <p style="margin-top:1rem;color:var(--admin-muted);font-size:.82rem;">
+                        <i class="bi bi-info-circle"></i> This is the single built-in Admin account. Additional Admin users cannot be created and this account cannot be deactivated or reassigned.
+                    </p>
+                }
+            </article>
+        }
+    </div>
+</section>

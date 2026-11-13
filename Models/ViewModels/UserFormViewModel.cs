@@ -65,18 +65,25 @@ namespace GameHub.Models.ViewModels
 
         public string? ExistingProfileImageUrl { get; set; }
 
+        /// <summary>True when editing the single built-in Admin account, whose Admin role is locked.</summary>
+        public bool IsSystemAdmin { get; set; }
+
         public bool IsEditMode => Id.HasValue;
 
         /// <summary>
-        /// Returns the allowed roles for user creation/editing dropdown.
-        /// Maps internal enum values to display names: Receptionist, Sales, Finance, Operations.
+        /// Roles an administrator may assign when creating or editing a user.
+        /// The built-in Admin role is intentionally excluded: the application keeps
+        /// exactly one Admin account and no additional Admin can be created.
         /// </summary>
         public static IReadOnlyList<(UserRole Role, string DisplayName)> AllowedRoles => new List<(UserRole, string)>
         {
+            (UserRole.Manager, "Manager"),
             (UserRole.Receptionist, "Receptionist"),
-            (UserRole.BookingManager, "Sales"),
-            (UserRole.FinanceManager, "Finance"),
-            (UserRole.CourtManager, "Operations")
+            (UserRole.Finance, "Finance"),
+            (UserRole.Sales, "Sales"),
+            (UserRole.CRM, "CRM"),
+            (UserRole.HR, "HR"),
+            (UserRole.Operations, "Operations")
         }.AsReadOnly();
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

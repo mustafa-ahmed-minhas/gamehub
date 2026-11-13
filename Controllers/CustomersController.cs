@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Customers)]
     [ValidateActiveUser]
     public class CustomersController : Controller
     {
@@ -694,12 +694,12 @@ namespace GameHub.Controllers
                 (!id.HasValue || x.Id != id.Value));
         }
 
-        private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("NotFound", "Error");
+        private IActionResult? EnsureCanManage() => CanManage() ? null : RedirectToAction("AccessDenied", "Error");
 
         private bool CanManage()
         {
             return RolePermissions.TryGetCurrentRole(User, out var role)
-                && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
+                && role is UserRole.Admin or UserRole.CRM or UserRole.Receptionist;
         }
 
         private const string PhoneFormatMessage = "Enter an 11-digit phone number starting with 0 (e.g. 03001234567).";

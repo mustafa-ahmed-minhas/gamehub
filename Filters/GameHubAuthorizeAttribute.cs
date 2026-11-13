@@ -1,5 +1,6 @@
 using GameHub.Helpers;
 using GameHub.Models.Enums;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -28,7 +29,9 @@ namespace GameHub.Filters
             if (!RolePermissions.TryGetCurrentRole(user, out var currentRole) ||
                 (_allowedRoles.Length > 0 && !_allowedRoles.Contains(currentRole)))
             {
-                context.Result = new RedirectToActionResult("NotFound", "Error", null);
+                // Authenticated but not allowed: signal a genuine 403 for the active scheme,
+                // which the cookie handler turns into the Access Denied page.
+                context.Result = new ForbidResult(AuthConstants.Scheme);
             }
         }
     }

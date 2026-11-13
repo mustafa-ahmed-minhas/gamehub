@@ -30,13 +30,13 @@
                 <div class="form-grid-two">
                     <div class="premium-field">
                         <label asp-for="FirstName">First Name <span>*</span></label>
-                        <div><i class="bi bi-person"></i><input asp-for="FirstName" data-preview-first data-name-input placeholder="Mustafa" /></div>
+                        <div><i class="bi bi-person"></i><input asp-for="FirstName" data-preview-first data-name-input placeholder="Ali" /></div>
                         <small>Letters and spaces only.</small>
                         <span asp-validation-for="FirstName" class="text-danger"></span>
                     </div>
                     <div class="premium-field">
                         <label asp-for="LastName">Last Name <span>*</span></label>
-                        <div><i class="bi bi-person"></i><input asp-for="LastName" data-preview-last data-name-input placeholder="Ahmed" /></div>
+                        <div><i class="bi bi-person"></i><input asp-for="LastName" data-preview-last data-name-input placeholder="Khan" /></div>
                         <small>Letters and spaces only.</small>
                         <span asp-validation-for="LastName" class="text-danger"></span>
                     </div>
@@ -124,21 +124,42 @@
             <fieldset>
                 <legend><i class="bi bi-shield-lock"></i> Access and Role</legend>
                 <div class="form-grid-two">
-                    <div class="premium-field">
-                        <label asp-for="Role">Role <span>*</span></label>
-                        <div><i class="bi bi-person-gear"></i><select asp-for="Role" data-preview-role>
-                            @foreach (var (role, displayName) in UserFormViewModel.AllowedRoles)
-                            {
-                                <option value="@role" data-description="@RoleDescription(role)">@displayName</option>
-                            }
-                        </select></div>
-                        <small data-role-description>Select a role to define ERP access.</small>
-                        <span asp-validation-for="Role" class="text-danger"></span>
-                    </div>
+                    @if (Model.IsSystemAdmin)
+                    {
+                        <div class="premium-field">
+                            <label>Role <span>*</span></label>
+                            <input asp-for="Role" type="hidden" value="Admin" />
+                            <div><i class="bi bi-shield-lock"></i><input value="Admin" disabled /></div>
+                            <small data-role-description>The built-in Admin account keeps full system access and cannot be reassigned.</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="premium-field">
+                            <label asp-for="Role">Role <span>*</span></label>
+                            <div><i class="bi bi-person-gear"></i><select asp-for="Role" data-preview-role>
+                                @foreach (var (role, displayName) in UserFormViewModel.AllowedRoles)
+                                {
+                                    <option value="@role" data-description="@RoleDescription(role)">@displayName</option>
+                                }
+                            </select></div>
+                            <small data-role-description>Select a role to define ERP access.</small>
+                            <span asp-validation-for="Role" class="text-danger"></span>
+                        </div>
+                    }
                     <div class="premium-toggle-field">
                         <label>Account Status</label>
-                        <input asp-for="IsActive" data-preview-status />
-                        <span>Toggle between Active and Inactive. Active users can access the ERP.</span>
+                        @if (Model.IsSystemAdmin)
+                        {
+                            <input asp-for="IsActive" type="hidden" value="true" />
+                            <input type="checkbox" checked disabled />
+                            <span>The built-in Admin account is always active.</span>
+                        }
+                        else
+                        {
+                            <input asp-for="IsActive" data-preview-status />
+                            <span>Toggle between Active and Inactive. Active users can access the ERP.</span>
+                        }
                     </div>
                 </div>
             </fieldset>
@@ -216,11 +237,15 @@
     {
         return role switch
         {
-            UserRole.Receptionist => "Handle customers and daily bookings",
-            UserRole.BookingManager => "Manage leads, opportunities, and sales pipeline",
-            UserRole.FinanceManager => "Manage payments, invoices, and financial records",
-            UserRole.CourtManager => "Manage courts, facilities, and operations",
-            _ => "General ERP access"
+            UserRole.Admin => "Full system access",
+            UserRole.Manager => "Review and action booking approvals and refunds",
+            UserRole.Receptionist => "Handle customers, bookings, memberships and front-desk operations",
+            UserRole.Finance => "Manage payments, invoices, refunds and financial records",
+            UserRole.Sales => "Run the full sales cycle: quotations, sales orders and invoices",
+            UserRole.CRM => "Manage customers, leads, opportunities and follow-ups",
+            UserRole.HR => "Manage recruitment, employees, performance and HR reporting",
+            UserRole.Operations => "Manage bookings and court operations",
+            _ => "Limited ERP access"
         };
     }
 }

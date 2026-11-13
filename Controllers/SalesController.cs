@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Controllers
 {
-    [GameHubAuthorize(UserRole.SuperAdmin, UserRole.Admin, UserRole.BookingManager, UserRole.Receptionist, UserRole.FinanceManager, UserRole.Viewer)]
+    [ModuleAuthorize(RolePermissions.Modules.Sales)]
     [ValidateActiveUser]
     public class SalesController : Controller
     {
@@ -1029,11 +1029,11 @@ namespace GameHub.Controllers
         private static SalesItemType MapItemType(OpportunityType type) => type switch { OpportunityType.Membership => SalesItemType.Membership, OpportunityType.CorporatePackage => SalesItemType.CorporatePackage, OpportunityType.Tournament => SalesItemType.Tournament, OpportunityType.Event => SalesItemType.Event, OpportunityType.Coaching => SalesItemType.Coaching, _ => SalesItemType.CourtBooking };
         private static bool CanTransition(OpportunityStage from, OpportunityStage to) => from == to || from == OpportunityStage.OnHold || to == OpportunityStage.OnHold || from is not (OpportunityStage.Won or OpportunityStage.Lost);
         private int CurrentUserId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
-        private bool CanCreateQuotation() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager or UserRole.Receptionist;
-        private bool CanManageLifecycle() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.BookingManager;
-        private bool CanApprove() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.SuperAdmin or UserRole.Admin or UserRole.FinanceManager;
-        private bool IsSuperAdmin() => RolePermissions.TryGetCurrentRole(User, out var role) && role == UserRole.SuperAdmin;
-        private bool IsReadOnly() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Viewer or UserRole.FinanceManager;
+        private bool CanCreateQuotation() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Sales;
+        private bool CanManageLifecycle() => RolePermissions.TryGetCurrentRole(User, out var role) && role is UserRole.Admin or UserRole.Sales;
+        private bool CanApprove() => RolePermissions.IsAdmin(User);
+        private bool IsSuperAdmin() => RolePermissions.IsAdmin(User);
+        private bool IsReadOnly() => false;
         private static string NormalizeTab(string? tab) => tab?.ToLowerInvariant() is "quotations" or "orders" or "invoices" or "payments" ? tab!.ToLowerInvariant() : "overview";
     }
 }
