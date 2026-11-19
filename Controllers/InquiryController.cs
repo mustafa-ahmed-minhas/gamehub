@@ -227,9 +227,23 @@ namespace GameHub.Controllers
                 ModelState.AddModelError(nameof(model.WhatsAppNumber), LeadInquiryRules.PhoneFormatMessage);
             }
 
-            if (model.PreferredDate.HasValue && model.PreferredDate.Value < DateOnly.FromDateTime(DateTime.UtcNow))
+            var preferredDateWindowDays = 20;
+            var now = DateTime.Now;
+            var today = DateOnly.FromDateTime(now);
+            if (model.PreferredDate.HasValue)
             {
-                ModelState.AddModelError(nameof(model.PreferredDate), LeadInquiryRules.PreferredDatePastMessage);
+                if (model.PreferredDate.Value < today)
+                {
+                    ModelState.AddModelError(nameof(model.PreferredDate), LeadInquiryRules.PreferredDatePastMessage);
+                }
+                else if (model.PreferredDate.Value > today.AddDays(preferredDateWindowDays))
+                {
+                    ModelState.AddModelError(nameof(model.PreferredDate), $"Preferred date must be today or within the next {preferredDateWindowDays} days.");
+                }
+                else if (model.PreferredDate.Value == today && model.PreferredTime.HasValue && model.PreferredTime.Value <= TimeOnly.FromDateTime(now))
+                {
+                    ModelState.AddModelError(nameof(model.PreferredTime), "Preferred time must be later than the current time when the preferred date is today.");
+                }
             }
 
             if (model.SportId.HasValue)

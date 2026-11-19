@@ -6,10 +6,13 @@
     var isCreate = !Model.Id.HasValue;
     var statusLocked = isCreate || Model.Status == LeadStatus.Converted;
     var lockedStatus = isCreate ? LeadStatus.New : Model.Status;
+    // Converted leads hand ownership to their opportunity; the owner is kept
+    // visible here so contact details can still be corrected safely.
+    var ownerLocked = !isCreate && Model.Status == LeadStatus.Converted;
     // Only the current status plus valid next workflow steps are offered;
-    // Qualified and Converted are set by their dedicated lead actions.
+    // Qualified, Disqualified and Converted are set by their dedicated lead actions.
     var allowedStatusValues = LeadStatusRules.AllowedTargets(Model.Status)
-        .Where(x => x is not (LeadStatus.Qualified or LeadStatus.Converted))
+        .Where(x => x is not (LeadStatus.Qualified or LeadStatus.Disqualified or LeadStatus.Converted))
         .Select(x => (int)x)
         .ToHashSet();
     var statusItems = Html.GetEnumSelectList<LeadStatus>()
@@ -198,14 +201,29 @@
                         </div>
                     </header>
                     <div class="lead-form-grid">
-                        <label class="lead-field">
-                            <span class="lead-field-label">Assigned To</span>
-                            <select asp-for="AssignedToUserId" asp-items="Model.UserOptions">
-                                <option value="">Unassigned</option>
-                            </select>
-                            <small class="lead-field-help">Only Sales users are eligible for lead assignment.</small>
-                            <span asp-validation-for="AssignedToUserId" class="text-danger lead-field-error"></span>
-                        </label>
+                        @if (ownerLocked)
+                        {
+                            <label class="lead-field">
+                                <span class="lead-field-label">Assigned To</span>
+                                <span class="lead-status-locked">
+                                    <span class="membership-status-badge crm-lead-badge status-converted"><i></i>@(Model.AssignedToName ?? "Unassigned")</span>
+                                    <input asp-for="AssignedToUserId" type="hidden" />
+                                </span>
+                                <small class="lead-field-help">Ownership of a converted lead is managed on the linked opportunity.</small>
+                                <span asp-validation-for="AssignedToUserId" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
+                        else
+                        {
+                            <label class="lead-field">
+                                <span class="lead-field-label">Assigned To</span>
+                                <select asp-for="AssignedToUserId" asp-items="Model.UserOptions">
+                                    <option value="">Unassigned</option>
+                                </select>
+                                <small class="lead-field-help">Only Sales users are eligible for lead assignment.</small>
+                                <span asp-validation-for="AssignedToUserId" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
                         @if (statusLocked)
                         {
                             <label class="lead-field">
@@ -223,7 +241,7 @@
                                 <span class="lead-field-label">Status</span>
                                 <select asp-for="Status" asp-items="statusItems" data-preview-status data-fv-status-select></select>
                                 <span asp-validation-for="Status" class="text-danger lead-field-error"></span>
-                                <small class="lead-field-help">Qualified and Converted are set by their dedicated lead actions.</small>
+                                <small class="lead-field-help">Qualified, Disqualified and Converted are set by their dedicated lead actions.</small>
                             </label>
                         }
                         <label class="lead-field">

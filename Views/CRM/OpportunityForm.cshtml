@@ -3,35 +3,327 @@
 @{
     ViewData["Title"] = Model.Id.HasValue ? "Edit Opportunity" : "Create Opportunity";
     Layout = "_AdminLayout";
+    var isCreate = !Model.Id.HasValue;
+    var currentStage = Model.CurrentStage ?? Model.Stage;
+    var isTerminal = !isCreate && OpportunityStageRules.IsTerminal(currentStage);
+    var stageLocked = isCreate || isTerminal;
+    var lockedStage = isCreate ? OpportunityStage.Qualification : currentStage;
+    var leadLocked = !isCreate;
+    var leadLabel = Model.LeadOptions.FirstOrDefault(x => x.Selected)?.Text ?? "Qualified lead";
+    // Only the current stage plus valid workflow steps are offered; Won and
+    // Lost are reached through the Stage Actions on the opportunity page.
+    var stageValues = OpportunityStageRules.AllowedTargets(currentStage)
+        .Where(x => x is not (OpportunityStage.Won or OpportunityStage.Lost))
+        .Select(x => (int)x)
+        .ToHashSet();
+    var stageItems = Html.GetEnumSelectList<OpportunityStage>()
+        .Where(x => int.TryParse(x.Value, out var value) && (value == (int)currentStage || stageValues.Contains(value)))
+        .ToList();
+    var weighted = Model.ExpectedValue * Model.ProbabilityPercentage / 100m;
 }
-<section class="crm-page crm-form-page">
-    <header class="crm-header"><div><a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to CRM</a><span class="admin-kicker">Opportunity Management</span><h1>@ViewData["Title"]</h1><p>Track expected value, probability, customer requirement and stage movement.</p></div></header>
-    @if (Model.IsLeadConversion)
-    {
-        <div class="crm-warning crm-conversion-banner">
-            <strong><i class="bi bi-arrow-right-circle"></i> Created from a qualified lead</strong>
-            <span>This opportunity was prefilled from a lead. Saving it converts the lead and keeps both records linked.</span>
-            @if (Model.CustomerId == null)
-            {
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" name="createCustomerFromLead" value="true" id="createCustomerFromLead">
-                    <label class="form-check-label" for="createCustomerFromLead">Create a customer profile from this lead if none exists</label>
-                </div>
-            }
+<section class="crm-page crm-form-page crm-lead-form-page crm-opportunity-form-page">
+    <header class="lead-form-header">
+        <div>
+            <a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to CRM</a>
+            <span class="admin-kicker">Opportunity Management</span>
+            <h1>@ViewData["Title"]</h1>
+            <p>Capture the deal value, service context and ownership. Stage moves run through the opportunity workflow.</p>
         </div>
-    }
-    <form method="post" class="crm-form-grid" data-crm-form data-fv-form>
-        @Html.AntiForgeryToken()<input asp-for="Id" type="hidden" />
-        <main class="crm-form-card">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <fieldset><legend>Opportunity Identity</legend><div class="crm-field-grid"><label><span>Name *</span><input asp-for="Name" data-preview-name data-fv-rule="required,org" /><span asp-validation-for="Name" class="text-danger"></span></label><label><span>Type</span><select asp-for="Type" asp-items="Html.GetEnumSelectList<OpportunityType>()"></select></label><label><span>Lead *</span><select asp-for="LeadId" asp-items="Model.LeadOptions" data-fv-rule="required"><option value="">Select a qualified lead</option></select><span asp-validation-for="LeadId" class="text-danger"></span></label><label><span>Customer</span><select asp-for="CustomerId" asp-items="Model.CustomerOptions"><option value="">Use lead contact</option></select><span asp-validation-for="CustomerId" class="text-danger"></span></label></div></fieldset>
-            <fieldset><legend>Service Context</legend><div class="crm-field-grid"><label><span>Sport</span><select asp-for="SportId" asp-items="Model.SportOptions"><option value="">Any sport</option></select><span asp-validation-for="SportId" class="text-danger"></span></label><label><span>Facility</span><select asp-for="FacilityId" asp-items="Model.FacilityOptions"><option value="">Any facility</option></select><span asp-validation-for="FacilityId" class="text-danger"></span></label><label><span>Court</span><select asp-for="CourtId" asp-items="Model.CourtOptions"><option value="">Any court</option></select><span asp-validation-for="CourtId" class="text-danger"></span></label><label><span>Membership Plan</span><select asp-for="MembershipPlanId" asp-items="Model.MembershipPlanOptions"><option value="">No plan</option></select><span asp-validation-for="MembershipPlanId" class="text-danger"></span></label></div></fieldset>
-            <fieldset><legend>Commercial Information</legend><div class="crm-field-grid"><label><span>Expected Value (@Model.CurrencySymbol) *</span><input asp-for="ExpectedValue" type="number" min="0" max="9999999999.99" step="0.01" data-preview-value data-fv-rule="decimal" data-fv-min="0" data-fv-max="9999999999.99" /><span asp-validation-for="ExpectedValue" class="text-danger"></span></label><label><span>Probability %</span><input asp-for="ProbabilityPercentage" type="number" min="0" max="100" data-preview-probability data-fv-rule="int" data-fv-min="0" data-fv-max="100" /><span asp-validation-for="ProbabilityPercentage" class="text-danger"></span></label><label><span>Expected Close</span><input asp-for="ExpectedCloseDate" type="date" data-fv-rule="past" /><span asp-validation-for="ExpectedCloseDate" class="text-danger"></span></label><label><span>Stage</span><select asp-for="Stage" asp-items="Html.GetEnumSelectList<OpportunityStage>()" data-stage-select data-preview-stage></select><span asp-validation-for="Stage" class="text-danger"></span></label></div></fieldset>
-            <fieldset><legend>Requirement and Outcome</legend><div class="crm-field-grid"><label class="wide"><span>Customer Requirement</span><textarea asp-for="CustomerRequirement"></textarea><span asp-validation-for="CustomerRequirement" class="text-danger"></span></label><label class="wide"><span>Proposed Solution</span><textarea asp-for="ProposedSolution"></textarea><span asp-validation-for="ProposedSolution" class="text-danger"></span></label><label class="wide"><span>Competitor Information</span><textarea asp-for="CompetitorInformation"></textarea><span asp-validation-for="CompetitorInformation" class="text-danger"></span></label><label><span>Actual Close</span><input asp-for="ActualCloseDate" type="date" data-fv-rule="future" /><span asp-validation-for="ActualCloseDate" class="text-danger"></span></label><label class="wide"><span>Loss Reason</span><textarea asp-for="LossReason"></textarea><span asp-validation-for="LossReason" class="text-danger"></span></label><label><span>Assigned To *</span><select asp-for="AssignedToUserId" asp-items="Model.UserOptions" data-fv-rule="required"><option value="">Select an owner</option></select><span asp-validation-for="AssignedToUserId" class="text-danger"></span></label><label><span>Tags</span><input asp-for="Tags" data-fv-rule="tags" /><span asp-validation-for="Tags" class="text-danger"></span></label><label class="crm-switch"><input asp-for="IsActive" /><span>Active opportunity</span></label></div></fieldset>
-            <div class="crm-savebar"><a class="admin-secondary-button" asp-action="Index" asp-route-tab="opportunities">Cancel</a><button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Save Opportunity</button></div>
-        </main>
-        <aside class="crm-preview-card"><span>Live Preview</span><h2 data-preview-name-text>@(string.IsNullOrWhiteSpace(Model.Name) ? "New Opportunity" : Model.Name)</h2><p><strong data-preview-stage-text>@Model.Stage.GetDisplayName()</strong></p><div><span>@Model.CurrencySymbol <strong data-preview-value-text>@Model.ExpectedValue.ToString("N0")</strong></span><span><strong data-preview-probability-text>@Model.ProbabilityPercentage</strong>% probability</span></div><em data-preview-weighted>@Model.CurrencySymbol @((Model.ExpectedValue * Model.ProbabilityPercentage / 100m).ToString("N0")) weighted</em></aside>
+        <div class="lead-form-header-meta">
+            <span class="lead-form-mode"><i class="bi bi-@(isCreate ? "plus-circle" : "briefcase")"></i> @(isCreate ? "New opportunity" : Model.OpportunityNumber)</span>
+            <span class="lead-form-required-note"><em>*</em> Required field</span>
+        </div>
+    </header>
+
+    <form method="post" class="lead-form" data-crm-form data-fv-form>
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+
+        <div class="lead-form-layout">
+            <main class="lead-form-main">
+                <div asp-validation-summary="ModelOnly" class="lead-form-summary"></div>
+
+                @if (Model.IsLeadConversion)
+                {
+                    <div class="lead-form-alert info">
+                        <span class="lead-form-alert-icon"><i class="bi bi-arrow-right-circle"></i></span>
+                        <div class="lead-form-alert-body">
+                            <strong>Created from a qualified lead</strong>
+                            <p>This opportunity is prefilled from a lead. Saving it converts the lead and keeps both records linked.</p>
+                            @if (Model.CustomerId == null)
+                            {
+                                <label class="lead-checkline">
+                                    <input type="checkbox" name="createCustomerFromLead" value="true" id="createCustomerFromLead" />
+                                    <span>Create a customer profile from this lead if none exists</span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (isTerminal)
+                {
+                    <div class="lead-form-alert info">
+                        <span class="lead-form-alert-icon"><i class="bi bi-lock"></i></span>
+                        <div class="lead-form-alert-body">
+                            <strong>@currentStage.GetDisplayName() opportunity</strong>
+                            <p>Closed deals are final. The stage is locked, but record details can still be corrected.</p>
+                        </div>
+                    </div>
+                }
+
+                <section class="lead-form-section">
+                    <header class="lead-section-head">
+                        <span class="lead-section-icon"><i class="bi bi-briefcase"></i></span>
+                        <div>
+                            <h2>Opportunity Identity</h2>
+                            <p>The deal name, type and the records it belongs to.</p>
+                        </div>
+                    </header>
+                    <div class="lead-form-grid">
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Opportunity Name <em class="lead-required" aria-hidden="true">*</em></span>
+                            <input asp-for="Name" placeholder="e.g. Skyline corporate padel league" data-preview-name data-fv-rule="required,org" />
+                            <span asp-validation-for="Name" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Type</span>
+                            <select asp-for="Type" asp-items="Html.GetEnumSelectList<OpportunityType>()"></select>
+                            <span asp-validation-for="Type" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Customer</span>
+                            <select asp-for="CustomerId" asp-items="Model.CustomerOptions">
+                                <option value="">Use lead contact</option>
+                            </select>
+                            <span asp-validation-for="CustomerId" class="text-danger lead-field-error"></span>
+                        </label>
+                        @if (leadLocked)
+                        {
+                            <label class="lead-field lead-field-wide">
+                                <span class="lead-field-label">Source Lead</span>
+                                <span class="lead-status-locked">
+                                    <span class="opp-locked-stage"><i class="bi bi-link-45deg"></i>@leadLabel</span>
+                                    <input asp-for="LeadId" type="hidden" />
+                                </span>
+                                <small class="lead-field-help">The source lead is fixed after creation so the conversion link stays intact.</small>
+                                <span asp-validation-for="LeadId" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
+                        else
+                        {
+                            <label class="lead-field lead-field-wide">
+                                <span class="lead-field-label">Source Lead <em class="lead-required" aria-hidden="true">*</em></span>
+                                <select asp-for="LeadId" asp-items="Model.LeadOptions" data-fv-rule="required">
+                                    <option value="">Select a qualified lead</option>
+                                </select>
+                                <small class="lead-field-help">Only qualified leads can back an opportunity.</small>
+                                <span asp-validation-for="LeadId" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
+                    </div>
+                </section>
+
+                <section class="lead-form-section">
+                    <header class="lead-section-head">
+                        <span class="lead-section-icon"><i class="bi bi-geo-alt"></i></span>
+                        <div>
+                            <h2>Service Context</h2>
+                            <p>Which sport, venue and membership the deal applies to.</p>
+                        </div>
+                    </header>
+                    <div class="lead-form-grid">
+                        <label class="lead-field">
+                            <span class="lead-field-label">Sport</span>
+                            <select asp-for="SportId" asp-items="Model.SportOptions">
+                                <option value="">Any sport</option>
+                            </select>
+                            <span asp-validation-for="SportId" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Facility</span>
+                            <select asp-for="FacilityId" asp-items="Model.FacilityOptions">
+                                <option value="">Any facility</option>
+                            </select>
+                            <span asp-validation-for="FacilityId" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Court</span>
+                            <select asp-for="CourtId" asp-items="Model.CourtOptions">
+                                <option value="">Any court</option>
+                            </select>
+                            <span asp-validation-for="CourtId" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Membership Plan</span>
+                            <select asp-for="MembershipPlanId" asp-items="Model.MembershipPlanOptions">
+                                <option value="">No plan</option>
+                            </select>
+                            <span asp-validation-for="MembershipPlanId" class="text-danger lead-field-error"></span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="lead-form-section">
+                    <header class="lead-section-head">
+                        <span class="lead-section-icon"><i class="bi bi-cash-coin"></i></span>
+                        <div>
+                            <h2>Commercials &amp; Stage</h2>
+                            <p>Deal value, probability, timing and the pipeline stage.</p>
+                        </div>
+                    </header>
+                    <div class="lead-form-grid">
+                        <label class="lead-field">
+                            <span class="lead-field-label">Expected Value (@Model.CurrencySymbol) <em class="lead-required" aria-hidden="true">*</em></span>
+                            <input asp-for="ExpectedValue" type="number" min="0" max="9999999999.99" step="0.01" data-preview-value data-fv-rule="decimal" data-fv-min="0" data-fv-max="9999999999.99" />
+                            <span asp-validation-for="ExpectedValue" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Probability %</span>
+                            <input asp-for="ProbabilityPercentage" type="number" min="0" max="100" data-preview-probability data-fv-rule="int" data-fv-min="0" data-fv-max="100" />
+                            <small class="lead-field-help">Defaults from the stage; adjust it if the deal genuinely differs.</small>
+                            <span asp-validation-for="ProbabilityPercentage" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Expected Close</span>
+                            <input asp-for="ExpectedCloseDate" type="date" data-fv-rule="past" />
+                            <span asp-validation-for="ExpectedCloseDate" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Actual Close</span>
+                            <input asp-for="ActualCloseDate" type="date" data-fv-rule="future" />
+                            <small class="lead-field-help">Set automatically when the deal is marked Won or Lost.</small>
+                            <span asp-validation-for="ActualCloseDate" class="text-danger lead-field-error"></span>
+                        </label>
+                        @if (stageLocked)
+                        {
+                            <label class="lead-field lead-field-wide">
+                                <span class="lead-field-label">Stage</span>
+                                <span class="lead-status-locked">
+                                    <span class="opp-locked-stage"><i class="bi bi-signpost-split"></i>@lockedStage.GetDisplayName()</span>
+                                    <input asp-for="Stage" type="hidden" value="@((int)lockedStage)" />
+                                </span>
+                                <small class="lead-field-help">@(isCreate ? "New opportunities start at Qualification; use the stage actions to move the deal forward." : "Won and Lost are final and cannot be changed from the edit form.")</small>
+                                <span asp-validation-for="Stage" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
+                        else
+                        {
+                            <label class="lead-field lead-field-wide">
+                                <span class="lead-field-label">Stage</span>
+                                <select asp-for="Stage" asp-items="stageItems" data-stage-select data-preview-stage></select>
+                                <small class="lead-field-help">Only the current stage and valid workflow steps are offered here. Won and Lost are set with the Stage Actions on the opportunity page.</small>
+                                <span asp-validation-for="Stage" class="text-danger lead-field-error"></span>
+                            </label>
+                        }
+                    </div>
+                </section>
+
+                <section class="lead-form-section">
+                    <header class="lead-section-head">
+                        <span class="lead-section-icon"><i class="bi bi-journal-richtext"></i></span>
+                        <div>
+                            <h2>Requirement &amp; Solution</h2>
+                            <p>What the customer needs, the proposed offer and competitive context.</p>
+                        </div>
+                    </header>
+                    <div class="lead-form-grid">
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Customer Requirement</span>
+                            <textarea asp-for="CustomerRequirement" rows="3" placeholder="Sessions per week, player volumes, preferred slots, budget..."></textarea>
+                            <span asp-validation-for="CustomerRequirement" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Proposed Solution</span>
+                            <textarea asp-for="ProposedSolution" rows="3" placeholder="Package, pricing approach, included services..."></textarea>
+                            <span asp-validation-for="ProposedSolution" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Competitor Information</span>
+                            <textarea asp-for="CompetitorInformation" rows="2" placeholder="Who else is being considered and on what terms..."></textarea>
+                            <span asp-validation-for="CompetitorInformation" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Loss Reason</span>
+                            <textarea asp-for="LossReason" rows="2" placeholder="Recorded when the deal is lost; captured by the Mark as Lost action."></textarea>
+                            <span asp-validation-for="LossReason" class="text-danger lead-field-error"></span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="lead-form-section">
+                    <header class="lead-section-head">
+                        <span class="lead-section-icon"><i class="bi bi-person-check"></i></span>
+                        <div>
+                            <h2>Ownership &amp; Visibility</h2>
+                            <p>Route the deal to its owner and control pipeline visibility.</p>
+                        </div>
+                    </header>
+                    <div class="lead-form-grid">
+                        <label class="lead-field">
+                            <span class="lead-field-label">Assigned To <em class="lead-required" aria-hidden="true">*</em></span>
+                            <select asp-for="AssignedToUserId" asp-items="Model.UserOptions" data-fv-rule="required">
+                                <option value="">Select an owner</option>
+                            </select>
+                            <span asp-validation-for="AssignedToUserId" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Tags</span>
+                            <input asp-for="Tags" placeholder="corporate, weekend, renewal" data-fv-rule="tags" />
+                            <span asp-validation-for="Tags" class="text-danger lead-field-error"></span>
+                        </label>
+                        <label class="lead-checkline lead-field-wide lead-active-toggle">
+                            <input asp-for="IsActive" />
+                            <span>Active opportunity</span>
+                            <small>Inactive deals stay on record but are excluded from the active pipeline.</small>
+                        </label>
+                    </div>
+                </section>
+
+                <div class="lead-form-savebar">
+                    <a class="admin-secondary-button" asp-action="Index" asp-route-tab="opportunities">Cancel</a>
+                    <button class="admin-action-button" type="submit"><i class="bi bi-check2"></i> Save Opportunity</button>
+                </div>
+            </main>
+
+            <aside class="lead-form-aside">
+                <div class="lead-summary-card">
+                    <span class="lead-summary-kicker"><i class="bi bi-stars"></i> Live Preview</span>
+                    <span class="lead-summary-avatar"><i class="bi bi-briefcase"></i></span>
+                    <h2 data-preview-name-text>@(string.IsNullOrWhiteSpace(Model.Name) ? "New Opportunity" : Model.Name)</h2>
+                    <p>@Model.Type.GetDisplayName() &middot; @leadLabel</p>
+                    <div class="lead-summary-meta">
+                        <strong data-preview-stage-text>@lockedStage.GetDisplayName()</strong>
+                        <em><span>@Model.CurrencySymbol</span> <span data-preview-value-text>@Model.ExpectedValue.ToString("N0")</span></em>
+                    </div>
+                    <div class="lead-summary-badges">
+                        <span><span data-preview-probability-text>@Model.ProbabilityPercentage</span>% probability</span>
+                        <span data-preview-weighted>@Model.CurrencySymbol @weighted.ToString("N0") weighted</span>
+                    </div>
+                </div>
+
+                <div class="lead-summary-help">
+                    <span class="lead-summary-help-icon"><i class="bi bi-lightbulb"></i></span>
+                    <div>
+                        <strong>Workflow tips</strong>
+                        <ul>
+                            <li>Every opportunity starts at Qualification and moves one stage at a time.</li>
+                            <li>Won is only reachable from Negotiation; Won and Lost close the deal for good.</li>
+                            <li>Probability defaults from the stage so the weighted pipeline stays honest.</li>
+                            <li>Log activity on the opportunity page to keep the deal history complete.</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+        </div>
     </form>
 </section>
-@section Styles { <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" /> }
-@section Scripts { <script src="~/js/field-validation.js" asp-append-version="true"></script><script src="~/js/crm.js" asp-append-version="true"></script> }
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/field-validation.js" asp-append-version="true"></script>
+    <script src="~/js/crm.js" asp-append-version="true"></script>
+}

@@ -4,7 +4,7 @@ namespace GameHub.Helpers
 {
     /// <summary>
     /// Single source of truth for the Lead status workflow:
-    /// New -> Contacted/Follow Up -> Qualified or Disqualified.
+    /// New -> Contacted/Follow Up/Qualified, then Qualified or Disqualified.
     /// Qualified is only reached through the Qualify Lead action and Converted
     /// only through the conversion workflow - forms may never set them.
     /// Disqualified/Lost leads can be reopened back to Contacted; Lost is a
@@ -15,7 +15,7 @@ namespace GameHub.Helpers
     {
         private static readonly Dictionary<LeadStatus, LeadStatus[]> Transitions = new()
         {
-            [LeadStatus.New] = new[] { LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Disqualified },
+            [LeadStatus.New] = new[] { LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Disqualified },
             [LeadStatus.Contacted] = new[] { LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Disqualified },
             [LeadStatus.FollowUp] = new[] { LeadStatus.Contacted, LeadStatus.Qualified, LeadStatus.Disqualified },
             [LeadStatus.Qualified] = new[] { LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Disqualified },

@@ -129,4 +129,133 @@
         });
         continueLink?.addEventListener('click', () => modal.hide());
     }
+
+    // Qualify / Disqualify quick actions from the lead three-dot menu. The
+    // same controller actions power the lead page forms; this modal just
+    // collects the required notes or reason without leaving the listing.
+    const leadActionModal = document.querySelector('[data-crm-lead-action-modal]');
+    const leadActionButtons = document.querySelectorAll('[data-crm-lead-action]');
+    if (leadActionButtons.length) {
+        // The dialog must share the stacking context of the backdrop that
+        // Bootstrap appends to <body>; a transformed page container would
+        // otherwise size the fixed dialog against itself and cover it.
+        if (leadActionModal && leadActionModal.parentElement !== document.body) {
+            document.body.appendChild(leadActionModal);
+        }
+        const instance = leadActionModal && window.bootstrap?.Modal ? bootstrap.Modal.getOrCreateInstance(leadActionModal) : null;
+        const form = leadActionModal?.querySelector('[data-crm-lead-action-form]');
+        const input = leadActionModal?.querySelector('[data-lead-action-input]');
+        if (instance && form && input) {
+            const setModalText = (selector, text) => {
+                const element = leadActionModal.querySelector(selector);
+                if (element) element.textContent = text;
+            };
+            leadActionButtons.forEach((button) => {
+                if (button.dataset.crmLeadActionBound === 'true') {
+                    return;
+                }
+                button.dataset.crmLeadActionBound = 'true';
+                button.addEventListener('click', () => {
+                    const isQualify = button.dataset.crmLeadAction === 'qualify';
+                    const baseUrl = isQualify ? leadActionModal.dataset.qualifyUrl : leadActionModal.dataset.disqualifyUrl;
+                    form.action = `${baseUrl}/${encodeURIComponent(button.dataset.leadId)}`;
+                    input.name = isQualify ? 'qualificationNotes' : 'reason';
+                    input.value = '';
+                    input.required = true;
+                    input.minLength = isQualify ? 0 : 10;
+                    input.placeholder = isQualify ? 'Capture needs, budget and timeline' : 'Reason (min 10 characters)';
+                    setModalText('[data-lead-action-title]', isQualify ? 'Qualify Lead' : 'Disqualify Lead');
+                    setModalText('[data-lead-action-label]', isQualify ? 'Qualification Notes' : 'Disqualification Reason');
+                    setModalText('[data-lead-action-number]', button.dataset.leadNumber || '');
+                    setModalText('[data-lead-action-name]', button.dataset.leadName || '');
+                    const icon = leadActionModal.querySelector('[data-lead-action-icon]');
+                    if (icon) icon.className = isQualify ? 'bi bi-patch-check' : 'bi bi-x-circle';
+                    const submit = leadActionModal.querySelector('[data-lead-action-submit]');
+                    if (submit) submit.innerHTML = isQualify ? '<i class="bi bi-patch-check"></i> Qualify Lead' : '<i class="bi bi-x-circle"></i> Disqualify Lead';
+                    const note = leadActionModal.querySelector('[data-lead-action-note]');
+                    if (note) note.innerHTML = isQualify
+                        ? '<i class="bi bi-info-circle"></i> Qualifying marks this lead as Qualified and makes it available for opportunity conversion.'
+                        : '<i class="bi bi-info-circle"></i> Disqualifying blocks conversion into an opportunity. The reason is kept in the activity timeline.';
+                    delete form.dataset.submitting;
+                    // The dropdown stays open behind the backdrop otherwise.
+                    const toggle = button.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+                    if (toggle && window.bootstrap?.Dropdown) {
+                        bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                    }
+                    instance.show();
+                });
+            });
+            leadActionModal.addEventListener('shown.bs.modal', () => input.focus());
+            leadActionModal.addEventListener('hide.bs.modal', () => {
+                // Release focus before Bootstrap marks the dialog aria-hidden.
+                if (leadActionModal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+            });
+            form.addEventListener('submit', (event) => {
+                if (form.dataset.submitting === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+                form.dataset.submitting = 'true';
+            });
+            leadActionModal.addEventListener('hidden.bs.modal', () => {
+                delete form.dataset.submitting;
+                input.value = '';
+            });
+        } else {
+            // Without the Bootstrap bundle the modal cannot open; fall back to
+            // the equivalent forms on the lead page instead of doing nothing.
+            leadActionButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (button.dataset.leadDetailsUrl) window.location.href = `${button.dataset.leadDetailsUrl}#lead-actions`;
+                });
+            });
+        }
+    }
+
+    // Mark-as-Lost dialog on the opportunity page. It posts to the same
+    // ChangeOpportunityStage action as the stage buttons; this only collects
+    // the reason the workflow requires.
+    const stageLostModal = document.querySelector('[data-crm-stage-modal]');
+    if (stageLostModal && window.bootstrap?.Modal) {
+        // Share the stacking context of the backdrop Bootstrap appends to
+        // <body> so the dialog cannot be covered by the page shell.
+        if (stageLostModal.parentElement !== document.body) {
+            document.body.appendChild(stageLostModal);
+        }
+        const instance = bootstrap.Modal.getOrCreateInstance(stageLostModal);
+        const form = stageLostModal.querySelector('[data-crm-stage-form]');
+        const reason = stageLostModal.querySelector('[data-crm-stage-reason]');
+        document.querySelectorAll('[data-crm-stage-lost]').forEach((button) => {
+            if (button.dataset.crmStageBound === 'true') return;
+            button.dataset.crmStageBound = 'true';
+            button.addEventListener('click', () => {
+                const number = stageLostModal.querySelector('[data-stage-number]');
+                const name = stageLostModal.querySelector('[data-stage-name]');
+                if (number) number.textContent = button.dataset.stageNumber || '';
+                if (name) name.textContent = button.dataset.stageName || '';
+                if (reason) reason.value = '';
+                if (form) delete form.dataset.submitting;
+                instance.show();
+            });
+        });
+        stageLostModal.addEventListener('shown.bs.modal', () => reason?.focus());
+        stageLostModal.addEventListener('hide.bs.modal', () => {
+            if (stageLostModal.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+        });
+        form?.addEventListener('submit', (event) => {
+            if (form.dataset.submitting === 'true') {
+                event.preventDefault();
+                return;
+            }
+            form.dataset.submitting = 'true';
+        });
+        stageLostModal.addEventListener('hidden.bs.modal', () => {
+            if (form) delete form.dataset.submitting;
+            if (reason) reason.value = '';
+        });
+    }
 })();

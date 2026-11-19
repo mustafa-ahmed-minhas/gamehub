@@ -90,6 +90,34 @@ body.public-page :focus-visible {
     text-transform: uppercase;
 }
 
+/* Home page feature headings (Our Courts, Booking Process, Customer Inquiry).
+   Keep the three titles typographically identical and let the accent word
+   inherit the heading's size/weight instead of the small kicker styling. */
+.courts-section .section-heading h2,
+.how-works-section .section-heading h2,
+.home-inquiry-section .section-heading h2 {
+    margin: 0;
+    color: var(--color-charcoal);
+    font-family: var(--font-heading);
+    font-size: clamp(2.45rem, 6vw, 5rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 0.9;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.courts-section .section-heading h2 span,
+.how-works-section .section-heading h2 span,
+.home-inquiry-section .section-heading h2 span {
+    display: inline;
+    margin: 0;
+    color: var(--color-gold);
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+}
+
 .reveal {
     opacity: 0;
     transform: translateY(24px);

@@ -1,145 +1,288 @@
 @model GameHub.Models.ViewModels.HRDashboardViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "HR Dashboard";
     Layout = "_AdminLayout";
+
+    var chartJson = JsonSerializer.Serialize(Model.Charts).Replace("</", "<\\/");
+    var workforceCharts = Model.Charts.Where(chart => chart.Type == "doughnut").ToList();
+    var recruitmentCharts = Model.Charts.Where(chart => chart.Type != "doughnut").ToList();
+    var pipelineLead = Model.Pipeline.Count == 0 ? null : Model.Pipeline.OrderByDescending(stage => stage.Count).First();
 }
 
-<section class="arena-page hr-page" data-hr-dashboard>
+<section class="arena-page hr-page hr-dashboard-page" data-hr-dashboard>
     <header class="arena-header">
         <div>
             <span class="admin-label">Human Resources</span>
             <h1>@Model.Greeting, @Model.FirstName</h1>
-            <p>Overview of your workforce, hiring pipeline, and pending people operations.</p>
+            <p>Workforce distribution, recruitment momentum and pending people operations — all from live HR records.</p>
         </div>
         <div class="arena-actions">
+            <span class="hr-reports-updated"><i class="bi bi-clock-history"></i> Updated @Model.RefreshedAt.ToString("dd MMM, HH:mm")</span>
             <a class="admin-secondary-button" asp-controller="Employees" asp-action="Index"><i class="bi bi-people"></i> Manage Employees</a>
             <a class="admin-secondary-button" asp-controller="Recruitment" asp-action="Index"><i class="bi bi-person-plus"></i> Recruitment Management</a>
+            <a class="admin-secondary-button" asp-controller="HRReports" asp-action="Index"><i class="bi bi-bar-chart-line"></i> HR Reports</a>
             <a class="admin-action-button" asp-controller="JobPostings" asp-action="Create"><i class="bi bi-journal-plus"></i> Add Job Posting</a>
         </div>
     </header>
 
-    <div class="arena-summary-grid hr-summary-grid">
-        <article>
-            <i class="bi bi-people"></i>
-            <span>Total Employees</span>
-            <strong>@Model.TotalEmployees</strong>
-        </article>
-        <article>
-            <i class="bi bi-person-check"></i>
-            <span>Active Employees</span>
-            <strong>@Model.ActiveEmployees</strong>
-        </article>
-        <article>
-            <i class="bi bi-briefcase"></i>
-            <span>Open Positions</span>
-            <strong>@Model.OpenPositions</strong>
-        </article>
-        <article>
-            <i class="bi bi-inbox"></i>
-            <span>Pending Applications</span>
-            <strong>@Model.PendingApplications</strong>
-        </article>
-        <article>
-            <i class="bi bi-calendar2-event"></i>
-            <span>Upcoming Interviews</span>
-            <strong>@Model.UpcomingInterviews</strong>
-        </article>
-        <article>
-            <i class="bi bi-clipboard-check"></i>
-            <span>Pending HR Actions</span>
-            <strong>@Model.PendingHrActions</strong>
-        </article>
+    <div class="hr-dash-kpi-grid" aria-label="HR key metrics">
+        @foreach (var kpi in Model.Kpis)
+        {
+            <article class="hr-dash-kpi @kpi.Tone">
+                <div class="hr-dash-kpi__top">
+                    <span class="hr-dash-kpi__icon"><i class="bi @kpi.Icon"></i></span>
+                    @if (!string.IsNullOrWhiteSpace(kpi.Trend))
+                    {
+                        <span class="hr-dash-kpi__trend @kpi.TrendTone" title="@kpi.Trend">
+                            <i class="bi @kpi.TrendIcon"></i>@kpi.Trend
+                        </span>
+                    }
+                </div>
+                <span class="hr-dash-kpi__label">@kpi.Label</span>
+                <strong class="hr-dash-kpi__value">@kpi.Value</strong>
+                <small class="hr-dash-kpi__helper">@kpi.Helper</small>
+            </article>
+        }
     </div>
 
-    <section class="arena-card hr-section-card" aria-label="Recent recruitment activity">
-        <div class="hr-card-head">
+    <section class="hr-dash-section" aria-label="Workforce analytics">
+        <div class="hr-dash-section__head">
             <div>
-                <h2>Recent Recruitment Activity</h2>
-                <p>Latest applications and hiring pipeline updates</p>
+                <h2>Workforce Analytics</h2>
+                <p>How the current team is distributed across departments, statuses and engagement types</p>
             </div>
-            <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">View All <i class="bi bi-arrow-right"></i></a>
+            <a class="text-action" asp-controller="HRReports" asp-action="Employees">Employee Report <i class="bi bi-arrow-right"></i></a>
         </div>
-        <div class="hr-table-wrap">
-            <table class="arena-table hr-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Candidate</th>
-                        <th scope="col">Position</th>
-                        <th scope="col">Stage</th>
-                        <th scope="col">Applied</th>
-                        <th scope="col">Last Update</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model.RecentRecruitment.Count == 0)
+        <div class="hr-dash-chart-grid">
+            @foreach (var chart in workforceCharts)
+            {
+                <article class="arena-card hr-report-chart">
+                    <div class="hr-report-chart__head">
+                        <h2>@chart.Title</h2>
+                        <p>@chart.Subtitle</p>
+                    </div>
+                    @if (chart.HasData)
                     {
-                        <tr><td colspan="5" class="hr-table-empty">No recruitment activity yet. Applications will appear here as they are received.</td></tr>
-                    }
-                    @foreach (var item in Model.RecentRecruitment)
-                    {
-                        <tr>
-                            <td data-label="Candidate">
-                                <div class="user-cell hr-identity">
-                                    <span class="user-avatar">@item.Initials</span>
-                                    <div>
-                                        <strong>@item.Candidate</strong>
-                                        <small>@item.Reference</small>
+                        var legendTotal = chart.Series[0].Values.Sum();
+                        <div class="hr-dash-donut">
+                            <div class="hr-report-chart__canvas hr-dash-donut__canvas">
+                                <canvas id="@chart.Id" data-html-legend="true" role="img" aria-label="@chart.Title"></canvas>
+                                @if (!string.IsNullOrWhiteSpace(chart.CenterValue))
+                                {
+                                    <div class="hr-dash-donut__center">
+                                        <strong>@chart.CenterValue</strong>
+                                        <span>@chart.CenterLabel</span>
                                     </div>
-                                </div>
-                            </td>
-                            <td data-label="Position"><strong>@item.Position</strong></td>
-                            <td data-label="Stage"><span class="membership-status-badge hr-tone @item.StageClass"><i></i>@item.Stage</span></td>
-                            <td data-label="Applied">@item.Applied</td>
-                            <td data-label="Last Update"><small class="hr-update">@item.LastUpdate</small></td>
-                        </tr>
+                                }
+                            </div>
+                            <ul class="hr-dash-legend">
+                                @for (var index = 0; index < chart.Labels.Count && index < chart.Series[0].Values.Count; index++)
+                                {
+                                    var value = chart.Series[0].Values[index];
+                                    var share = legendTotal > 0 ? value * 100 / legendTotal : 0;
+                                    var color = index < chart.Colors.Count ? chart.Colors[index] : "#d6a652";
+                                    <li title="@chart.Labels[index]">
+                                        <span class="hr-dash-legend__dot" style="background:@color"></span>
+                                        <span class="hr-dash-legend__label">@chart.Labels[index]</span>
+                                        <strong>@value.ToString("0")</strong>
+                                        <em>@share.ToString("0.#")%</em>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
                     }
-                </tbody>
-            </table>
+                    else
+                    {
+                        <p class="hr-dash-chart-empty">No workforce data recorded yet.</p>
+                    }
+                </article>
+            }
         </div>
     </section>
 
-    <section class="arena-card hr-section-card" aria-label="Pending HR tasks">
-        <div class="hr-card-head">
+    <section class="hr-dash-section" aria-label="Recruitment and hiring">
+        <div class="hr-dash-section__head">
             <div>
-                <h2>Pending HR Tasks</h2>
-                <p>Action items requiring your attention</p>
+                <h2>Recruitment &amp; Hiring</h2>
+                <p>Applications, interviews, new joiners and open vacancies over the last six months</p>
             </div>
-            <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">Open Tasks <i class="bi bi-arrow-right"></i></a>
+            <a class="text-action" asp-controller="HRReports" asp-action="Recruitment">Recruitment Report <i class="bi bi-arrow-right"></i></a>
         </div>
-        <div class="hr-table-wrap">
-            <table class="arena-table hr-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Task</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Owner</th>
-                        <th scope="col">Due</th>
-                        <th scope="col">Priority</th>
-                        <th scope="col">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model.PendingTasks.Count == 0)
-                    {
-                        <tr><td colspan="6" class="hr-table-empty">No pending HR tasks. Recruitment and interview actions will surface here.</td></tr>
-                    }
-                    @foreach (var task in Model.PendingTasks)
-                    {
-                        <tr>
-                            <td data-label="Task"><strong>@task.Title</strong></td>
-                            <td data-label="Category"><span class="membership-code">@task.Category</span></td>
-                            <td data-label="Owner">@task.Owner</td>
-                            <td data-label="Due"><strong>@task.Due</strong></td>
-                            <td data-label="Priority"><span class="membership-status-badge hr-tone @task.PriorityClass"><i></i>@task.Priority</span></td>
-                            <td data-label="Status"><span class="membership-status-badge hr-tone @task.StatusClass"><i></i>@task.Status</span></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="hr-dash-chart-grid">
+            @foreach (var chart in recruitmentCharts)
+            {
+                <article class="arena-card hr-report-chart @(chart.Id == "hrDashHiringTrend" || chart.Id == "hrDashOpenings" ? "hr-dash-span-2" : "")">
+                    <div class="hr-report-chart__head">
+                        <h2>@chart.Title</h2>
+                        <p>@chart.Subtitle</p>
+                    </div>
+                    <div class="hr-report-chart__canvas">
+                        @if (chart.HasData)
+                        {
+                            <canvas id="@chart.Id" role="img" aria-label="@chart.Title"></canvas>
+                        }
+                        else
+                        {
+                            <p class="hr-dash-chart-empty">No records for this period yet.</p>
+                        }
+                    </div>
+                </article>
+            }
+
+            <article class="arena-card hr-report-chart hr-dash-pipeline-card" aria-label="Recruitment pipeline">
+                <div class="hr-report-chart__head">
+                    <h2>Recruitment Pipeline</h2>
+                    <p>Live distribution of @Model.PipelineTotal application@(Model.PipelineTotal == 1 ? "" : "s") by stage</p>
+                </div>
+                @if (Model.PipelineTotal > 0)
+                {
+                    <div class="hr-dash-pipeline">
+                        <div class="hr-dash-pipeline__bar" role="img" aria-label="Pipeline distribution">
+                            @foreach (var stage in Model.Pipeline.Where(stage => stage.Count > 0))
+                            {
+                                <span style="flex:@stage.Percent;background:@stage.Color" title="@stage.Label: @stage.Count"></span>
+                            }
+                        </div>
+                        <ul class="hr-dash-pipeline__list">
+                            @foreach (var stage in Model.Pipeline)
+                            {
+                                <li class="@(stage.Count == 0 ? "is-empty" : "")">
+                                    <span class="hr-dash-dot" style="background:@stage.Color"></span>
+                                    <span>@stage.Label</span>
+                                    <strong>@stage.Count</strong>
+                                    <em>@stage.Percent.ToString("0.#")%</em>
+                                </li>
+                            }
+                        </ul>
+                        @if (pipelineLead != null)
+                        {
+                            <p class="hr-dash-pipeline__note">
+                                <i class="bi bi-award"></i>
+                                <span>@pipelineLead.Label is the busiest stage with @pipelineLead.Count applications.</span>
+                            </p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="hr-dash-chart-empty">No applications in the pipeline yet.</p>
+                }
+            </article>
         </div>
     </section>
+
+    <div class="hr-dash-insights" aria-label="HR insights">
+        @foreach (var insight in Model.Insights)
+        {
+            <article class="arena-card hr-report-insight @insight.Tone">
+                <i class="bi @insight.Icon"></i>
+                <div>
+                    <span>@insight.Label</span>
+                    <strong>@insight.Value</strong>
+                    <small>@insight.Detail</small>
+                </div>
+            </article>
+        }
+    </div>
+
+    <div class="hr-dash-lower">
+        <section class="arena-card hr-section-card" aria-label="Recent recruitment activity">
+            <div class="hr-card-head">
+                <div>
+                    <h2>Recent Recruitment Activity</h2>
+                    <p>Latest application and hiring pipeline updates</p>
+                </div>
+                <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">View All <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="hr-table-wrap">
+                <table class="arena-table hr-dash-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Candidate</th>
+                            <th scope="col">Stage</th>
+                            <th scope="col">Applied</th>
+                            <th scope="col">Last Update</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RecentRecruitment.Count == 0)
+                        {
+                            <tr><td colspan="4" class="hr-table-empty">No recruitment activity yet. Applications will appear here as they are received.</td></tr>
+                        }
+                        @foreach (var item in Model.RecentRecruitment)
+                        {
+                            <tr>
+                                <td data-label="Candidate">
+                                    <div class="user-cell hr-identity">
+                                        <span class="user-avatar">@item.Initials</span>
+                                        <div>
+                                            <strong>@item.Candidate</strong>
+                                            <small>@item.Reference · @item.Position</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td data-label="Stage"><span class="membership-status-badge hr-tone @item.StageClass"><i></i>@item.Stage</span></td>
+                                <td data-label="Applied">@item.Applied</td>
+                                <td data-label="Last Update"><small class="hr-update">@item.LastUpdate</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="arena-card hr-section-card" aria-label="Pending HR tasks">
+            <div class="hr-card-head">
+                <div>
+                    <h2>Pending HR Tasks</h2>
+                    <p>Action items requiring your attention</p>
+                </div>
+                <a class="text-action" asp-controller="Recruitment" asp-action="Index" asp-route-tab="applications">Open Tasks <i class="bi bi-arrow-right"></i></a>
+            </div>
+            @if (Model.PendingTasks.Count == 0)
+            {
+                <div class="hr-dash-tasks-empty">
+                    <i class="bi bi-check2-circle"></i>
+                    <strong>All clear</strong>
+                    <span>No recruitment or interview actions are waiting right now.</span>
+                </div>
+            }
+            else
+            {
+                <ul class="hr-dash-task-list">
+                    @foreach (var task in Model.PendingTasks)
+                    {
+                        <li class="hr-dash-task">
+                            <span class="hr-dash-task__icon"><i class="bi @task.Icon"></i></span>
+                            <div class="hr-dash-task__body">
+                                <strong class="hr-dash-task__title">@task.Title</strong>
+                                <span class="hr-dash-task__meta">
+                                    <span>@task.Category</span>
+                                    <span>·</span>
+                                    <span>Due @task.Due</span>
+                                    <span>·</span>
+                                    <span>@task.Owner</span>
+                                </span>
+                                <div class="hr-dash-task__badges">
+                                    <span class="membership-status-badge hr-tone @task.PriorityClass"><i></i>@task.Priority</span>
+                                    <span class="membership-status-badge hr-tone @task.StatusClass"><i></i>@task.Status</span>
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
 </section>
+
+<script type="application/json" id="hrDashboardChartData">@Html.Raw(chartJson)</script>
 
 @section Styles {
     <link rel="stylesheet" href="~/css/hr.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/hr-dashboard.js" asp-append-version="true"></script>
 }

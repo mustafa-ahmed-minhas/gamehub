@@ -9,134 +9,628 @@
     ViewData["UnassignedOpportunities"] = Model.AssignedToUser == null ? 1 : 0;
     ViewData["OverdueOpportunities"] = Model.IsOverdue ? 1 : 0;
     ViewData["NegotiationValue"] = Model.Stage == OpportunityStage.Negotiation ? $"{currency} {Model.ExpectedValue:N0}" : $"{currency} 0";
-    var lifecycle = new[] { OpportunityStage.Qualification, OpportunityStage.NeedsAnalysis, OpportunityStage.ProposalPreparation, OpportunityStage.ProposalSent, OpportunityStage.Negotiation, OpportunityStage.Won };
+
+    var pipeline = OpportunityStageRules.Pipeline;
+    var isWon = Model.Stage == OpportunityStage.Won;
+    var isLost = Model.Stage == OpportunityStage.Lost;
+    var isOnHold = Model.Stage == OpportunityStage.OnHold;
+    var isTerminal = OpportunityStageRules.IsTerminal(Model.Stage);
+    var isOpen = OpportunityStageRules.IsOpen(Model.Stage);
+    var nextStage = isOpen ? OpportunityStageRules.NextOpenStage(Model.Stage) : null;
+    var previousStage = isOpen ? OpportunityStageRules.PreviousOpenStage(Model.Stage) : null;
+    var resumeStage = isOnHold ? StageBefore("On Hold") ?? OpportunityStage.NeedsAnalysis : Model.Stage;
+    var lostFromStage = isLost ? StageBefore("Lost") : null;
+    var reachedIndex = isWon ? pipeline.Count
+        : isLost ? OpportunityStageRules.PipelineIndex(lostFromStage ?? OpportunityStage.Qualification) + 1
+        : isOnHold ? OpportunityStageRules.PipelineIndex(resumeStage)
+        : OpportunityStageRules.PipelineIndex(Model.Stage);
+
+    var health = isWon ? "Won" : isLost ? "Lost" : isOnHold ? "On Hold" : Model.IsOverdue ? "Overdue" : Model.DaysUntilClose <= 3 ? "At Risk" : "On Track";
+    var healthKey = health.ToLowerInvariant().Replace(" ", "-");
+    var closeHint = isTerminal
+        ? (Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "Closed")
+        : Model.IsOverdue ? $"{Math.Abs(Model.DaysUntilClose)} days overdue"
+        : Model.DaysUntilClose == 0 ? "Due today"
+        : $"In {Model.DaysUntilClose} days";
+    var closedOn = (Model.WonAt ?? Model.LostAt)?.ToString("MMM dd, yyyy") ?? Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "-";
+    var closedBy = isWon ? "Won" : "Lost";
+    var manualActivityTypes = new[] { OpportunityActivityType.Note, OpportunityActivityType.PhoneCall, OpportunityActivityType.WhatsApp, OpportunityActivityType.Email, OpportunityActivityType.Meeting, OpportunityActivityType.FollowUp, OpportunityActivityType.Proposal, OpportunityActivityType.Negotiation };
+    var linkedQuotation = ViewBag.LinkedQuotation as SalesQuotation;
+    var quotationBlocksNew = ViewBag.QuotationBlocksNew as bool? ?? false;
+    var canCreateQuotation = ViewBag.CanCreateQuotation as bool? ?? false;
 }
-<section class="crm-page crm-page-pro">
-    <header class="crm-command-header">
-    <div class="crm-command-copy">
-        <a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to Opportunities</a>
-        <span class="admin-kicker">Opportunity Details</span>
-        <h1>@Model.Name</h1>
-        <p>@Model.OpportunityNumber - sourced from @Model.Lead.LeadNumber</p>
+<section class="crm-page crm-page-pro crm-lead-view-page crm-opportunity-view-page">
+    <header class="lead-view-hero opp-view-hero">
+        <div class="lead-view-hero-main">
+            <a class="customer-back-link" asp-action="Index" asp-route-tab="opportunities"><i class="bi bi-arrow-left"></i> Back to Opportunities</a>
+            <div class="lead-view-identity">
+                <span class="crm-avatar lead-view-avatar"><i class="bi bi-briefcase"></i></span>
+                <div class="lead-view-identity-copy">
+                    <span class="admin-kicker">Opportunity Profile</span>
+                    <h1>@Model.Name</h1>
+                    <p class="lead-view-subtitle">
+                        <span class="lead-view-number">@Model.OpportunityNumber</span>
+                        <span class="lead-view-dot"></span>
+                        @Model.Type.GetDisplayName()
+                        <span class="lead-view-dot"></span>
+                        <a class="opp-subtle-link" asp-action="LeadDetails" asp-route-id="@Model.LeadId">Source @Model.Lead.LeadNumber</a>
+                    </p>
+                </div>
+            </div>
+            <div class="lead-view-contact-strip">
+                <span><i class="bi bi-person-badge"></i>@(Model.Customer?.FullName ?? Model.Lead.CustomerName)</span>
+                <span><i class="bi bi-person-check"></i>@(Model.AssignedToUser?.FullName ?? "Unassigned")</span>
+                <span><i class="bi bi-calendar-event"></i>Close @Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</span>
+                @if (Model.NextFollowUpAt.HasValue)
+                {
+                    <span><i class="bi bi-alarm"></i>Follow-up @Model.NextFollowUpAt.Value.ToString("MMM dd, yyyy")</span>
+                }
+            </div>
+        </div>
+        <div class="lead-view-hero-side">
+            <div class="lead-view-badges">
+                <span class="crm-badge opp-stage-badge stage-@Model.Stage.ToString().ToLowerInvariant()">@Model.Stage.GetDisplayName()</span>
+                <span class="crm-badge opp-health health-@healthKey">@health</span>
+                @if (!Model.IsActive)
+                {
+                    <span class="crm-badge opp-inactive"><i class="bi bi-slash-circle"></i> Inactive</span>
+                }
+            </div>
+            <div class="opp-hero-value">
+                <span>Expected value</span>
+                <strong>@currency @Model.ExpectedValue.ToString("N0")</strong>
+                <em>@currency @Model.WeightedValue.ToString("N0") weighted &middot; @Model.ProbabilityPercentage%</em>
+            </div>
+            <div class="lead-view-actions">
+                @if (canManage)
+                {
+                    <a class="admin-action-button crm-premium-button" asp-action="EditOpportunity" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Opportunity</a>
+                    @if (!isTerminal)
+                    {
+                        <a class="admin-secondary-button crm-premium-button secondary" href="#opportunity-actions"><i class="bi bi-arrow-repeat"></i> Stage Actions</a>
+                    }
+                }
+            </div>
+        </div>
+    </header>
+
+    <div class="lead-view-stats opp-stats">
+        <article class="lead-view-stat">
+            <span class="lead-view-stat-icon"><i class="bi bi-cash-stack"></i></span>
+            <div><span>Expected Value</span><strong>@currency @Model.ExpectedValue.ToString("N0")</strong></div>
+        </article>
+        <article class="lead-view-stat">
+            <span class="lead-view-stat-icon"><i class="bi bi-graph-up-arrow"></i></span>
+            <div><span>Weighted Value</span><strong>@currency @Model.WeightedValue.ToString("N0")</strong></div>
+        </article>
+        <article class="lead-view-stat">
+            <span class="lead-view-stat-icon"><i class="bi bi-speedometer2"></i></span>
+            <div>
+                <span>Probability</span>
+                <strong>@Model.ProbabilityPercentage%</strong>
+                <div class="crm-probability"><i style="width:@Model.ProbabilityPercentage%"></i></div>
+            </div>
+        </article>
+        <article class="lead-view-stat">
+            <span class="lead-view-stat-icon"><i class="bi bi-calendar-event"></i></span>
+            <div><span>Expected Close</span><strong>@Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</strong><small>@closeHint</small></div>
+        </article>
     </div>
-    <div class="crm-command-actions">@if (canManage) { <a class="admin-action-button crm-premium-button" asp-action="EditOpportunity" asp-route-id="@Model.Id"><i class="bi bi-pencil"></i> Edit Opportunity</a> }</div>
-</header>
+
+    <div class="lead-lifecycle-wrap">
+        <div class="lead-lifecycle-label"><i class="bi bi-signpost-split"></i> Opportunity Lifecycle &middot; Lead converted &rarr; pipeline &rarr; closure</div>
+        <div class="opp-lifecycle">
+            @for (var index = 0; index < pipeline.Count; index++)
+            {
+                var step = pipeline[index];
+                var state = index < reachedIndex ? "is-past" : index == reachedIndex ? "is-current" : "is-pending";
+                <div class="opp-lifecycle-step @state">
+                    <span class="opp-lifecycle-dot">
+                        @if (index < reachedIndex)
+                        {
+                            <i class="bi bi-check2"></i>
+                        }
+                        else
+                        {
+                            <text>@(index + 1)</text>
+                        }
+                    </span>
+                    <div>
+                        <strong>@step.GetDisplayName()</strong>
+                        <small>@OpportunityStageRules.Describe(step)</small>
+                    </div>
+                </div>
+            }
+            <div class="opp-lifecycle-step opp-lifecycle-outcome @(isWon ? "is-won" : isLost ? "is-lost" : isOnHold ? "is-parked" : "is-pending")">
+                <span class="opp-lifecycle-dot">
+                    <i class="bi @(isWon ? "bi-trophy" : isLost ? "bi-x-circle" : isOnHold ? "bi-pause-circle" : "bi-flag")"></i>
+                </span>
+                <div>
+                    <strong>@(isWon ? "Won" : isLost ? "Lost" : isOnHold ? "On Hold" : "Closure")</strong>
+                    <small>@(isWon || isLost ? $"Closed {closedOn}" : isOnHold ? "Resume when the customer is ready" : "Won or Lost ends the deal")</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="crm-workspace-shell">
-    <main class="crm-workspace-main">
-    <article class="crm-profile-hero crm-profile-hero-pro opportunity">
-        <div><span class="crm-avatar"><i class="bi bi-briefcase"></i></span><h2>@currency @Model.ExpectedValue.ToString("N0")</h2><p>@Model.ProbabilityPercentage% probability - @currency @Model.WeightedValue.ToString("N0") weighted</p></div>
-        <div class="crm-profile-badges">
-            <span class="crm-badge stage">@Model.Stage.GetDisplayName()</span>
-            <span class="crm-badge source">@Model.Type.GetDisplayName()</span>
-            <span class="crm-badge @(Model.IsOverdue ? "priority-urgent" : "priority-medium")">@(Model.IsOverdue ? "Overdue" : "On Track")</span>
-            @if (Model.NextFollowUpAt.HasValue)
-            {
-                <span class="crm-badge">Next follow-up: @Model.NextFollowUpAt.Value.ToString("MMM dd, yyyy")</span>
-            }
-        </div>
-    </article>
-    <div class="crm-lifecycle opportunity">
-        @foreach (var step in lifecycle)
-        {
-            var target = Model.Stage == OpportunityStage.Lost ? OpportunityStage.Negotiation : Model.Stage == OpportunityStage.OnHold ? OpportunityStage.NeedsAnalysis : Model.Stage;
-            var active = Array.IndexOf(lifecycle, step) <= Math.Max(0, Array.IndexOf(lifecycle, target));
-            <span class="@(active ? "active" : "")"><i class="bi bi-check2"></i>@step.GetDisplayName()</span>
-        }
-        @if (Model.Stage == OpportunityStage.Lost || Model.Stage == OpportunityStage.OnHold)
-        {
-            <span class="active terminal"><i class="bi bi-pause-circle"></i>@Model.Stage.GetDisplayName()</span>
-        }
-    </div>
-    <div class="crm-detail-grid">
-        <article class="crm-card"><header><h2>Close Dates</h2></header><dl class="crm-detail-list"><div><dt>Expected Close</dt><dd>@Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</dd></div><div><dt>Actual Close</dt><dd>@(Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "-")</dd></div></dl></article>
-        <article class="crm-card"><header><h2>Customer and Lead</h2></header><dl class="crm-detail-list"><div><dt>Customer</dt><dd>@(Model.Customer?.FullName ?? Model.Lead.CustomerName)</dd></div><div><dt>Lead</dt><dd><a asp-action="LeadDetails" asp-route-id="@Model.LeadId">@Model.Lead.LeadNumber</a></dd></div><div><dt>Owner</dt><dd>@(Model.AssignedToUser?.FullName ?? "Unassigned")</dd></div><div><dt>Tags</dt><dd>@(Model.Tags ?? "No tags")</dd></div></dl></article>
-        <article class="crm-card"><header><h2>Service Context</h2></header><dl class="crm-detail-list"><div><dt>Sport</dt><dd>@(Model.Sport?.Name ?? "Any")</dd></div><div><dt>Facility</dt><dd>@(Model.Facility?.Name ?? "Any")</dd></div><div><dt>Court</dt><dd>@(Model.Court?.Name ?? "Any")</dd></div><div><dt>Membership</dt><dd>@(Model.MembershipPlan?.Name ?? "No plan")</dd></div></dl></article>
-        <article class="crm-card"><header><h2>Requirement</h2></header><p>@(Model.CustomerRequirement ?? "No requirement recorded.")</p><h3>Proposed Solution</h3><p>@(Model.ProposedSolution ?? "No solution recorded.")</p><h3>Competitor</h3><p>@(Model.CompetitorInformation ?? "No competitor information.")</p></article>
-    </div>
-    <article class="crm-card">
-        <header><h2>Quotation</h2><span>Sales workflow</span></header>
-        @{
-            var linkedQuotation = ViewBag.LinkedQuotation as SalesQuotation;
-            var quotationBlocksNew = ViewBag.QuotationBlocksNew as bool? ?? false;
-            var canCreateQuotation = ViewBag.CanCreateQuotation as bool? ?? false;
-        }
-        @if (linkedQuotation != null)
-        {
-            <p class="mb-2"><i class="bi bi-file-earmark-text"></i> <strong>@linkedQuotation.QuotationNumber</strong> · @linkedQuotation.Status.GetDisplayName()</p>
-            <div class="d-flex gap-2 flex-wrap">
-                <a class="admin-secondary-button crm-premium-button secondary" asp-controller="Sales" asp-action="QuotationDetails" asp-route-id="@linkedQuotation.Id"><i class="bi bi-eye"></i> View Quotation</a>
-                @if (!quotationBlocksNew && canCreateQuotation)
-                {
-                    <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-plus-circle"></i> Create New Quotation</a>
-                }
+        <main class="crm-workspace-main lead-view-main">
+            <div class="lead-view-grid">
+                <div class="lead-view-column">
+                    @if (canManage)
+                    {
+                        <article class="lead-panel opp-stage-panel" id="opportunity-actions">
+                            <header class="lead-panel-head">
+                                <span class="lead-panel-icon"><i class="bi bi-arrow-repeat"></i></span>
+                                <div>
+                                    <h2>Stage Actions</h2>
+                                    <p>Workflow-checked transitions keep the stage, probability and activity history consistent.</p>
+                                </div>
+                            </header>
+
+                            @if (isTerminal)
+                            {
+                                <div class="opp-terminal-banner @(isWon ? "is-won" : "is-lost")">
+                                    <span class="opp-terminal-icon"><i class="bi @(isWon ? "bi-trophy" : "bi-x-octagon")"></i></span>
+                                    <div>
+                                        <strong>@closedBy on @closedOn</strong>
+                                        <p>
+                                            @if (isWon)
+                                            {
+                                                <text>This deal closed with @currency @Model.ExpectedValue.ToString("N0") expected value.</text>
+                                            }
+                                            else
+                                            {
+                                                <text>Loss reason: @(string.IsNullOrWhiteSpace(Model.LossReason) ? "not recorded" : Model.LossReason)</text>
+                                            }
+                                        </p>
+                                        <small>Won and Lost are final stages. Edit the opportunity to correct record details.</small>
+                                    </div>
+                                </div>
+                            }
+                            else if (isOnHold)
+                            {
+                                <div class="opp-stage-summary">
+                                    <div class="opp-stage-cell">
+                                        <span>Current stage</span>
+                                        <strong><span class="crm-badge opp-stage-badge stage-onhold">On Hold</span></strong>
+                                        <p>@OpportunityStageRules.Describe(OpportunityStage.OnHold)</p>
+                                    </div>
+                                    <div class="opp-stage-cell">
+                                        <span>Resume at</span>
+                                        <strong>@resumeStage.GetDisplayName()</strong>
+                                        <p>@OpportunityStageRules.Describe(resumeStage)</p>
+                                    </div>
+                                    <div class="opp-stage-cell opp-stage-probability">
+                                        <span>Probability</span>
+                                        <strong>@Model.ProbabilityPercentage%</strong>
+                                        <div class="crm-probability"><i style="width:@Model.ProbabilityPercentage%"></i></div>
+                                    </div>
+                                </div>
+
+                                <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id" class="opp-resume-form">
+                                    @Html.AntiForgeryToken()
+                                    <label class="lead-field">
+                                        <span class="lead-field-label">Resume stage</span>
+                                        <select name="stage">
+                                            @foreach (var option in pipeline)
+                                            {
+                                                <option value="@((int)option)" selected="@(option == resumeStage)">@option.GetDisplayName()</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <label class="lead-field">
+                                        <span class="lead-field-label">Note <small class="opp-field-optional">optional</small></span>
+                                        <input name="note" placeholder="Why is the customer ready to continue?" />
+                                    </label>
+                                    <button class="admin-action-button crm-premium-button"><i class="bi bi-play-circle"></i> Resume Pipeline</button>
+                                </form>
+
+                                <div class="opp-stage-actions">
+                                    <button type="button" class="opp-lost-button" data-crm-stage-lost data-stage-number="@Model.OpportunityNumber" data-stage-name="@Model.Name"><i class="bi bi-x-circle"></i> Mark as Lost</button>
+                                </div>
+                                <p class="opp-stage-help"><i class="bi bi-info-circle"></i> On Hold pauses the pipeline; resuming returns the deal to an open stage.</p>
+                            }
+                            else
+                            {
+                                <div class="opp-stage-summary">
+                                    <div class="opp-stage-cell">
+                                        <span>Current stage</span>
+                                        <strong><span class="crm-badge opp-stage-badge stage-@Model.Stage.ToString().ToLowerInvariant()">@Model.Stage.GetDisplayName()</span></strong>
+                                        <p>@OpportunityStageRules.Describe(Model.Stage)</p>
+                                    </div>
+                                    <div class="opp-stage-cell">
+                                        <span>Next step</span>
+                                        @if (nextStage.HasValue)
+                                        {
+                                            <strong>@nextStage.Value.GetDisplayName()</strong>
+                                            <p>@OpportunityStageRules.Describe(nextStage.Value)</p>
+                                        }
+                                        else
+                                        {
+                                            <strong>Close the deal</strong>
+                                            <p>Won or Lost ends the pipeline from Negotiation.</p>
+                                        }
+                                    </div>
+                                    <div class="opp-stage-cell opp-stage-probability">
+                                        <span>Probability</span>
+                                        <strong>@Model.ProbabilityPercentage%</strong>
+                                        <div class="crm-probability"><i style="width:@Model.ProbabilityPercentage%"></i></div>
+                                    </div>
+                                </div>
+
+                                <div class="opp-stage-actions">
+                                    @if (nextStage.HasValue)
+                                    {
+                                        <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="stage" value="@((int)nextStage.Value)" />
+                                            <button class="admin-action-button crm-premium-button"><i class="bi bi-arrow-right-circle"></i> Move to @nextStage.Value.GetDisplayName()</button>
+                                        </form>
+                                    }
+                                    @if (Model.Stage == OpportunityStage.Negotiation)
+                                    {
+                                        <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id" onsubmit="return confirm('Mark this opportunity as Won? Won is a final stage and cannot be reopened.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="stage" value="@((int)OpportunityStage.Won)" />
+                                            <button class="opp-won-button"><i class="bi bi-trophy"></i> Mark as Won</button>
+                                        </form>
+                                    }
+                                    <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id" onsubmit="return confirm('Put this opportunity on hold? The pipeline is paused until it is resumed.');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="stage" value="@((int)OpportunityStage.OnHold)" />
+                                        <button class="admin-secondary-button crm-premium-button secondary"><i class="bi bi-pause-circle"></i> Put On Hold</button>
+                                    </form>
+                                    @if (previousStage.HasValue)
+                                    {
+                                        <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id" onsubmit="return confirm('Move this opportunity back to @previousStage.Value.GetDisplayName()? Use this only to correct a mistaken stage.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="stage" value="@((int)previousStage.Value)" />
+                                            <button class="admin-secondary-button crm-premium-button secondary"><i class="bi bi-arrow-counterclockwise"></i> Move back to @previousStage.Value.GetDisplayName()</button>
+                                        </form>
+                                    }
+                                    <button type="button" class="opp-lost-button" data-crm-stage-lost data-stage-number="@Model.OpportunityNumber" data-stage-name="@Model.Name"><i class="bi bi-x-circle"></i> Mark as Lost</button>
+                                </div>
+                                <p class="opp-stage-help"><i class="bi bi-info-circle"></i> Deals move forward one stage at a time and can step back once to correct a mistake. Won is only available from Negotiation; Won and Lost are final.</p>
+                            }
+                        </article>
+                    }
+
+                    <article class="lead-panel">
+                        <header class="lead-panel-head">
+                            <span class="lead-panel-icon"><i class="bi bi-journal-richtext"></i></span>
+                            <div>
+                                <h2>Requirement &amp; Solution</h2>
+                                <p>What the customer needs and how the team intends to deliver it.</p>
+                            </div>
+                        </header>
+                        <div class="opp-note-grid">
+                            <div class="lead-note-block">
+                                <span>Customer Requirement</span>
+                                <p>@(string.IsNullOrWhiteSpace(Model.CustomerRequirement) ? "No requirement recorded." : Model.CustomerRequirement)</p>
+                            </div>
+                            <div class="lead-note-block">
+                                <span>Proposed Solution</span>
+                                <p>@(string.IsNullOrWhiteSpace(Model.ProposedSolution) ? "No solution recorded." : Model.ProposedSolution)</p>
+                            </div>
+                            <div class="lead-note-block">
+                                <span>Competitor Information</span>
+                                <p>@(string.IsNullOrWhiteSpace(Model.CompetitorInformation) ? "No competitor information." : Model.CompetitorInformation)</p>
+                            </div>
+                            @if (isLost)
+                            {
+                                <div class="lead-note-block danger">
+                                    <span>Loss Reason</span>
+                                    <p>@(string.IsNullOrWhiteSpace(Model.LossReason) ? "No loss reason recorded." : Model.LossReason)</p>
+                                </div>
+                            }
+                        </div>
+                    </article>
+
+                    <article class="lead-panel lead-panel-compact opp-quotation-panel">
+                        <header class="lead-panel-head">
+                            <span class="lead-panel-icon"><i class="bi bi-file-earmark-text"></i></span>
+                            <div>
+                                <h2>Quotation</h2>
+                                <p>Commercial offer linked to this opportunity.</p>
+                            </div>
+                        </header>
+                        @if (linkedQuotation != null)
+                        {
+                            <div class="opp-quotation-line">
+                                <span class="opp-quotation-icon"><i class="bi bi-file-earmark-text"></i></span>
+                                <div>
+                                    <strong>@linkedQuotation.QuotationNumber</strong>
+                                    <small>@linkedQuotation.Status.GetDisplayName()</small>
+                                </div>
+                            </div>
+                            <div class="opp-panel-actions">
+                                <a class="admin-secondary-button crm-premium-button secondary" asp-controller="Sales" asp-action="QuotationDetails" asp-route-id="@linkedQuotation.Id"><i class="bi bi-eye"></i> View Quotation</a>
+                                @if (!quotationBlocksNew && canCreateQuotation)
+                                {
+                                    <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-plus-circle"></i> New Quotation</a>
+                                }
+                            </div>
+                            @if (quotationBlocksNew)
+                            {
+                                <p class="opp-panel-empty"><i class="bi bi-info-circle"></i> An active quotation already exists for this opportunity.</p>
+                            }
+                        }
+                        else if (canCreateQuotation)
+                        {
+                            <p class="opp-panel-empty">No quotation has been created for this opportunity yet.</p>
+                            <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-file-earmark-text"></i> Create Quotation</a>
+                        }
+                        else
+                        {
+                            <p class="opp-panel-empty">Your role cannot create quotations.</p>
+                        }
+                    </article>
+                </div>
+
+                <aside class="lead-view-column lead-view-side">
+                    <article class="lead-panel lead-panel-compact">
+                        <header class="lead-panel-head">
+                            <span class="lead-panel-icon"><i class="bi bi-person-vcard"></i></span>
+                            <div>
+                                <h2>Customer &amp; Ownership</h2>
+                                <p>Who the deal belongs to and where it came from.</p>
+                            </div>
+                        </header>
+                        <dl class="lead-info-list">
+                            <div>
+                                <dt>Customer</dt>
+                                <dd>
+                                    @if (Model.Customer != null)
+                                    {
+                                        <a class="lead-inline-link" asp-controller="Customers" asp-action="Details" asp-route-id="@Model.CustomerId">@Model.Customer.CustomerCode &mdash; @Model.Customer.FullName</a>
+                                    }
+                                    else
+                                    {
+                                        @(Model.Lead.CustomerName)
+                                    }
+                                </dd>
+                            </div>
+                            <div><dt>Source Lead</dt><dd><a class="lead-inline-link" asp-action="LeadDetails" asp-route-id="@Model.LeadId">@Model.Lead.LeadNumber &middot; @Model.Lead.CustomerName</a></dd></div>
+                            <div><dt>Owner</dt><dd>@(Model.AssignedToUser?.FullName ?? "Unassigned")</dd></div>
+                            <div><dt>Tags</dt><dd>@(string.IsNullOrWhiteSpace(Model.Tags) ? "No tags" : Model.Tags)</dd></div>
+                            <div><dt>Next Follow-up</dt><dd>@(Model.NextFollowUpAt?.ToString("MMM dd, yyyy hh:mm tt") ?? "Not scheduled")</dd></div>
+                        </dl>
+                    </article>
+
+                    <article class="lead-panel lead-panel-compact">
+                        <header class="lead-panel-head">
+                            <span class="lead-panel-icon"><i class="bi bi-geo-alt"></i></span>
+                            <div>
+                                <h2>Service Context</h2>
+                                <p>Where and how the booking or package applies.</p>
+                            </div>
+                        </header>
+                        <dl class="lead-info-list lead-info-list-two">
+                            <div><dt>Sport</dt><dd>@(Model.Sport?.Name ?? "Any")</dd></div>
+                            <div><dt>Facility</dt><dd>@(Model.Facility?.Name ?? "Any")</dd></div>
+                            <div><dt>Court</dt><dd>@(Model.Court?.Name ?? "Any")</dd></div>
+                            <div><dt>Membership</dt><dd>@(Model.MembershipPlan?.Name ?? "No plan")</dd></div>
+                        </dl>
+                    </article>
+
+                    <article class="lead-panel lead-panel-compact">
+                        <header class="lead-panel-head">
+                            <span class="lead-panel-icon"><i class="bi bi-clock-history"></i></span>
+                            <div>
+                                <h2>Record</h2>
+                                <p>Timestamps and record state.</p>
+                            </div>
+                        </header>
+                        <dl class="lead-info-list">
+                            <div><dt>Created</dt><dd>@Model.CreatedAt.ToString("MMM dd, yyyy hh:mm tt")</dd></div>
+                            <div><dt>Last Updated</dt><dd>@(Model.UpdatedAt?.ToString("MMM dd, yyyy hh:mm tt") ?? "-")</dd></div>
+                            <div><dt>Expected Close</dt><dd>@Model.ExpectedCloseDate.ToString("MMM dd, yyyy")</dd></div>
+                            <div><dt>Actual Close</dt><dd>@(Model.ActualCloseDate?.ToString("MMM dd, yyyy") ?? "-")</dd></div>
+                            @if (Model.WonAt.HasValue)
+                            {
+                                <div><dt>Won At</dt><dd>@Model.WonAt.Value.ToString("MMM dd, yyyy hh:mm tt")</dd></div>
+                            }
+                            @if (Model.LostAt.HasValue)
+                            {
+                                <div><dt>Lost At</dt><dd>@Model.LostAt.Value.ToString("MMM dd, yyyy hh:mm tt")</dd></div>
+                            }
+                            <div><dt>Active</dt><dd>@(Model.IsActive ? "Yes" : "No")</dd></div>
+                        </dl>
+                    </article>
+                </aside>
             </div>
-            @if (quotationBlocksNew)
-            {
-                <small class="text-muted d-block mt-2">An active quotation already exists for this opportunity.</small>
-            }
-        }
-        else if (canCreateQuotation)
+        </main>
+
+        @if (canManage)
         {
-            <a class="admin-action-button crm-premium-button" asp-controller="Sales" asp-action="CreateFromOpportunity" asp-route-opportunityId="@Model.Id"><i class="bi bi-file-earmark-text"></i> Create Quotation</a>
-        }
-        else
-        {
-            <p class="mb-0">Your role cannot create quotations.</p>
-        }
-    </article>
-
-    @if (canManage)
-    {
-        <article class="crm-card crm-action-card" id="opportunity-actions">
-            <header>
-                <h2>Opportunity Actions</h2>
-                <span>Log activities and schedule follow-ups</span>
-            </header>
-            <form asp-action="AddOpportunityActivity" asp-route-id="@Model.Id" method="post" class="crm-inline-form">
-                @Html.AntiForgeryToken()
-                <select name="activityType" asp-items="Html.GetEnumSelectList<OpportunityActivityType>()" class="form-select"></select>
-                <input name="subject" placeholder="Activity subject" class="form-control" />
-                <input name="activityDate" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" class="form-control" />
-                <input name="followUpDueAt" type="datetime-local" placeholder="Follow-up due (optional)" class="form-control" />
-                <textarea name="description" placeholder="Description" class="form-control wide"></textarea>
-                <label class="crm-premium-check">
-                    <input name="isCompleted" type="checkbox" value="true" />
-                    <span>Mark as completed</span>
-                </label>
-                <button class="admin-action-button crm-premium-button">Add Activity</button>
-            </form>
-        </article>
-    }
-
-    <article class="crm-card crm-timeline-card">
-        <header><h2>Activity Timeline</h2><span>@Model.Activities.Count activities</span></header>
-        <div class="crm-timeline">
-            @foreach (var item in Model.Activities.OrderByDescending(x => x.ActivityDate))
-            {
-                <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div>
+                <article class="lead-panel lead-actions-panel opp-workspace-wide">
+                    <header class="lead-panel-head">
+                        <span class="lead-panel-icon"><i class="bi bi-lightning-charge"></i></span>
+                        <div>
+                            <h2>Log Activity</h2>
+                            <p>Record a call, meeting, note or follow-up against this deal.</p>
+                        </div>
+                    </header>
+                    <form asp-action="AddOpportunityActivity" asp-route-id="@Model.Id" method="post" class="lead-activity-form">
+                        @Html.AntiForgeryToken()
+                        <label class="lead-field">
+                            <span class="lead-field-label">Activity Type</span>
+                            <select name="activityType">
+                                @foreach (var type in manualActivityTypes)
+                                {
+                                    <option value="@((int)type)">@type.GetDisplayName()</option>
+                                }
+                            </select>
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Subject</span>
+                            <input name="subject" placeholder="e.g. Pricing discussion" />
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Activity Date</span>
+                            <input name="activityDate" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                        </label>
+                        <label class="lead-field">
+                            <span class="lead-field-label">Follow-up Due</span>
+                            <input name="followUpDueAt" type="datetime-local" />
+                        </label>
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Description</span>
+                            <textarea name="description" rows="3" placeholder="What was discussed, agreed or promised?"></textarea>
+                        </label>
+                        <label class="lead-checkline lead-field-wide">
+                            <input name="isCompleted" type="checkbox" value="true" />
+                            <span>Mark as completed</span>
+                        </label>
+                        <div class="lead-action-submit">
+                            <button class="admin-action-button crm-premium-button"><i class="bi bi-plus-lg"></i> Add Activity</button>
+                        </div>
+                    </form>
+                </article>
             }
-            @if (!Model.Activities.Any())
-            {
-                <div class="crm-empty-state compact"><i class="bi bi-chat-dots"></i><strong>No activity yet</strong><span>Opportunity notes and stage movement will appear here.</span></div>
-            }
-        </div>
-    </article>
 
-    @if (Model.Lead != null && Model.Lead.Activities != null && Model.Lead.Activities.Any())
-    {
-        <article class="crm-card crm-timeline-card">
-            <header><h2>Source Lead History</h2><span>@Model.Lead.Activities.Count activity@(Model.Lead.Activities.Count == 1 ? "" : "ies") · <a asp-action="LeadDetails" asp-route-id="@Model.LeadId" class="text-decoration-none">View Lead</a></span></header>
-            <div class="crm-timeline">
-                @foreach (var item in Model.Lead.Activities.OrderByDescending(x => x.ActivityDate))
-                {
-                    <div><i class="bi bi-dot"></i><strong>@item.Subject</strong><span>@item.ActivityType.GetDisplayName() - @item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</span><p>@item.Description</p></div>
-                }
-            </div>
-        </article>
-    }
-    </main>
-    <partial name="_GuidancePanel" />
+            <article class="lead-panel lead-timeline-panel opp-workspace-wide">
+                <header class="lead-panel-head">
+                    <span class="lead-panel-icon"><i class="bi bi-activity"></i></span>
+                    <div>
+                        <h2>Activity Timeline</h2>
+                        <p>@Model.Activities.Count @(Model.Activities.Count == 1 ? "activity" : "activities") recorded on this opportunity.</p>
+                    </div>
+                </header>
+                <div class="lead-timeline">
+                    @foreach (var item in Model.Activities.OrderByDescending(x => x.ActivityDate).ThenByDescending(x => x.Id))
+                    {
+                        var isMilestone = item.ActivityType is OpportunityActivityType.Won or OpportunityActivityType.Lost or OpportunityActivityType.StageChange;
+                        <div class="lead-timeline-item">
+                            <span class="lead-timeline-dot opp-timeline-dot opp-timeline-@item.ActivityType.ToString().ToLowerInvariant()"><i class="bi @TimelineIcon(item.ActivityType)"></i></span>
+                            <div class="lead-timeline-copy">
+                                <div class="lead-timeline-top">
+                                    <strong>@item.Subject</strong>
+                                    <time>@item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</time>
+                                </div>
+                                <span class="lead-timeline-type">@item.ActivityType.GetDisplayName()@(isMilestone ? " · workflow" : "")</span>
+                                <p>@(string.IsNullOrWhiteSpace(item.Description) ? "-" : item.Description)</p>
+                                @if (item.FollowUpDueAt.HasValue)
+                                {
+                                    <span class="opp-timeline-followup"><i class="bi bi-alarm"></i> Follow-up @item.FollowUpDueAt.Value.ToString("MMM dd, yyyy hh:mm tt") @(item.IsCompleted ? "· completed" : "")</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (!Model.Activities.Any())
+                    {
+                        <div class="crm-empty-state compact">
+                            <i class="bi bi-chat-dots"></i>
+                            <strong>No activity yet</strong>
+                            <span>Notes, calls and stage movement will appear here.</span>
+                        </div>
+                    }
+                </div>
+            </article>
+
+            @if (Model.Lead.Activities.Any())
+            {
+                <article class="lead-panel lead-timeline-panel opp-workspace-wide">
+                    <header class="lead-panel-head">
+                        <span class="lead-panel-icon"><i class="bi bi-diagram-2"></i></span>
+                        <div>
+                            <h2>Source Lead History</h2>
+                            <p>@Model.Lead.Activities.Count @(Model.Lead.Activities.Count == 1 ? "activity" : "activities") from <a class="lead-inline-link" asp-action="LeadDetails" asp-route-id="@Model.LeadId">@Model.Lead.LeadNumber</a> before conversion.</p>
+                        </div>
+                    </header>
+                    <div class="lead-timeline">
+                        @foreach (var item in Model.Lead.Activities.OrderByDescending(x => x.ActivityDate).ThenByDescending(x => x.Id))
+                        {
+                            <div class="lead-timeline-item">
+                                <span class="lead-timeline-dot"><i class="bi bi-dot"></i></span>
+                                <div class="lead-timeline-copy">
+                                    <div class="lead-timeline-top">
+                                        <strong>@item.Subject</strong>
+                                        <time>@item.ActivityDate.ToString("MMM dd, yyyy hh:mm tt")</time>
+                                    </div>
+                                    <span class="lead-timeline-type">@item.ActivityType.GetDisplayName()</span>
+                                    <p>@(string.IsNullOrWhiteSpace(item.Description) ? "-" : item.Description)</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+
+        <partial name="_GuidancePanel" />
     </div>
 </section>
-@section Styles { <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" /> }
-@section Scripts { <script src="~/js/crm.js" asp-append-version="true"></script> }
+
+@if (canManage && !isTerminal)
+{
+    <div class="modal fade" id="crmStageLostModal" tabindex="-1" aria-labelledby="crmStageLostModalLabel" aria-hidden="true" data-crm-stage-modal>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-action="ChangeOpportunityStage" asp-route-id="@Model.Id" data-crm-stage-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="stage" value="@((int)OpportunityStage.Lost)" />
+                    <div class="modal-header">
+                        <h2 class="modal-title" id="crmStageLostModalLabel"><i class="bi bi-x-circle"></i> Mark as Lost</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="crm-convert-lead"><strong data-stage-number>@Model.OpportunityNumber</strong><span data-stage-name>@Model.Name</span></p>
+                        <label class="lead-field lead-field-wide">
+                            <span class="lead-field-label">Loss Reason <em class="lead-required" aria-hidden="true">*</em></span>
+                            <textarea name="lossReason" rows="3" required minlength="5" maxlength="500" placeholder="Why did this deal not close? (min 5 characters)" data-crm-stage-reason></textarea>
+                        </label>
+                        <p class="crm-convert-note"><i class="bi bi-info-circle"></i> Lost is a final stage. The reason is stored on the opportunity and kept in the activity timeline.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="admin-secondary-button" type="button" data-bs-dismiss="modal">Cancel</button>
+                        <button class="admin-action-button" type="submit" data-crm-stage-submit><i class="bi bi-x-circle"></i> Mark as Lost</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/crm.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/crm.js" asp-append-version="true"></script>
+}
+
+@functions {
+    OpportunityStage? StageBefore(string targetDisplay)
+    {
+        var marker = " to " + targetDisplay;
+        foreach (var activity in Model.Activities.OrderByDescending(x => x.ActivityDate).ThenByDescending(x => x.Id))
+        {
+            var text = activity.Description ?? string.Empty;
+            var index = text.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (index <= 0) continue;
+            var fromName = text[..index].Trim();
+            foreach (var stage in Enum.GetValues<OpportunityStage>())
+            {
+                if (string.Equals(stage.GetDisplayName(), fromName, StringComparison.OrdinalIgnoreCase)) return stage;
+            }
+        }
+        return null;
+    }
+
+    string TimelineIcon(OpportunityActivityType type) => type switch
+    {
+        OpportunityActivityType.PhoneCall => "bi-telephone",
+        OpportunityActivityType.WhatsApp => "bi-whatsapp",
+        OpportunityActivityType.Email => "bi-envelope",
+        OpportunityActivityType.Meeting => "bi-people",
+        OpportunityActivityType.FollowUp => "bi-alarm",
+        OpportunityActivityType.StageChange => "bi-signpost-split",
+        OpportunityActivityType.Assignment => "bi-person-gear",
+        OpportunityActivityType.Proposal => "bi-file-earmark-text",
+        OpportunityActivityType.Negotiation => "bi-chat-square-text",
+        OpportunityActivityType.Won => "bi-trophy",
+        OpportunityActivityType.Lost => "bi-x-circle",
+        _ => "bi-journal-text"
+    };
+}

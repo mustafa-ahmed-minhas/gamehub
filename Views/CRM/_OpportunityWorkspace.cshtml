@@ -89,7 +89,13 @@
                     @foreach (var item in items)
                     {
                         var days = item.ExpectedCloseDate.DayNumber - DateOnly.FromDateTime(DateTime.UtcNow).DayNumber;
-                        var health = item.IsOverdue ? "Overdue" : item.Stage == OpportunityStage.OnHold ? "On Hold" : days <= 3 ? "At Risk" : "On Track";
+                        var health = item.Stage switch
+                        {
+                            OpportunityStage.Won => "Won",
+                            OpportunityStage.Lost => "Lost",
+                            OpportunityStage.OnHold => "On Hold",
+                            _ => item.IsOverdue ? "Overdue" : days <= 3 ? "At Risk" : "On Track"
+                        };
                         <article class="crm-kanban-card crm-opportunity-card">
                             <a asp-action="OpportunityDetails" asp-route-id="@item.Id" class="crm-card-main">
                                 <strong>@item.Name</strong>
@@ -141,7 +147,13 @@
                     @foreach (var item in Model.Opportunities)
                     {
                         var days = item.ExpectedCloseDate.DayNumber - DateOnly.FromDateTime(DateTime.UtcNow).DayNumber;
-                        var health = item.IsOverdue ? "Overdue" : item.Stage == OpportunityStage.OnHold ? "On Hold" : days <= 3 ? "At Risk" : "On Track";
+                        var health = item.Stage switch
+                        {
+                            OpportunityStage.Won => "Won",
+                            OpportunityStage.Lost => "Lost",
+                            OpportunityStage.OnHold => "On Hold",
+                            _ => item.IsOverdue ? "Overdue" : days <= 3 ? "At Risk" : "On Track"
+                        };
                         var ownerInitials = string.IsNullOrWhiteSpace(item.AssignedTo) ? "U" : string.Join("", item.AssignedTo.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
                         <tr>
                             <td data-label="Opportunity"><div class="user-cell membership-name-cell crm-person-cell"><span class="user-avatar membership-table-avatar crm-mini-avatar deal"><i class="bi bi-briefcase"></i></span><div><strong>@item.Name</strong><small>@item.OpportunityNumber</small><em>Source: @item.LeadNumber</em><span class="crm-inline-indicator">@item.Type.GetDisplayName()</span></div></div></td>
@@ -162,7 +174,10 @@
                                             <div class="dropdown-menu crm-opportunity-more-menu">
                                                 <a class="dropdown-item" asp-action="OpportunityDetails" asp-route-id="@item.Id"><i class="bi bi-eye"></i> View Details</a>
                                                 <a class="dropdown-item" asp-action="EditOpportunity" asp-route-id="@item.Id"><i class="bi bi-pencil"></i> Edit</a>
-                                                <a class="dropdown-item" asp-action="OpportunityDetails" asp-route-id="@item.Id" asp-fragment="opportunity-actions"><i class="bi bi-arrow-repeat"></i> Stage Actions</a>
+                                                @if (!OpportunityStageRules.IsTerminal(item.Stage))
+                                                {
+                                                    <a class="dropdown-item" asp-action="OpportunityDetails" asp-route-id="@item.Id" asp-fragment="opportunity-actions"><i class="bi bi-arrow-repeat"></i> Stage Actions</a>
+                                                }
                                             </div>
                                         </div>
                                     }

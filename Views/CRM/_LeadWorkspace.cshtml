@@ -192,18 +192,25 @@
                                         {
                                             <button class="crm-convert-pill" type="button" data-crm-convert data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName" aria-label="Convert @lead.LeadNumber to an opportunity"><i class="bi bi-arrow-right-circle"></i> Convert</button>
                                         }
+                                        else if (lead.Status is LeadStatus.Disqualified or LeadStatus.Lost)
+                                        {
+                                            <span class="crm-convert-pill is-disabled" role="button" tabindex="-1" aria-disabled="true" title="Disqualified leads cannot be converted into opportunities"><i class="bi bi-slash-circle"></i> Disqualified</span>
+                                        }
                                         else
                                         {
                                             <span class="crm-convert-pill is-disabled" role="button" tabindex="-1" aria-disabled="true" title="Qualify this lead before converting it"><i class="bi bi-lock"></i> Qualify first</span>
                                         }
                                     }
-                                    @if (Model.CanManageLeads || !Model.IsReadOnly)
+                                    @if ((Model.CanManageLeads || !Model.IsReadOnly) && (!lead.IsConverted || lead.ConvertedOpportunityId.HasValue))
                                     {
                                         <div class="dropdown">
                                             <button class="membership-icon-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="viewport" data-bs-popper-config='{"strategy":"fixed"}' data-tooltip="More" aria-label="More actions"><i class="bi bi-three-dots"></i></button>
                                             <div class="dropdown-menu dropdown-menu-end crm-lead-more-menu">
-                                                <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-patch-check"></i> Qualify</a>
-                                                <a class="dropdown-item" asp-action="LeadDetails" asp-route-id="@lead.Id" asp-fragment="lead-actions"><i class="bi bi-x-circle"></i> Disqualify</a>
+                                                @if (Model.CanManageLeads && !lead.IsConverted && lead.Status is not (LeadStatus.Disqualified or LeadStatus.Lost))
+                                                {
+                                                    <button class="dropdown-item" type="button" data-crm-lead-action="qualify" data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName" data-lead-details-url="@Url.Action("LeadDetails", "CRM", new { id = lead.Id })"><i class="bi bi-patch-check"></i> Qualify</button>
+                                                    <button class="dropdown-item" type="button" data-crm-lead-action="disqualify" data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName" data-lead-details-url="@Url.Action("LeadDetails", "CRM", new { id = lead.Id })"><i class="bi bi-x-circle"></i> Disqualify</button>
+                                                }
                                                 @if (!lead.IsConverted && lead.Status == LeadStatus.Qualified && Model.CanManageOpportunities)
                                                 {
                                                     <button class="dropdown-item" type="button" data-crm-convert data-lead-id="@lead.Id" data-lead-number="@lead.LeadNumber" data-lead-name="@lead.CustomerName"><i class="bi bi-arrow-right-circle"></i> Convert to Opportunity</button>
@@ -214,10 +221,13 @@
                                                 }
                                                 else if (lead.IsConverted && lead.ConvertedOpportunityId.HasValue)
                                                 {
-                                                    <a class="dropdown-item" asp-action="OpportunityDetails" asp-route-id="@lead.ConvertedOpportunityId"><i class="bi bi-trophy"></i> View Opportunity</a>
+                                                    <a class="dropdown-item crm-lead-primary-action" asp-action="OpportunityDetails" asp-route-id="@lead.ConvertedOpportunityId"><i class="bi bi-trophy"></i> View Opportunity</a>
                                                 }
-                                                <div class="dropdown-divider"></div>
-                                                <a class="dropdown-item" asp-action="EditLead" asp-route-id="@lead.Id"><i class="bi bi-person-gear"></i> Reassign</a>
+                                                @if (!lead.IsConverted)
+                                                {
+                                                    <div class="dropdown-divider"></div>
+                                                    <a class="dropdown-item" asp-action="EditLead" asp-route-id="@lead.Id"><i class="bi bi-person-gear"></i> Reassign</a>
+                                                }
                                             </div>
                                         </div>
                                     }
@@ -229,6 +239,39 @@
                 </table>
             </div>
         }
+    }
+
+    @if (Model.CanManageLeads)
+    {
+        <div class="modal fade" id="crmLeadActionModal" tabindex="-1" aria-labelledby="crmLeadActionModalLabel" aria-hidden="true"
+             data-crm-lead-action-modal
+             data-qualify-url="@Url.Action("QualifyLead", "CRM")"
+             data-disqualify-url="@Url.Action("DisqualifyLead", "CRM")">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="post" data-crm-lead-action-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@(Context.Request.Path.ToString() + Context.Request.QueryString.ToString())" />
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="crmLeadActionModalLabel"><i class="bi bi-patch-check" data-lead-action-icon></i> <span data-lead-action-title>Qualify Lead</span></h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="crm-convert-lead"><strong data-lead-action-number></strong><span data-lead-action-name></span></p>
+                            <label class="lead-field lead-field-wide">
+                                <span class="lead-field-label" data-lead-action-label>Qualification Notes</span>
+                                <textarea name="qualificationNotes" rows="3" required data-lead-action-input></textarea>
+                            </label>
+                            <p class="crm-convert-note" data-lead-action-note><i class="bi bi-info-circle"></i> Qualifying marks this lead as Qualified and makes it available for opportunity conversion.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="admin-secondary-button" type="button" data-bs-dismiss="modal">Cancel</button>
+                            <button class="admin-action-button" type="submit" data-lead-action-submit><i class="bi bi-patch-check"></i> Qualify Lead</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     }
 
     <div class="modal fade" id="crmConvertModal" tabindex="-1" aria-labelledby="crmConvertModalLabel" aria-hidden="true" data-crm-convert-modal>

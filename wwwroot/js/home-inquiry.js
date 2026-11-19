@@ -20,7 +20,8 @@
         reset: "[data-inquiry-reset]",
         panel: ".inquiry-panel",
         counterFor: "[data-inquiry-counter-for]",
-        dateInput: "input[type='date']"
+        dateInput: "input[type='date']",
+        timeInput: "input[type='time']"
     };
 
     const form = document.querySelector(selectors.form);
@@ -37,6 +38,7 @@
     const refText = document.querySelector(selectors.refText);
     const resetBtn = document.querySelector(selectors.reset);
     const dateInput = form.querySelector(selectors.dateInput);
+    const timeInput = form.querySelector(selectors.timeInput);
 
     const submitting = () => {
         if (!submitBtn) {
@@ -145,6 +147,7 @@
             successEl.hidden = true;
         }
         form.reset();
+        syncTemporalBounds();
         clearSummary();
         // Clear any inline field errors shown by field-validation
         form.querySelectorAll(".inquiry-field .form-control, .inquiry-field .form-select").forEach((field) => {
@@ -184,17 +187,125 @@
         update();
     });
 
-    // Restrict preferred date to not in the past (mirror existing server rule)
-    if (dateInput instanceof HTMLInputElement) {
-        try {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const iso = today.toISOString().split("T")[0];
-            dateInput.min = iso;
-        } catch {
-            // Ignore if browser cannot format
+    // Preferred date/time rules: the picker starts at today, stays open for the
+    // next 20 days, and -- when today is selected -- only accepts times later
+    // than the current system clock. All values are computed on every change so
+    // the limits follow the real date/time instead of a hardcoded value.
+    const PREFERRED_DATE_WINDOW_DAYS = 20;
+    const PREFERRED_DATE_RANGE_MESSAGE = "Choose today or a date within the next 20 days.";
+    const PREFERRED_TIME_FUTURE_MESSAGE = "Choose a time later than the current time for today's date.";
+
+    const pad2 = (value) => String(value).padStart(2, "0");
+    const toLocalIsoDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+    const parseLocalDate = (value) => {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+        return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+    };
+    const startOfToday = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
+    };
+    const isToday = (date) => date != null && toLocalIsoDate(date) === toLocalIsoDate(new Date());
+
+    const setInlineError = (field, message) => {
+        field.classList.add("is-invalid");
+        field.setAttribute("aria-invalid", "true");
+        const container = form.querySelector(`[data-valmsg-for="${CSS.escape(field.name)}"]`);
+        if (container) {
+            container.textContent = message;
+            container.classList.add("field-validation-error");
         }
+    };
+
+    const clearInlineError = (field) => {
+        field.classList.remove("is-invalid");
+        field.removeAttribute("aria-invalid");
+        const container = form.querySelector(`[data-valmsg-for="${CSS.escape(field.name)}"]`);
+        if (container) {
+            container.textContent = "";
+            container.classList.remove("field-validation-error");
+        }
+    };
+
+    const validatePreferredDate = () => {
+        if (!(dateInput instanceof HTMLInputElement) || !dateInput.value) {
+            return null;
+        }
+        const selected = parseLocalDate(dateInput.value);
+        if (!selected) {
+            return null;
+        }
+        const today = startOfToday();
+        const latest = new Date(today);
+        latest.setDate(latest.getDate() + PREFERRED_DATE_WINDOW_DAYS);
+        if (selected < today || selected > latest) {
+            setInlineError(dateInput, PREFERRED_DATE_RANGE_MESSAGE);
+            return PREFERRED_DATE_RANGE_MESSAGE;
+        }
+        clearInlineError(dateInput);
+        return null;
+    };
+
+    const validatePreferredTime = () => {
+        if (!(timeInput instanceof HTMLInputElement) || !timeInput.value) {
+            return null;
+        }
+        const selectedDate = dateInput instanceof HTMLInputElement ? parseLocalDate(dateInput.value) : null;
+        if (!isToday(selectedDate)) {
+            clearInlineError(timeInput);
+            return null;
+        }
+        const [hours, minutes] = timeInput.value.split(":").map(Number);
+        if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+            return null;
+        }
+        const now = new Date();
+        if (hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()) {
+            setInlineError(timeInput, PREFERRED_TIME_FUTURE_MESSAGE);
+            return PREFERRED_TIME_FUTURE_MESSAGE;
+        }
+        clearInlineError(timeInput);
+        return null;
+    };
+
+    const syncTemporalBounds = () => {
+        if (dateInput instanceof HTMLInputElement) {
+            const today = startOfToday();
+            const latest = new Date(today);
+            latest.setDate(latest.getDate() + PREFERRED_DATE_WINDOW_DAYS);
+            dateInput.min = toLocalIsoDate(today);
+            dateInput.max = toLocalIsoDate(latest);
+        }
+        if (timeInput instanceof HTMLInputElement) {
+            const selectedDate = dateInput instanceof HTMLInputElement ? parseLocalDate(dateInput.value) : null;
+            if (isToday(selectedDate)) {
+                const now = new Date();
+                timeInput.min = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+            } else {
+                timeInput.removeAttribute("min");
+            }
+        }
+    };
+
+    if (dateInput instanceof HTMLInputElement) {
+        dateInput.addEventListener("change", () => {
+            syncTemporalBounds();
+            validatePreferredDate();
+            validatePreferredTime();
+        });
     }
+
+    if (timeInput instanceof HTMLInputElement) {
+        timeInput.addEventListener("change", validatePreferredTime);
+        timeInput.addEventListener("input", () => {
+            if (timeInput.classList.contains("is-invalid")) {
+                validatePreferredTime();
+            }
+        });
+    }
+
+    syncTemporalBounds();
 
     // Normalize and sanitize phone inputs (mirror server NormalizePhone)
     form.querySelectorAll("input[type='tel'][data-fv-rule*='phone']").forEach((input) => {
@@ -249,6 +360,17 @@
                 }
                 return;
             }
+        }
+
+        // Date window and future-time rules for the selected day.
+        const dateError = validatePreferredDate();
+        const timeError = dateError ? null : validatePreferredTime();
+        const temporalField = dateError ? dateInput : (timeError ? timeInput : null);
+        if (temporalField instanceof HTMLElement) {
+            temporalField.focus({ preventScroll: false });
+            temporalField.scrollIntoView({ block: "center", behavior: "smooth" });
+            showSummary(dateError || timeError);
+            return;
         }
 
         // Basic cross-field gate: need email or phone

@@ -12,7 +12,10 @@
 
 
 .crm-page { padding: 28px; display: grid; gap: 22px; color: var(--crm-ink); }
-.crm-page-pro { animation: crmFade .35s ease both; }
+/* No fill-mode: a retained transform animation keeps an identity transform on
+   the page container, which becomes the containing block for fixed-position
+   modals and stacks them under the body-level backdrop. */
+.crm-page-pro { animation: crmFade .35s ease; }
 .crm-command-header,
 .crm-header {
     display: flex;
@@ -840,10 +843,17 @@
     border-color: rgba(232, 157, 51, .18);
 }
 
-.crm-opportunity-health.health-overdue {
+.crm-opportunity-health.health-overdue,
+.crm-opportunity-health.health-lost {
     color: #9c2629;
     background: #fff0ef;
     border-color: rgba(210, 68, 76, .16);
+}
+
+.crm-opportunity-health.health-won {
+    color: #16643f;
+    background: #eaf8f0;
+    border-color: rgba(35, 146, 91, .16);
 }
 
 .crm-opportunities-table .crm-probability-cell {
@@ -1382,6 +1392,14 @@
     gap: 8px;
     font-weight: 850;
     color: var(--crm-ink);
+}
+
+/* The admin action button collapses to an icon at narrow widths, which hides
+   the label of a modal's primary action. Keep the label readable here. */
+#crmLeadActionModal .modal-footer .admin-action-button {
+    min-width: 0;
+    padding: 0 0.9rem;
+    font-size: 0.82rem;
 }
 
 .crm-convert-lead {
@@ -2587,4 +2605,438 @@
     .lead-timeline-top { display: grid; gap: 2px; }
     .lead-quick-form { align-items: stretch; }
     .lead-quick-form button { width: 100%; justify-content: center; }
+}
+
+/* ==========================================================================
+   Opportunity premium details + form
+   Reuses the lead form/view shells; these rules only add opportunity-specific
+   pieces (hero value, lifecycle stepper, stage panel, terminal states).
+   ========================================================================== */
+
+.crm-opportunity-view-page .opp-subtle-link {
+    color: var(--crm-gold-2);
+    font-weight: 800;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(247, 217, 137, .35);
+}
+
+.crm-opportunity-view-page .opp-subtle-link:hover { color: #fff; border-color: #fff; }
+
+.opp-stage-badge { border: 1px solid rgba(255, 255, 255, .12); }
+.opp-stage-badge.stage-qualification { background: #eef2f8; color: #3d556f; }
+.opp-stage-badge.stage-needsanalysis { background: #e8f6f4; color: #1f6b60; }
+.opp-stage-badge.stage-proposalpreparation { background: #fdf3df; color: #8a611c; }
+.opp-stage-badge.stage-proposalsent { background: #eef0fb; color: #414d9b; }
+.opp-stage-badge.stage-negotiation { background: #f3edfb; color: #66419a; }
+.opp-stage-badge.stage-won { background: #e4f6ea; color: #257a4a; }
+.opp-stage-badge.stage-lost { background: #ffeded; color: #a12e2b; }
+.opp-stage-badge.stage-onhold { background: #eef1f6; color: #4c5768; }
+
+.opp-health.health-on-track { background: #e4f6ea; color: #257a4a; }
+.opp-health.health-at-risk { background: #fdf3df; color: #8a611c; }
+.opp-health.health-overdue { background: #ffeded; color: #a12e2b; }
+.opp-health.health-on-hold { background: #eef1f6; color: #4c5768; }
+.opp-health.health-won { background: #e4f6ea; color: #257a4a; }
+.opp-health.health-lost { background: #ffeded; color: #a12e2b; }
+.opp-inactive { background: #ece8e1; color: #6d6458; }
+
+.opp-hero-value {
+    display: grid;
+    gap: 2px;
+    justify-items: end;
+    padding: 14px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    background: rgba(255, 255, 255, .07);
+    text-align: right;
+}
+
+.opp-hero-value span {
+    color: rgba(255, 255, 255, .62);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.opp-hero-value strong {
+    color: #fff;
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -.01em;
+}
+
+.opp-hero-value em {
+    color: var(--crm-gold-2);
+    font-size: .8rem;
+    font-style: normal;
+    font-weight: 700;
+}
+
+.opp-stats .lead-view-stat div { gap: 4px; }
+
+.opp-stats small {
+    color: var(--crm-muted);
+    font-size: .74rem;
+    font-weight: 700;
+}
+
+.opp-stats .crm-probability { width: 100%; margin-top: 3px; }
+
+.opp-lifecycle {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    padding: 16px;
+    border-radius: 22px;
+    border: 1px solid var(--lead-line);
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(23, 22, 20, .05);
+}
+
+.opp-lifecycle-step {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    background: #fbf6ec;
+    min-width: 0;
+}
+
+.opp-lifecycle-step.is-past { background: #fff8ea; border-color: rgba(214, 166, 82, .24); }
+
+.opp-lifecycle-step.is-current {
+    background: #17120a;
+    border-color: #17120a;
+    box-shadow: 0 14px 26px rgba(23, 18, 10, .18);
+}
+
+.opp-lifecycle-step.is-pending { opacity: .72; }
+
+.opp-lifecycle-step.is-won { background: linear-gradient(135deg, #f0fbf4, #dcf3e5); border-color: #bfe3cc; }
+.opp-lifecycle-step.is-lost { background: #fff4f4; border-color: #f0caca; }
+.opp-lifecycle-step.is-parked { background: #f1f4f9; border-color: #d6dde8; }
+
+.opp-lifecycle-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: #fff;
+    border: 1px solid #eadbc1;
+    color: #8a611c;
+    font-size: .8rem;
+    font-weight: 900;
+}
+
+.opp-lifecycle-step.is-past .opp-lifecycle-dot { background: var(--crm-gold); border-color: var(--crm-gold); color: #17120a; }
+.opp-lifecycle-step.is-current .opp-lifecycle-dot { background: linear-gradient(135deg, var(--crm-gold-2), var(--crm-gold)); border-color: transparent; color: #17120a; }
+.opp-lifecycle-step.is-won .opp-lifecycle-dot { background: #2f8f57; border-color: #2f8f57; color: #fff; }
+.opp-lifecycle-step.is-lost .opp-lifecycle-dot { background: #b3352f; border-color: #b3352f; color: #fff; }
+.opp-lifecycle-step.is-parked .opp-lifecycle-dot { background: #5a6475; border-color: #5a6475; color: #fff; }
+
+.opp-lifecycle-step strong {
+    color: var(--crm-ink);
+    font-size: .84rem;
+    font-weight: 900;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.opp-lifecycle-step small {
+    color: #8a7c6b;
+    font-size: .72rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.opp-lifecycle-step.is-current strong { color: #fff; }
+.opp-lifecycle-step.is-current small { color: rgba(255, 255, 255, .6); }
+.opp-lifecycle-step.is-won strong { color: #1c5e39; }
+.opp-lifecycle-step.is-won small { color: #3f7a57; }
+.opp-lifecycle-step.is-lost strong { color: #8f2621; }
+.opp-lifecycle-step.is-lost small { color: #a8544f; }
+
+.opp-stage-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.opp-stage-cell {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--lead-line);
+    background: #fffdf9;
+    min-width: 0;
+}
+
+.opp-stage-cell > span {
+    color: #8a7c6b;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.opp-stage-cell > strong {
+    color: var(--crm-ink);
+    font-size: 1rem;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+
+.opp-stage-cell > p {
+    margin: 0;
+    color: var(--crm-muted);
+    font-size: .82rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.opp-stage-probability .crm-probability { margin-top: 4px; }
+
+.opp-stage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.opp-stage-actions form { margin: 0; display: flex; }
+
+.opp-stage-actions .admin-action-button,
+.opp-stage-actions .admin-secondary-button,
+.opp-won-button,
+.opp-lost-button { min-height: 2.7rem; }
+
+/* The shared admin layout collapses action buttons to icons on narrow
+   screens; keep these labelled because they are the primary workflow
+   decisions on this page, not toolbar icons. */
+.opp-stage-actions .admin-action-button.crm-premium-button,
+.opp-resume-form .admin-action-button.crm-premium-button,
+.crm-opportunity-form-page .lead-form-savebar .admin-action-button { font-size: .95rem; }
+
+.opp-won-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, #3aa066, #257a4a);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 12px 24px rgba(37, 122, 74, .22);
+}
+
+.opp-won-button:hover { filter: brightness(1.05); }
+
+.opp-lost-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 1px solid #efc9c9;
+    background: #fff6f6;
+    color: #a12e2b;
+    font-weight: 800;
+}
+
+.opp-lost-button:hover { background: #ffecec; border-color: #e3a9a9; }
+
+.opp-stage-help {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 14px 0 0;
+    color: #8a7c6b;
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.opp-stage-help i { color: #9a6c20; margin-top: 1px; }
+
+.opp-terminal-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    border: 1px solid var(--lead-line);
+    background: #fffdf9;
+}
+
+.opp-terminal-banner.is-won { border-color: #bfe3cc; background: #f3fbf6; }
+.opp-terminal-banner.is-lost { border-color: #f0caca; background: #fff6f6; }
+
+.opp-terminal-icon {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    font-size: 1.15rem;
+}
+
+.opp-terminal-banner.is-won .opp-terminal-icon { background: #e4f6ea; color: #257a4a; }
+.opp-terminal-banner.is-lost .opp-terminal-icon { background: #ffeaea; color: #a12e2b; }
+
+.opp-terminal-banner strong { display: block; font-size: 1rem; font-weight: 900; }
+.opp-terminal-banner.is-won strong { color: #1c5e39; }
+.opp-terminal-banner.is-lost strong { color: #8f2621; }
+
+.opp-terminal-banner p {
+    margin: 4px 0;
+    color: var(--crm-muted);
+    font-size: .88rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.opp-terminal-banner small { color: #8a7c6b; font-size: .76rem; font-weight: 700; }
+
+.opp-resume-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 16px;
+    border: 1px solid var(--lead-line);
+    border-radius: 16px;
+    background: #fffdf9;
+    margin-bottom: 14px;
+}
+
+.opp-resume-form .lead-field { flex: 1 1 220px; }
+.opp-resume-form button { flex: 0 0 auto; }
+.opp-field-optional { color: #a3947f; font-weight: 700; text-transform: none; letter-spacing: 0; }
+
+.opp-note-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.opp-note-grid .lead-note-block { margin-top: 0; }
+
+.opp-quotation-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--lead-line);
+    background: #fffdf9;
+}
+
+.opp-quotation-line div { display: grid; gap: 2px; min-width: 0; }
+.opp-quotation-line strong { font-size: .92rem; font-weight: 900; overflow-wrap: anywhere; }
+.opp-quotation-line small { color: var(--crm-muted); font-size: .78rem; font-weight: 700; }
+
+.opp-quotation-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #fff3dd;
+    border: 1px solid #f0dfc2;
+    color: #9a6c20;
+}
+
+.opp-panel-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+.opp-panel-empty {
+    margin: 12px 0 0;
+    color: var(--crm-muted);
+    font-size: .82rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.opp-panel-empty i { color: #9a6c20; margin-right: 4px; }
+.opp-panel-actions + .opp-panel-empty { margin-top: 10px; }
+
+.opp-timeline-won { background: #e4f6ea; border-color: #bfe3cc; color: #257a4a; }
+.opp-timeline-lost { background: #ffeaea; border-color: #f0caca; color: #a12e2b; }
+.opp-timeline-stagechange { background: #eef3ff; border-color: #cfdcf5; color: #33559b; }
+
+.opp-timeline-followup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    color: #8a611c;
+    font-size: .76rem;
+    font-weight: 700;
+}
+
+.opp-locked-stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ffe6ac, var(--crm-gold));
+    color: #17120a;
+    font-size: .85rem;
+    font-weight: 900;
+}
+
+.crm-opportunity-form-page .lead-summary-avatar i { font-size: 1.25rem; }
+
+@media (max-width: 1400px) {
+    .opp-lifecycle { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1220px) {
+    .opp-stage-summary { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+    .opp-note-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+    .opp-hero-value { justify-items: start; text-align: left; }
+    .opp-lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .opp-lifecycle-step small { display: none; }
+}
+
+@media (max-width: 560px) {
+    .opp-lifecycle { grid-template-columns: 1fr; }
+    .opp-lifecycle-step { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+    .opp-stage-actions > form,
+    .opp-stage-actions > button { width: 100%; }
+    .opp-stage-actions .admin-action-button,
+    .opp-stage-actions .admin-secondary-button,
+    .opp-won-button,
+    .opp-lost-button { width: 100%; justify-content: center; }
+    .opp-resume-form .lead-field { flex: 1 1 100%; }
+    .opp-resume-form button { width: 100%; justify-content: center; }
+    .opp-terminal-banner { flex-direction: column; }
+}
+
+/* Opportunity workspace layout: activity panels use the full workspace width
+   and the guidance rail keeps its wide-screen placement above them. */
+.crm-opportunity-view-page .crm-workspace-shell > .opp-workspace-wide { grid-column: 1 / -1; }
+
+@media (min-width: 1501px) {
+    .crm-opportunity-view-page .crm-workspace-shell > .crm-guidance-panel { grid-column: 2; grid-row: 1; }
 }

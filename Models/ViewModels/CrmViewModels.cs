@@ -122,6 +122,8 @@ namespace GameHub.Models.ViewModels
         public string? InquirySubject { get; set; }
         [MaxLength(2000)] public string? InquiryDetails { get; set; }
         public int? AssignedToUserId { get; set; }
+        /// <summary>Display name of the saved owner; shown read-only on converted leads.</summary>
+        public string? AssignedToName { get; set; }
         public LeadStatus Status { get; set; } = LeadStatus.New;
         public LeadPriority Priority { get; set; } = LeadPriority.Medium;
         public DateTime? NextFollowUpAt { get; set; }
@@ -152,6 +154,8 @@ namespace GameHub.Models.ViewModels
         public int? CustomerId { get; set; }
         public OpportunityType Type { get; set; } = OpportunityType.CourtBooking;
         public OpportunityStage Stage { get; set; } = OpportunityStage.Qualification;
+        /// <summary>Persisted stage on edit; drives which workflow steps the form may offer.</summary>
+        public OpportunityStage? CurrentStage { get; set; }
         [Range(0, 9999999999.99, ErrorMessage = "Expected value must be zero or greater.")]
         public decimal ExpectedValue { get; set; }
         [Range(0, 100)] public int ProbabilityPercentage { get; set; } = 10;

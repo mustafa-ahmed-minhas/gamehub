@@ -10,8 +10,9 @@
     ViewData["OverdueFollowUps"] = Model.NextFollowUpAt.HasValue && Model.NextFollowUpAt.Value < DateTime.UtcNow ? 1 : 0;
     ViewData["UnassignedLeads"] = Model.AssignedToUser == null ? 1 : 0;
     var lifecycle = new[] { LeadStatus.New, LeadStatus.Contacted, LeadStatus.FollowUp, LeadStatus.Qualified, LeadStatus.Converted };
+    var isDisqualified = Model.Status is LeadStatus.Disqualified or LeadStatus.Lost;
     var effectiveStatus = lifecycle.Contains(Model.Status) ? Model.Status : LeadStatus.New;
-    var currentIndex = Array.IndexOf(lifecycle, effectiveStatus);
+    var currentIndex = isDisqualified ? -1 : Array.IndexOf(lifecycle, effectiveStatus);
 }
 <section class="crm-page crm-page-pro crm-lead-view-page">
     <header class="lead-view-hero">
@@ -80,7 +81,7 @@
             {
                 var stepIndex = Array.IndexOf(lifecycle, step);
                 var isActive = stepIndex <= currentIndex;
-                var isTerminal = step == LeadStatus.Converted || step == LeadStatus.Disqualified || step == LeadStatus.Lost;
+                var isTerminal = step == LeadStatus.Converted;
                 <span class="@(isActive ? "active" : "") @(isTerminal && step == effectiveStatus ? "terminal" : "")">
                     @if (isActive)
                     {
@@ -88,6 +89,10 @@
                     }
                     @step.GetDisplayName()
                 </span>
+            }
+            @if (isDisqualified)
+            {
+                <span class="active terminal"><i class="bi bi-x-circle"></i> @Model.Status.GetDisplayName()</span>
             }
         </div>
     </div>
@@ -217,6 +222,13 @@
                                 <div><dt>Conversion</dt><dd><span class="crm-badge status-converted">Converted</span></dd></div>
                             }
                         </dl>
+                        @if (Model.IsConverted && Model.ConvertedOpportunity != null)
+                        {
+                            <div class="lead-note-block">
+                                <span>Ownership</span>
+                                <p>This lead now lives on through <a class="lead-inline-link" asp-controller="CRM" asp-action="OpportunityDetails" asp-route-id="@Model.ConvertedOpportunity.Id">@Model.ConvertedOpportunity.OpportunityNumber</a>. Reassign the owner on the opportunity so the deal and its history stay together.</p>
+                            </div>
+                        }
                     </article>
                 </aside>
             </div>
@@ -236,7 +248,12 @@
                         @Html.AntiForgeryToken()
                         <label class="lead-field">
                             <span class="lead-field-label">Activity Type</span>
-                            <select name="activityType" asp-items="Html.GetEnumSelectList<LeadActivityType>()"></select>
+                            <select name="activityType">
+                                @foreach (var manualActivity in new[] { LeadActivityType.Note, LeadActivityType.PhoneCall, LeadActivityType.WhatsApp, LeadActivityType.Email, LeadActivityType.Meeting, LeadActivityType.FollowUp })
+                                {
+                                    <option value="@((int)manualActivity)">@manualActivity.GetDisplayName()</option>
+                                }
+                            </select>
                         </label>
                         <label class="lead-field">
                             <span class="lead-field-label">Subject</span>
@@ -264,7 +281,7 @@
                     </form>
 
                     <div class="lead-action-forms">
-                        @if (!Model.IsConverted && Model.Status is LeadStatus.Contacted or LeadStatus.FollowUp or LeadStatus.Qualified)
+                        @if (!Model.IsConverted && Model.Status is LeadStatus.New or LeadStatus.Contacted or LeadStatus.FollowUp or LeadStatus.Qualified)
                         {
                             <form asp-action="QualifyLead" asp-route-id="@Model.Id" method="post" class="lead-quick-form">
                                 @Html.AntiForgeryToken()
@@ -272,7 +289,7 @@
                                     <span class="lead-field-label">Qualification Notes</span>
                                     <input name="qualificationNotes" placeholder="Capture needs, budget and timeline" required />
                                 </label>
-                                <button class="admin-secondary-button crm-premium-button secondary"><i class="bi bi-patch-check"></i> Qualify Lead</button>
+                                <button class="admin-secondary-button crm-premium-button secondary"><i class="bi bi-patch-check"></i> @(Model.Status == LeadStatus.Qualified ? "Update Qualification" : "Qualify Lead")</button>
                             </form>
                         }
                         @if (!Model.IsConverted && Model.Status is not (LeadStatus.Disqualified or LeadStatus.Lost or LeadStatus.Converted))
