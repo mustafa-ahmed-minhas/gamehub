@@ -1121,7 +1121,7 @@ namespace GameHub.Controllers
         /// or changed roles, that user is still listed and selected (labelled
         /// "(inactive)") so the dropdown reflects the saved owner instead of
         /// showing "Unassigned" and silently clearing the assignment on next save.
-        /// Display format: "UserID | Username | [Sales]"
+        /// Display format: "UserID | Full Name | Username | [Sales]"
         /// </summary>
         private async Task<List<SelectListItem>> LeadUserOptionsAsync(int? selected = null)
         {
@@ -1144,8 +1144,10 @@ namespace GameHub.Controllers
             return users.Select(x =>
             {
                 var isEligible = x.IsActive && x.Role == UserRole.Sales;
+                var fullName = $"{x.FirstName} {x.LastName}".Trim();
                 var username = string.IsNullOrWhiteSpace(x.Email) ? $"{x.FirstName}.{x.LastName}" : x.Email;
-                var label = $"{x.Id} | {username} | [Sales]" + (isEligible ? string.Empty : " (inactive)");
+                var identity = string.IsNullOrWhiteSpace(fullName) ? username : $"{x.Id} | {fullName} | {username}";
+                var label = $"{identity} | [Sales]" + (isEligible ? string.Empty : " (inactive)");
                 return new SelectListItem(label, x.Id.ToString(), x.Id == selectedId);
             }).ToList();
         }
