@@ -106,12 +106,6 @@ app.MapControllerRoute(
 
 app.MapHub<CrmNotificationsHub>(CrmNotificationsHub.Route);
 
-// Database seeding enabled in Development for master data, CRM customers, and HR demo records.
-// Seeds Sports, Facilities, Courts, Pricing, Time Slots, Customers, and the HR module dataset.
-// Unrelated modules (Users, Memberships, Bookings, CRM Leads, Sales, Invoices) are not seeded.
-if (app.Environment.IsDevelopment())
-{
-    await DatabaseSeeder.SeedMasterDataAndCustomersAsync(app.Services);
-}
+// Development demo seeding is disabled so the delivered database starts empty for the client.
 
 app.Run();
