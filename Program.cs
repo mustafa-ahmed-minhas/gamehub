@@ -106,6 +106,8 @@ app.MapControllerRoute(
 
 app.MapHub<CrmNotificationsHub>(CrmNotificationsHub.Route);
 
-// Development demo seeding is disabled so the delivered database starts empty for the client.
+// Ensure the built-in Administrator exists in every environment. This creates
+// only that account (hashed via PasswordHelper) and never seeds demo data.
+await AdminAccountInitializer.EnsureAdminAccountAsync(app.Services);
 
 app.Run();
